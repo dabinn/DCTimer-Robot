@@ -396,8 +396,7 @@ public class GanCubeProtocol implements SmartCubeProtocol {
         } else if (mode == 4) {
             handleV2Facelets(bits);
         } else if (mode == 9) {
-            batteryLevel = parseBits(bits, 8, 8);
-            smartCube.setBatteryValue(batteryLevel);
+            updateBatteryLevel(parseBits(bits, 8, 8));
         }
     }
 
@@ -461,8 +460,7 @@ public class GanCubeProtocol implements SmartCubeProtocol {
         } else if (mode == 6) {
             handleV3History(bits, len);
         } else if (mode == 16) {
-            batteryLevel = parseBits(bits, 24, 8);
-            smartCube.setBatteryValue(batteryLevel);
+            updateBatteryLevel(parseBits(bits, 24, 8));
         }
     }
 
@@ -478,9 +476,14 @@ public class GanCubeProtocol implements SmartCubeProtocol {
         } else if (mode == 0xD1) {
             handleV4History(bits, len);
         } else if (mode == 0xEF) {
-            batteryLevel = parseBits(bits, 8 + len * 8, 8);
-            smartCube.setBatteryValue(batteryLevel);
+            updateBatteryLevel(parseBits(bits, 8 + len * 8, 8));
         }
+    }
+
+    private void updateBatteryLevel(int level) {
+        batteryLevel = level;
+        smartCube.setBatteryValue(batteryLevel);
+        context.refreshSmartCubeStateUi();
     }
 
     private void handleV3Move(String bits, long locTime) {
