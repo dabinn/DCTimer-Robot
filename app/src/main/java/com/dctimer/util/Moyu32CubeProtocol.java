@@ -238,6 +238,7 @@ public class Moyu32CubeProtocol implements SmartCubeProtocol {
         int battery = parseBits(data, 8, 8);
         smartCube.setBatteryValue(battery);
         Log.w(TAG, "MoYu32 电量: " + battery);
+        context.refreshSmartCubeStateUi();
     }
 
     private void handleMove(String data) {
