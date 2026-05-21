@@ -510,10 +510,15 @@ public class SmartCube3DView extends GLSurfaceView {
                 calibrationInverse = currentGyroQuaternion.conjugate();
                 targetGyroQuaternion = currentGyroQuaternion;
                 displayedGyroQuaternion = currentGyroQuaternion;
+                gyroViewEnabled = true;
+            } else {
+                calibrationInverse = null;
+                targetGyroQuaternion = null;
+                displayedGyroQuaternion = null;
+                gyroViewEnabled = false;
             }
             viewYaw = 0f;
             viewPitch = 0f;
-            gyroViewEnabled = true;
             updateMvpMatrix();
         }
 
