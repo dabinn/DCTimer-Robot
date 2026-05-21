@@ -7,8 +7,10 @@ import android.graphics.PixelFormat;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
+import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.view.Choreographer;
 import android.view.MotionEvent;
 import android.view.ViewConfiguration;
 import android.view.animation.LinearInterpolator;
@@ -25,6 +27,7 @@ import javax.microedition.khronos.opengles.GL10;
 public class SmartCube3DView extends GLSurfaceView {
     private static final String SOLVED_FACELET = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
     private static final long DEFAULT_ANIMATION_DURATION_MS = 110L;
+    private static final long GYRO_FRAME_IDLE_MS = 220L;
     private static final float TOUCH_DEGREES_PER_PX = 0.28f;
     private static final LinearInterpolator LINEAR_INTERPOLATOR = new LinearInterpolator();
 
@@ -36,6 +39,60 @@ public class SmartCube3DView extends GLSurfaceView {
     private float touchStartY;
     private boolean draggingView;
     private int touchSlop;
+    private final Object gyroUpdateLock = new Object();
+    private final float[] pendingGyroQuaternion = new float[4];
+    private boolean hasPendingGyroQuaternion;
+    private boolean gyroFrameCallbackPosted;
+    private long lastGyroUpdateUptimeMs;
+    private final Runnable scheduleGyroFrameRunnable = new Runnable() {
+        @Override
+        public void run() {
+            Choreographer.getInstance().postFrameCallback(gyroFrameCallback);
+        }
+    };
+    private final Choreographer.FrameCallback gyroFrameCallback = new Choreographer.FrameCallback() {
+        @Override
+        public void doFrame(long frameTimeNanos) {
+            float x = 0f;
+            float y = 0f;
+            float z = 0f;
+            float w = 0f;
+            boolean hasPending;
+            boolean keepAnimating;
+            synchronized (gyroUpdateLock) {
+                hasPending = hasPendingGyroQuaternion;
+                if (hasPending) {
+                    x = pendingGyroQuaternion[0];
+                    y = pendingGyroQuaternion[1];
+                    z = pendingGyroQuaternion[2];
+                    w = pendingGyroQuaternion[3];
+                }
+                hasPendingGyroQuaternion = false;
+                keepAnimating = isShown()
+                        && (hasPending || SystemClock.uptimeMillis() - lastGyroUpdateUptimeMs < GYRO_FRAME_IDLE_MS);
+                if (!keepAnimating) {
+                    gyroFrameCallbackPosted = false;
+                }
+            }
+            if (hasPending || keepAnimating) {
+                final boolean frameHasTarget = hasPending;
+                final float gx = x;
+                final float gy = y;
+                final float gz = z;
+                final float gw = w;
+                queueEvent(new Runnable() {
+                    @Override
+                    public void run() {
+                        cubeRenderer.updateGyroFrame(frameHasTarget, gx, gy, gz, gw, frameTimeNanos);
+                    }
+                });
+                requestRender();
+            }
+            if (keepAnimating) {
+                Choreographer.getInstance().postFrameCallback(this);
+            }
+        }
+    };
 
     public SmartCube3DView(Context context) {
         this(context, null);
@@ -115,6 +172,69 @@ public class SmartCube3DView extends GLSurfaceView {
         animator.start();
     }
 
+    public void setGyroQuaternion(float x, float y, float z, float w) {
+        boolean shouldScheduleFrame = false;
+        synchronized (gyroUpdateLock) {
+            pendingGyroQuaternion[0] = x;
+            pendingGyroQuaternion[1] = y;
+            pendingGyroQuaternion[2] = z;
+            pendingGyroQuaternion[3] = w;
+            hasPendingGyroQuaternion = true;
+            lastGyroUpdateUptimeMs = SystemClock.uptimeMillis();
+            if (!gyroFrameCallbackPosted) {
+                gyroFrameCallbackPosted = true;
+                shouldScheduleFrame = true;
+            }
+        }
+        if (shouldScheduleFrame) {
+            post(scheduleGyroFrameRunnable);
+        }
+    }
+
+    public void resetGyroPosture() {
+        queueEvent(new Runnable() {
+            @Override
+            public void run() {
+                float x = 0f;
+                float y = 0f;
+                float z = 0f;
+                float w = 0f;
+                boolean hasPending;
+                synchronized (gyroUpdateLock) {
+                    hasPending = hasPendingGyroQuaternion;
+                    if (hasPending) {
+                        x = pendingGyroQuaternion[0];
+                        y = pendingGyroQuaternion[1];
+                        z = pendingGyroQuaternion[2];
+                        w = pendingGyroQuaternion[3];
+                    }
+                    hasPendingGyroQuaternion = false;
+                    gyroFrameCallbackPosted = false;
+                }
+                if (hasPending) {
+                    cubeRenderer.resetGyroPosture(x, y, z, w);
+                } else {
+                    cubeRenderer.resetGyroPosture();
+                }
+            }
+        });
+        requestRender();
+    }
+
+    public void resetGyroPosture(final float x, final float y, final float z, final float w) {
+        synchronized (gyroUpdateLock) {
+            hasPendingGyroQuaternion = false;
+            gyroFrameCallbackPosted = false;
+        }
+        queueEvent(new Runnable() {
+            @Override
+            public void run() {
+                cubeRenderer.resetGyroPosture(x, y, z, w);
+            }
+        });
+        requestRender();
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         switch (event.getActionMasked()) {
@@ -173,6 +293,12 @@ public class SmartCube3DView extends GLSurfaceView {
     @Override
     protected void onDetachedFromWindow() {
         stopAnimator();
+        removeCallbacks(scheduleGyroFrameRunnable);
+        Choreographer.getInstance().removeFrameCallback(gyroFrameCallback);
+        synchronized (gyroUpdateLock) {
+            hasPendingGyroQuaternion = false;
+            gyroFrameCallbackPosted = false;
+        }
         super.onDetachedFromWindow();
     }
 
@@ -205,6 +331,9 @@ public class SmartCube3DView extends GLSurfaceView {
         private static final float STICKER_Z_OFFSET = 0.032f;
         private static final int CORNER_SEGMENTS = 5;
         private static final float MAX_VIEW_PITCH = 115f;
+        private static final float GYRO_DEFAULT_VIEW_YAW = 0f;
+        private static final float GYRO_DEFAULT_VIEW_PITCH = 0f;
+        private static final float GYRO_INTERPOLATION_TIME_CONSTANT_MS = 42f;
         private static final String VERTEX_SHADER =
                 "uniform mat4 uMvpMatrix;" +
                 "attribute vec3 aPosition;" +
@@ -222,10 +351,17 @@ public class SmartCube3DView extends GLSurfaceView {
 
         private final float[] projectionMatrix = new float[16];
         private final float[] viewMatrix = new float[16];
+        private final float[] gyroViewMatrix = new float[16];
         private final float[] modelMatrix = new float[16];
+        private final float[] manualRotationMatrix = new float[16];
+        private final float[] gyroRotationMatrix = new float[16];
         private final float[] vpMatrix = new float[16];
+        private final float[] gyroVpMatrix = new float[16];
         private final float[] mvpMatrix = new float[16];
         private final float[] roundedQuad = new float[(1 + CORNER_SEGMENTS * 4 + 1) * 3];
+        private final FloatBuffer roundedQuadBuffer = ByteBuffer.allocateDirect(roundedQuad.length * 4)
+                .order(ByteOrder.nativeOrder())
+                .asFloatBuffer();
         private String cubeState = SOLVED_FACELET;
         private String animationStartState;
         private String animationEndState;
@@ -233,6 +369,12 @@ public class SmartCube3DView extends GLSurfaceView {
         private float animationProgress;
         private float viewYaw;
         private float viewPitch;
+        private Quaternion currentGyroQuaternion;
+        private Quaternion displayedGyroQuaternion;
+        private Quaternion targetGyroQuaternion;
+        private Quaternion calibrationInverse;
+        private boolean gyroViewEnabled;
+        private long lastGyroFrameTimeNanos;
         private int program;
         private int positionHandle;
         private int colorHandle;
@@ -256,7 +398,9 @@ public class SmartCube3DView extends GLSurfaceView {
             float aspect = width > 0 && height > 0 ? (float) width / (float) height : 1f;
             Matrix.frustumM(projectionMatrix, 0, -aspect, aspect, -1f, 1f, 3f, 18f);
             Matrix.setLookAtM(viewMatrix, 0, 4.8f, 4.1f, 7.2f, 0f, 0f, 0f, 0f, 1f, 0f);
+            Matrix.setLookAtM(gyroViewMatrix, 0, 0f, 4.1f, 7.2f, 0f, 0f, 0f, 0f, 1f, 0f);
             Matrix.multiplyMM(vpMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
+            Matrix.multiplyMM(gyroVpMatrix, 0, projectionMatrix, 0, gyroViewMatrix, 0);
             updateMvpMatrix();
         }
 
@@ -301,11 +445,95 @@ public class SmartCube3DView extends GLSurfaceView {
             updateMvpMatrix();
         }
 
+        void setGyroQuaternion(float x, float y, float z, float w) {
+            Quaternion q = Quaternion.normalized(x, y, z, w);
+            if (q == null) {
+                return;
+            }
+            gyroViewEnabled = true;
+            currentGyroQuaternion = q;
+            targetGyroQuaternion = q;
+            displayedGyroQuaternion = q;
+            lastGyroFrameTimeNanos = 0L;
+            if (calibrationInverse == null) {
+                calibrationInverse = q.conjugate();
+            }
+            updateMvpMatrix();
+        }
+
+        void updateGyroFrame(boolean hasTarget, float x, float y, float z, float w, long frameTimeNanos) {
+            if (hasTarget) {
+                Quaternion q = Quaternion.normalized(x, y, z, w);
+                if (q != null) {
+                    gyroViewEnabled = true;
+                    currentGyroQuaternion = q;
+                    targetGyroQuaternion = q;
+                    if (displayedGyroQuaternion == null) {
+                        displayedGyroQuaternion = q;
+                    }
+                    if (calibrationInverse == null) {
+                        calibrationInverse = q.conjugate();
+                    }
+                }
+            }
+            if (displayedGyroQuaternion != null && targetGyroQuaternion != null) {
+                float alpha;
+                if (lastGyroFrameTimeNanos <= 0L || frameTimeNanos <= lastGyroFrameTimeNanos) {
+                    alpha = 1f;
+                } else {
+                    float deltaMs = (frameTimeNanos - lastGyroFrameTimeNanos) / 1000000f;
+                    alpha = 1f - (float) Math.exp(-deltaMs / GYRO_INTERPOLATION_TIME_CONSTANT_MS);
+                    alpha = clamp(alpha, 0.08f, 0.55f);
+                }
+                displayedGyroQuaternion = displayedGyroQuaternion.slerp(targetGyroQuaternion, alpha);
+                lastGyroFrameTimeNanos = frameTimeNanos;
+            }
+            updateMvpMatrix();
+        }
+
+        void resetGyroPosture() {
+            if (currentGyroQuaternion != null) {
+                calibrationInverse = currentGyroQuaternion.conjugate();
+                targetGyroQuaternion = currentGyroQuaternion;
+                displayedGyroQuaternion = currentGyroQuaternion;
+            }
+            lastGyroFrameTimeNanos = 0L;
+            viewYaw = 0f;
+            viewPitch = 0f;
+            gyroViewEnabled = true;
+            updateMvpMatrix();
+        }
+
+        void resetGyroPosture(float x, float y, float z, float w) {
+            Quaternion q = Quaternion.normalized(x, y, z, w);
+            if (q != null) {
+                currentGyroQuaternion = q;
+                targetGyroQuaternion = q;
+                displayedGyroQuaternion = q;
+                calibrationInverse = q.conjugate();
+            }
+            lastGyroFrameTimeNanos = 0L;
+            viewYaw = 0f;
+            viewPitch = 0f;
+            gyroViewEnabled = true;
+            updateMvpMatrix();
+        }
+
         private void updateMvpMatrix() {
-            Matrix.setIdentityM(modelMatrix, 0);
-            Matrix.rotateM(modelMatrix, 0, viewPitch, 1f, 0f, 0f);
-            Matrix.rotateM(modelMatrix, 0, viewYaw, 0f, 1f, 0f);
-            Matrix.multiplyMM(mvpMatrix, 0, vpMatrix, 0, modelMatrix, 0);
+            Matrix.setIdentityM(manualRotationMatrix, 0);
+            float defaultPitch = gyroViewEnabled ? GYRO_DEFAULT_VIEW_PITCH : 0f;
+            float defaultYaw = gyroViewEnabled ? GYRO_DEFAULT_VIEW_YAW : 0f;
+            Matrix.rotateM(manualRotationMatrix, 0, viewPitch + defaultPitch, 1f, 0f, 0f);
+            Matrix.rotateM(manualRotationMatrix, 0, viewYaw + defaultYaw, 0f, 1f, 0f);
+            Quaternion renderGyroQuaternion = displayedGyroQuaternion != null ? displayedGyroQuaternion : currentGyroQuaternion;
+            if (renderGyroQuaternion != null && calibrationInverse != null) {
+                Quaternion relative = calibrationInverse.multiply(renderGyroQuaternion).normalized();
+                relative.toMatrix(gyroRotationMatrix);
+                Matrix.multiplyMM(modelMatrix, 0, manualRotationMatrix, 0, gyroRotationMatrix, 0);
+            } else {
+                System.arraycopy(manualRotationMatrix, 0, modelMatrix, 0, manualRotationMatrix.length);
+            }
+            Matrix.multiplyMM(mvpMatrix, 0, gyroViewEnabled ? gyroVpMatrix : vpMatrix, 0, modelMatrix, 0);
         }
 
         private float normalizeDegrees(float degrees) {
@@ -356,12 +584,10 @@ public class SmartCube3DView extends GLSurfaceView {
         private void drawRoundedQuad(Vec3 center, Vec3 u, Vec3 v, Vec3 normal,
                                      float halfSize, float cornerRadius, int color) {
             int vertexCount = putRoundedQuad(center, u, v, halfSize, cornerRadius);
-            FloatBuffer buffer = ByteBuffer.allocateDirect(vertexCount * 3 * 4)
-                    .order(ByteOrder.nativeOrder())
-                    .asFloatBuffer();
-            buffer.put(roundedQuad, 0, vertexCount * 3);
-            buffer.position(0);
-            GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, buffer);
+            roundedQuadBuffer.clear();
+            roundedQuadBuffer.put(roundedQuad, 0, vertexCount * 3);
+            roundedQuadBuffer.position(0);
+            GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, roundedQuadBuffer);
             GLES20.glEnableVertexAttribArray(positionHandle);
             setColorUniform(color, normal);
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, vertexCount);
@@ -595,6 +821,95 @@ public class SmartCube3DView extends GLSurfaceView {
 
         float dot(Vec3 other) {
             return x * other.x + y * other.y + z * other.z;
+        }
+    }
+
+    private static class Quaternion {
+        final float x;
+        final float y;
+        final float z;
+        final float w;
+
+        Quaternion(float x, float y, float z, float w) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.w = w;
+        }
+
+        static Quaternion normalized(float x, float y, float z, float w) {
+            float length = (float) Math.sqrt(x * x + y * y + z * z + w * w);
+            if (length <= 0f || Float.isNaN(length) || Float.isInfinite(length)) {
+                return null;
+            }
+            return new Quaternion(x / length, y / length, z / length, w / length);
+        }
+
+        Quaternion normalized() {
+            Quaternion normalized = normalized(x, y, z, w);
+            return normalized == null ? this : normalized;
+        }
+
+        Quaternion conjugate() {
+            return new Quaternion(-x, -y, -z, w);
+        }
+
+        Quaternion multiply(Quaternion other) {
+            return new Quaternion(
+                    w * other.x + x * other.w + y * other.z - z * other.y,
+                    w * other.y - x * other.z + y * other.w + z * other.x,
+                    w * other.z + x * other.y - y * other.x + z * other.w,
+                    w * other.w - x * other.x - y * other.y - z * other.z);
+        }
+
+        Quaternion slerp(Quaternion other, float t) {
+            float dot = x * other.x + y * other.y + z * other.z + w * other.w;
+            Quaternion end = other;
+            if (dot < 0f) {
+                dot = -dot;
+                end = new Quaternion(-other.x, -other.y, -other.z, -other.w);
+            }
+            t = Math.max(0f, Math.min(1f, t));
+            if (dot > 0.9995f) {
+                return normalized(
+                        x + t * (end.x - x),
+                        y + t * (end.y - y),
+                        z + t * (end.z - z),
+                        w + t * (end.w - w));
+            }
+            float theta0 = (float) Math.acos(dot);
+            float theta = theta0 * t;
+            float sinTheta = (float) Math.sin(theta);
+            float sinTheta0 = (float) Math.sin(theta0);
+            float scale0 = (float) Math.cos(theta) - dot * sinTheta / sinTheta0;
+            float scale1 = sinTheta / sinTheta0;
+            return new Quaternion(
+                    scale0 * x + scale1 * end.x,
+                    scale0 * y + scale1 * end.y,
+                    scale0 * z + scale1 * end.z,
+                    scale0 * w + scale1 * end.w).normalized();
+        }
+
+        void toMatrix(float[] matrix) {
+            Matrix.setIdentityM(matrix, 0);
+            float xx = x * x;
+            float yy = y * y;
+            float zz = z * z;
+            float xy = x * y;
+            float xz = x * z;
+            float yz = y * z;
+            float wx = w * x;
+            float wy = w * y;
+            float wz = w * z;
+            matrix[0] = 1f - 2f * (yy + zz);
+            matrix[1] = 2f * (xy + wz);
+            matrix[2] = 2f * (xz - wy);
+            matrix[4] = 2f * (xy - wz);
+            matrix[5] = 1f - 2f * (xx + zz);
+            matrix[6] = 2f * (yz + wx);
+            matrix[8] = 2f * (xz + wy);
+            matrix[9] = 2f * (yz - wx);
+            matrix[10] = 1f - 2f * (xx + yy);
         }
     }
 }

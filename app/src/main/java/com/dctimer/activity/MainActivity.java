@@ -87,6 +87,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private TextView tvTimer;   //计时器
     private SmartCubeImageView scrambleView; //打乱图案
     private SmartCube3DView smartCube3DView; //智能魔方实时 3D 预览
+    private final Object smartCubeGyroLock = new Object();
+    private final float[] latestSmartCubeGyro = new float[4];
+    private boolean hasLatestSmartCubeGyro;
+    private boolean smartCubeGyroUiUpdatePosted;
     private Bitmap bmScrambleView;
     private TextView tvStat;    //统计简要
     private TextView tvMulPhase;
@@ -1865,6 +1869,83 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         androidx.fragment.app.Fragment fragment = getSupportFragmentManager().findFragmentByTag("CubeState");
         if (fragment instanceof CubeStateDialog) {
             ((CubeStateDialog) fragment).refreshState();
+        }
+    }
+
+    public void onSmartCubeGyroChanged(float x, float y, float z, float w) {
+        synchronized (smartCubeGyroLock) {
+            latestSmartCubeGyro[0] = x;
+            latestSmartCubeGyro[1] = y;
+            latestSmartCubeGyro[2] = z;
+            latestSmartCubeGyro[3] = w;
+            hasLatestSmartCubeGyro = true;
+        }
+        if (smartCube3DView != null) {
+            smartCube3DView.setGyroQuaternion(x, y, z, w);
+        }
+        postSmartCubeGyroUiUpdate();
+    }
+
+    private void postSmartCubeGyroUiUpdate() {
+        synchronized (smartCubeGyroLock) {
+            if (smartCubeGyroUiUpdatePosted) {
+                return;
+            }
+            smartCubeGyroUiUpdatePosted = true;
+        }
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                float x;
+                float y;
+                float z;
+                float w;
+                synchronized (smartCubeGyroLock) {
+                    x = latestSmartCubeGyro[0];
+                    y = latestSmartCubeGyro[1];
+                    z = latestSmartCubeGyro[2];
+                    w = latestSmartCubeGyro[3];
+                    smartCubeGyroUiUpdatePosted = false;
+                }
+                androidx.fragment.app.Fragment fragment = getSupportFragmentManager().findFragmentByTag("CubeState");
+                if (fragment instanceof CubeStateDialog) {
+                    ((CubeStateDialog) fragment).setGyroQuaternion(x, y, z, w);
+                }
+            }
+        });
+    }
+
+    private boolean getLatestSmartCubeGyro(float[] out) {
+        synchronized (smartCubeGyroLock) {
+            if (!hasLatestSmartCubeGyro) {
+                return false;
+            }
+            out[0] = latestSmartCubeGyro[0];
+            out[1] = latestSmartCubeGyro[1];
+            out[2] = latestSmartCubeGyro[2];
+            out[3] = latestSmartCubeGyro[3];
+            return true;
+        }
+    }
+
+    private void resetSmartCubeGyroPosture(SmartCube3DView view, float[] gyro, boolean hasGyro) {
+        if (view == null) {
+            return;
+        }
+        if (hasGyro) {
+            view.resetGyroPosture(gyro[0], gyro[1], gyro[2], gyro[3]);
+        } else {
+            view.resetGyroPosture();
+        }
+    }
+
+    public void resetSmartCubeGyroPosture() {
+        float[] gyro = new float[4];
+        boolean hasGyro = getLatestSmartCubeGyro(gyro);
+        resetSmartCubeGyroPosture(smartCube3DView, gyro, hasGyro);
+        androidx.fragment.app.Fragment fragment = getSupportFragmentManager().findFragmentByTag("CubeState");
+        if (fragment instanceof CubeStateDialog) {
+            ((CubeStateDialog) fragment).resetGyroPosture(gyro, hasGyro);
         }
     }
 

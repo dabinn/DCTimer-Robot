@@ -70,6 +70,17 @@ public class CubeStateDialog extends DialogFragment {
                 setImage();
             }
         });
+        Button btResetPosture = view.findViewById(R.id.bt_reset_posture);
+        btResetPosture.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (getActivity() instanceof MainActivity) {
+                    ((MainActivity) getActivity()).resetSmartCubeGyroPosture();
+                } else {
+                    resetGyroPosture();
+                }
+            }
+        });
         Button btDisconnect = view.findViewById(R.id.bt_scrambled);
         btDisconnect.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -155,6 +166,29 @@ public class CubeStateDialog extends DialogFragment {
             cube3DView.animateMove(fromState, toState, move);
         } else if (imageView != null) {
             imageView.animateMove(fromState, toState, move);
+        }
+    }
+
+    public void setGyroQuaternion(float x, float y, float z, float w) {
+        if (cube3DView != null) {
+            cube3DView.setGyroQuaternion(x, y, z, w);
+        }
+    }
+
+    public void resetGyroPosture() {
+        if (cube3DView != null) {
+            cube3DView.resetGyroPosture();
+        }
+    }
+
+    public void resetGyroPosture(float[] gyro, boolean hasGyro) {
+        if (cube3DView == null) {
+            return;
+        }
+        if (hasGyro && gyro != null && gyro.length >= 4) {
+            cube3DView.resetGyroPosture(gyro[0], gyro[1], gyro[2], gyro[3]);
+        } else {
+            cube3DView.resetGyroPosture();
         }
     }
 

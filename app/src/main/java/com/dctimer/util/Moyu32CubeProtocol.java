@@ -10,6 +10,8 @@ import android.util.Log;
 import com.dctimer.activity.MainActivity;
 import com.dctimer.model.SmartCube;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.security.GeneralSecurityException;
 import java.util.ArrayDeque;
 import java.util.Locale;
@@ -21,6 +23,7 @@ public class Moyu32CubeProtocol implements SmartCubeProtocol {
     public static final UUID READ_UUID = UUID.fromString("0783b03e-7735-b5a0-1760-a305d2795cb1");
     public static final UUID WRITE_UUID = UUID.fromString("0783b03e-7735-b5a0-1760-a305d2795cb2");
     private static final UUID CCCD_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
+    private static final float GYRO_SCALE = 1073741824f;
 
     private final MainActivity context;
     private final SmartCube smartCube;
@@ -131,11 +134,24 @@ public class Moyu32CubeProtocol implements SmartCubeProtocol {
         enqueueSimpleRequest(161);
         enqueueSimpleRequest(163);
         enqueueSimpleRequest(164);
+        enqueueSimpleRequest(161);
+        enqueueSimpleRequest(163);
+        enqueueSimpleRequest(164);
+        enqueueGyroEnableRequest();
+        enqueueSimpleRequest(163);
     }
 
     private void enqueueSimpleRequest(int opcode) {
         byte[] req = new byte[20];
         req[0] = (byte) opcode;
+        requestQueue.offer(req);
+        sendNextRequest();
+    }
+
+    private void enqueueGyroEnableRequest() {
+        byte[] req = new byte[20];
+        req[0] = (byte) 172;
+        req[2] = 1;
         requestQueue.offer(req);
         sendNextRequest();
     }
@@ -156,6 +172,10 @@ public class Moyu32CubeProtocol implements SmartCubeProtocol {
 
     private void parseData(byte[] value) throws GeneralSecurityException {
         byte[] decoded = cipher.decode(value);
+        if (decoded.length >= 17 && (decoded[0] & 0xff) == 171) {
+            handleGyro(decoded);
+            return;
+        }
         StringBuilder bits = new StringBuilder(decoded.length * 8);
         for (byte datum : decoded) {
             bits.append(String.format(Locale.US, "%8s", Integer.toBinaryString(datum & 0xff)).replace(' ', '0'));
@@ -176,6 +196,7 @@ public class Moyu32CubeProtocol implements SmartCubeProtocol {
                 handleMove(data);
                 break;
             case 171:
+                handleGyro(decoded);
                 break;
             default:
                 Log.w(TAG, "未知 MoYu32 消息类型: " + msgType);
@@ -248,6 +269,22 @@ public class Moyu32CubeProtocol implements SmartCubeProtocol {
             context.moveCube(smartCube, move, timeOffsets[i]);
             Log.w(TAG, "MoYu32 move=" + move + " time=" + timeOffsets[i]);
         }
+    }
+
+    private void handleGyro(byte[] decoded) {
+        if (decoded == null || decoded.length < 17) {
+            return;
+        }
+        ByteBuffer buffer = ByteBuffer.wrap(decoded).order(ByteOrder.LITTLE_ENDIAN);
+        float w = buffer.getInt(1) / GYRO_SCALE;
+        float x = buffer.getInt(5) / GYRO_SCALE;
+        float y = buffer.getInt(9) / GYRO_SCALE;
+        float z = buffer.getInt(13) / GYRO_SCALE;
+        float length = (float) Math.sqrt(w * w + x * x + y * y + z * z);
+        if (length <= 0f || Float.isNaN(length) || Float.isInfinite(length)) {
+            return;
+        }
+        context.onSmartCubeGyroChanged(x / length, z / length, -y / length, w / length);
     }
 
     private int convertMove(int rawMove) {
