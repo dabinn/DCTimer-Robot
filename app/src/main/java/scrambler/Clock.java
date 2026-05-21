@@ -33,7 +33,6 @@ public class Clock {
             {1,1,1,1,1,1,1,1,1,  -1, 0,-1, 0, 0, 0,-1, 0,-1},//UUUU
             {1,0,1,0,0,0,1,0,1,  -1,-1,-1,-1,-1,-1,-1,-1,-1},//dddd
     };
-    private static int[] idx = {1, 3, 2, 0};
     private static int[] epoIdx = {12, 8, 1, 5, 11, 0, 4, 10, 3, 7, 9, 2, 6, 13};
     public int[] posit = new int[18];
     public int[] pegs = new int[4];
@@ -69,14 +68,8 @@ public class Clock {
             posit[j] %= 12;
             while (posit[j] <= 0) posit[j] += 12;
         }
-        boolean isFirst = true;
         for (int x = 0; x < 4; x++) {
-            pegs[idx[x]] = (int) (Math.random() * 2);
-            if (pegs[idx[x]] == 0) {
-                if (!isFirst) scramble.append(" ");
-                scramble.append(turns[x]);
-                isFirst = false;
-            }
+            pegs[x] = 1;
         }
         return scramble.toString();
     }
