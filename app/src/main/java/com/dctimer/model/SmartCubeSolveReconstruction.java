@@ -7,16 +7,20 @@ import java.util.List;
 import java.util.Locale;
 
 import static com.dctimer.APP.smartCubeSolveOrientation;
+import static com.dctimer.APP.smartCubeSolveMethod;
 
 import cs.min2phase.CubieCube;
 import cs.min2phase.Util;
 
 public class SmartCubeSolveReconstruction {
     private static final int SLICE_COMBO_WINDOW_MS = 100;
+    private static final int METHOD_CFOP = 0;
+    private static final int METHOD_ROUX = 1;
     private static final String SOLVED_FACELET = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
     private static final String PRETTY_FACES = "URFDLBEMS";
     private static final String SUFFIXES = " 2'";
-    private static final String[] PHASE_NAMES = {"Cross", "F2L 1", "F2L 2", "F2L 3", "F2L 4", "OLL", "PLL"};
+    private static final String[] CFOP_PHASE_NAMES = {"Cross", "F2L 1", "F2L 2", "F2L 3", "F2L 4", "OLL", "PLL"};
+    private static final String[] ROUX_PHASE_NAMES = {"FB", "SB", "CMLL", "L6E"};
 
     private static final int[][] CENTER_ROT = {
             {0, 2, 4, 3, 5, 1}, // y'
@@ -32,18 +36,23 @@ public class SmartCubeSolveReconstruction {
     private static final int[][] F2L_MASK = toEqus("----U-------RRRRRR---FFFFFFDDDDDDDDD---LLLLLL---BBBBBB");
     private static final int[][] OLL_MASK = toEqus("UUUUUUUUU---RRRRRR---FFFFFFDDDDDDDDD---LLLLLL---BBBBBB");
     private static final int[][] SOLVED_MASK = toEqus(SOLVED_FACELET);
+    private static final int[][] ROUX_FB_MASK = toEqus("---------------------F--F--D--D--D-----LLLLLL-----B--B");
+    private static final int[][] ROUX_SB_MASK = toEqus("------------RRRRRR---F-FF-FD-DD-DD-D---LLLLLL---B-BB-B");
+    private static final int[][] ROUX_CMLL_MASK = toEqus("U-U---U-Ur-rRRRRRRf-fF-FF-FD-DD-DD-Dl-lLLLLLLb-bB-BB-B");
 
     private final List<MoveEvent> rawMoves;
     private final List<PrettyMove> reconstructedMoves;
     private final List<Phase> phases;
+    private final int solveMethod;
     private final String prettySolve;
     private final String moveSequence;
     private final int moveCount;
 
-    private SmartCubeSolveReconstruction(List<MoveEvent> rawMoves, List<PrettyMove> reconstructedMoves, List<Phase> phases) {
+    private SmartCubeSolveReconstruction(List<MoveEvent> rawMoves, List<PrettyMove> reconstructedMoves, List<Phase> phases, int solveMethod) {
         this.rawMoves = rawMoves;
         this.reconstructedMoves = reconstructedMoves;
         this.phases = phases;
+        this.solveMethod = solveMethod;
         this.prettySolve = buildPrettySolve(phases, reconstructedMoves);
         this.moveSequence = buildMoveSequence(reconstructedMoves);
         this.moveCount = countNonRotationMoves(reconstructedMoves);
@@ -52,8 +61,9 @@ public class SmartCubeSolveReconstruction {
     public static SmartCubeSolveReconstruction fromRawMoves(String startFacelet, List<MoveEvent> rawMoves) {
         List<MoveEvent> safeRawMoves = copyRawMoves(rawMoves);
         List<MoveEvent> displayRawMoves = orientRawMoves(safeRawMoves, smartCubeSolveOrientation);
-        PhaseBuildResult phaseResult = buildPhases(startFacelet, safeRawMoves, displayRawMoves);
-        return new SmartCubeSolveReconstruction(displayRawMoves, phaseResult.reconstructedMoves, phaseResult.phases);
+        int solveMethod = normalizeSolveMethod(smartCubeSolveMethod);
+        PhaseBuildResult phaseResult = buildPhases(startFacelet, safeRawMoves, displayRawMoves, solveMethod);
+        return new SmartCubeSolveReconstruction(displayRawMoves, phaseResult.reconstructedMoves, phaseResult.phases, solveMethod);
     }
 
     private static List<MoveEvent> copyRawMoves(List<MoveEvent> rawMoves) {
@@ -97,7 +107,7 @@ public class SmartCubeSolveReconstruction {
         sb.append('{');
         appendJsonField(sb, "version", "1");
         sb.append(',');
-        appendJsonField(sb, "method", "333-smart-cf4op");
+        appendJsonField(sb, "method", getMethodId(solveMethod));
         sb.append(',');
         sb.append("\"moveCount\":").append(moveCount);
         sb.append(',');
@@ -243,21 +253,22 @@ public class SmartCubeSolveReconstruction {
         }
     }
 
-    private static PhaseBuildResult buildPhases(String startFacelet, List<MoveEvent> rawMoves, List<MoveEvent> displayRawMoves) {
+    private static PhaseBuildResult buildPhases(String startFacelet, List<MoveEvent> rawMoves, List<MoveEvent> displayRawMoves, int solveMethod) {
+        String[] phaseNames = getPhaseNames(solveMethod);
         if (rawMoves.isEmpty() || isEmpty(startFacelet)) {
-            return new PhaseBuildResult(reconstructMoves(displayRawMoves), createEmptyPhases());
+            return new PhaseBuildResult(reconstructMoves(displayRawMoves), createEmptyPhases(phaseNames));
         }
         CubieCube cube = new CubieCube();
         if (Util.toCubieCube(startFacelet, cube) != 0) {
-            return new PhaseBuildResult(reconstructMoves(displayRawMoves), createEmptyPhases());
+            return new PhaseBuildResult(reconstructMoves(displayRawMoves), createEmptyPhases(phaseNames));
         }
 
         List<List<MoveEvent>> statusBuckets = new ArrayList<>();
-        for (int i = 0; i < PHASE_NAMES.length; i++) {
+        for (int i = 0; i < phaseNames.length; i++) {
             statusBuckets.add(new ArrayList<MoveEvent>());
         }
 
-        int status = updatePhaseStatus(PHASE_NAMES.length, getCf4opProgress(startFacelet));
+        int status = updatePhaseStatus(phaseNames.length, getMethodProgress(startFacelet, solveMethod));
         for (int i = 0; i < rawMoves.size(); i++) {
             MoveEvent rawMove = rawMoves.get(i);
             statusBuckets.get(status - 1).add(displayRawMoves.get(i));
@@ -265,22 +276,22 @@ public class SmartCubeSolveReconstruction {
             if (move >= 0 && move < 18) {
                 cube = cube.move(move);
             }
-            status = updatePhaseStatus(status, getCf4opProgress(Util.toFaceCube(cube)));
+            status = updatePhaseStatus(status, getMethodProgress(Util.toFaceCube(cube), solveMethod));
         }
 
         List<List<MoveEvent>> phaseRawMoves = new ArrayList<>();
-        List<String> phaseNames = new ArrayList<>();
-        for (int i = PHASE_NAMES.length - 1; i >= 0; i--) {
+        List<String> orderedPhaseNames = new ArrayList<>();
+        for (int i = phaseNames.length - 1; i >= 0; i--) {
             phaseRawMoves.add(statusBuckets.get(i));
-            phaseNames.add(PHASE_NAMES[PHASE_NAMES.length - 1 - i]);
+            orderedPhaseNames.add(phaseNames[phaseNames.length - 1 - i]);
         }
         List<List<PrettyMove>> phasePrettyMoves = reconstructMoveGroups(phaseRawMoves);
         List<Phase> phases = new ArrayList<>();
         List<PrettyMove> reconstructedMoves = new ArrayList<>();
-        for (int i = 0; i < phaseNames.size(); i++) {
+        for (int i = 0; i < orderedPhaseNames.size(); i++) {
             List<PrettyMove> moves = phasePrettyMoves.get(i);
             reconstructedMoves.addAll(moves);
-            phases.add(createPhase(phaseNames.get(i), moves, 0, moves.size() - 1));
+            phases.add(createPhase(orderedPhaseNames.get(i), moves, 0, moves.size() - 1));
         }
         return new PhaseBuildResult(reconstructedMoves, phases);
     }
@@ -290,12 +301,28 @@ public class SmartCubeSolveReconstruction {
         return nextStatus == 0 ? 1 : nextStatus;
     }
 
-    private static List<Phase> createEmptyPhases() {
+    private static List<Phase> createEmptyPhases(String[] phaseNames) {
         List<Phase> phases = new ArrayList<>();
-        for (String phaseName : PHASE_NAMES) {
+        for (String phaseName : phaseNames) {
             phases.add(new Phase(phaseName, "", 0, 0, 0));
         }
         return phases;
+    }
+
+    private static String[] getPhaseNames(int solveMethod) {
+        return solveMethod == METHOD_ROUX ? ROUX_PHASE_NAMES : CFOP_PHASE_NAMES;
+    }
+
+    private static int normalizeSolveMethod(int solveMethod) {
+        return solveMethod == METHOD_ROUX ? METHOD_ROUX : METHOD_CFOP;
+    }
+
+    private static String getMethodId(int solveMethod) {
+        return solveMethod == METHOD_ROUX ? "333-smart-roux" : "333-smart-cf4op";
+    }
+
+    private static int getMethodProgress(String facelet, int solveMethod) {
+        return solveMethod == METHOD_ROUX ? getRouxProgress(facelet) : getCf4opProgress(facelet);
     }
 
     private static List<List<PrettyMove>> reconstructMoveGroups(List<List<MoveEvent>> rawMoveGroups) {
@@ -372,6 +399,34 @@ public class SmartCubeSolveReconstruction {
                     + (isUnsolvedForMask(facelet, F2L3_MASK) ? 1 : 0)
                     + (isUnsolvedForMask(facelet, F2L4_MASK) ? 1 : 0);
         } else if (isUnsolvedForMask(facelet, OLL_MASK)) {
+            return 2;
+        } else if (isUnsolvedForMask(facelet, SOLVED_MASK)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    private static int getRouxProgress(String facelet) {
+        List<String> variants = Utils.getOrientationVariants(facelet);
+        if (variants.isEmpty()) {
+            variants.add(facelet);
+        }
+        int minProgress = 99;
+        for (String variant : variants) {
+            int progress = getRouxProgressForAxis(variant);
+            if (progress < minProgress) {
+                minProgress = progress;
+            }
+        }
+        return minProgress == 99 ? 4 : minProgress;
+    }
+
+    private static int getRouxProgressForAxis(String facelet) {
+        if (isUnsolvedForMask(facelet, ROUX_FB_MASK)) {
+            return 4;
+        } else if (isUnsolvedForMask(facelet, ROUX_SB_MASK)) {
+            return 3;
+        } else if (isUnsolvedForMask(facelet, ROUX_CMLL_MASK)) {
             return 2;
         } else if (isUnsolvedForMask(facelet, SOLVED_MASK)) {
             return 1;

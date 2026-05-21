@@ -54,6 +54,8 @@
 
 - `333-smart-cf4op` 分段按 `Cross / F2L 1-4 / OLL / PLL` 展示。
 - 分段判定按 `cstimer` 的 `cf4op` 思路收口为 6 轴向进度计算，并先按阶段分桶原始转动再逐段重建。
+- `333-smart-roux` 分段按 `FB / SB / CMLL / L6E` 展示，按 `cstimer` 的 `roux` 思路使用 24 轴向进度计算。
+- 解法类型由智能设置中的“使用解法”手动选择，默认 `CFOP`；暂不在成绩保存时自动识别 CFOP / Roux。
 - `AUF` 默认并入 `PLL`。
 - `100ms` 内对向层组合识别为 `E / M / S`。
 - TPS 使用重建后的步数统计，`U2` 与 `E / M / S` 按一步计，`x / y / z` 不计入主 TPS。

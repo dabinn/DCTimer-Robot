@@ -64,12 +64,35 @@ public class SmartCubeSolveReconstructionTest {
 
     @Test
     public void emitsPhaseMetadataJson() {
-        List<SmartCubeSolveReconstruction.MoveEvent> raw = new ArrayList<>();
-        raw.add(new SmartCubeSolveReconstruction.MoveEvent(3, 0, 0));
+        int originalMethod = APP.smartCubeSolveMethod;
+        try {
+            APP.smartCubeSolveMethod = 0;
+            List<SmartCubeSolveReconstruction.MoveEvent> raw = new ArrayList<>();
+            raw.add(new SmartCubeSolveReconstruction.MoveEvent(3, 0, 0));
 
-        SmartCubeSolveReconstruction reconstruction = SmartCubeSolveReconstruction.fromRawMoves(SOLVED, raw);
+            SmartCubeSolveReconstruction reconstruction = SmartCubeSolveReconstruction.fromRawMoves(SOLVED, raw);
 
-        assertTrue(reconstruction.toJson(1000).contains("\"method\":\"333-smart-cf4op\""));
+            assertTrue(reconstruction.toJson(1000).contains("\"method\":\"333-smart-cf4op\""));
+        } finally {
+            APP.smartCubeSolveMethod = originalMethod;
+        }
+    }
+
+    @Test
+    public void rouxMethodEmitsRouxMetadataAndPhases() {
+        int originalMethod = APP.smartCubeSolveMethod;
+        try {
+            APP.smartCubeSolveMethod = 1;
+            List<SmartCubeSolveReconstruction.MoveEvent> raw = new ArrayList<>();
+            raw.add(new SmartCubeSolveReconstruction.MoveEvent(3, 0, 0));
+
+            SmartCubeSolveReconstruction reconstruction = SmartCubeSolveReconstruction.fromRawMoves(SOLVED, raw);
+
+            assertTrue(reconstruction.toJson(1000).contains("\"method\":\"333-smart-roux\""));
+            assertTrue(reconstruction.getPrettySolve().contains("// L6E"));
+        } finally {
+            APP.smartCubeSolveMethod = originalMethod;
+        }
     }
 
     @Test
@@ -96,6 +119,11 @@ public class SmartCubeSolveReconstructionTest {
     }
 
     @Test
+    public void rouxProgressRecognizesSolvedState() throws Exception {
+        assertEquals(0, invokeRouxProgress(SOLVED));
+    }
+
+    @Test
     public void customOrientationChangesDisplayedMovesWithoutChangingPhaseDetection() {
         int originalOrientation = APP.smartCubeSolveOrientation;
         try {
@@ -115,6 +143,12 @@ public class SmartCubeSolveReconstructionTest {
 
     private static int invokeCf4opProgress(String facelets) throws Exception {
         Method method = SmartCubeSolveReconstruction.class.getDeclaredMethod("getCf4opProgress", String.class);
+        method.setAccessible(true);
+        return (Integer) method.invoke(null, facelets);
+    }
+
+    private static int invokeRouxProgress(String facelets) throws Exception {
+        Method method = SmartCubeSolveReconstruction.class.getDeclaredMethod("getRouxProgress", String.class);
         method.setAccessible(true);
         return (Integer) method.invoke(null, facelets);
     }

@@ -99,6 +99,7 @@ public class APP extends Application {
     public static int uiMode = -1;
     public static int bleDeviceType;
     public static int smartCubeSolveOrientation;
+    public static int smartCubeSolveMethod;
     public static int smartCubeScrambleProgressStyle;
     public static int smartCubeLayoutMode;
 
@@ -229,6 +230,8 @@ public class APP extends Application {
         dataFormat = sp.getInt("dform", AudioFormat.ENCODING_PCM_8BIT);
         smartCubeSolveOrientation = sp.getInt("scori", 0);
         if (smartCubeSolveOrientation < 0 || smartCubeSolveOrientation >= 24) smartCubeSolveOrientation = 0;
+        smartCubeSolveMethod = sp.getInt("scmethod", 0);
+        if (smartCubeSolveMethod < 0 || smartCubeSolveMethod > 1) smartCubeSolveMethod = 0;
         smartCubeScrambleProgressStyle = sp.getInt("scadv", 0);
         if (smartCubeScrambleProgressStyle < 0 || smartCubeScrambleProgressStyle > 1) smartCubeScrambleProgressStyle = 0;
         smartCubeLayoutMode = sp.getInt("sclayout", 0);
@@ -255,7 +258,7 @@ public class APP extends Application {
         colors[6] = 0xff000000;
         for (int i = 0; i < 4; i++) swipeType[i] = i + 1;
         samplingRate = 44100; dataFormat = AudioFormat.ENCODING_PCM_8BIT;
-        smartCubeSolveOrientation = 0; smartCubeScrambleProgressStyle = 0;
+        smartCubeSolveOrientation = 0; smartCubeSolveMethod = 0; smartCubeScrambleProgressStyle = 0;
         smartCubeLayoutMode = 0;
     }
 

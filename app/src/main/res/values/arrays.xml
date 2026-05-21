@@ -368,7 +368,8 @@
     </array>
 
     <array name="item_smart">
-        <item>Generated solution orientation</item>
+        <item>Use method</item>
+        <item>Solution orientation</item>
         <item>Scramble progress style</item>
         <item>Layout</item>
     </array>
@@ -393,6 +394,11 @@
     <array name="opt_smart_scramble_progress">
         <item>Hide completed moves</item>
         <item>Dim completed moves</item>
+    </array>
+
+    <array name="opt_smart_solve_method">
+        <item>CFOP</item>
+        <item>Roux</item>
     </array>
 
     <array name="opt_smart_layout">
