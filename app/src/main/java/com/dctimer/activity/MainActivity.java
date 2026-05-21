@@ -1928,6 +1928,18 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
+    public boolean applyLatestSmartCubeGyro(SmartCube3DView view) {
+        if (view == null) {
+            return false;
+        }
+        float[] gyro = new float[4];
+        if (!getLatestSmartCubeGyro(gyro)) {
+            return false;
+        }
+        view.setGyroQuaternion(gyro[0], gyro[1], gyro[2], gyro[3]);
+        return true;
+    }
+
     private void resetSmartCubeGyroPosture(SmartCube3DView view, float[] gyro, boolean hasGyro) {
         if (view == null) {
             return;
@@ -4199,6 +4211,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             smartCube3DView.bringToFront();
             smartCube3DView.setVisibility(View.VISIBLE);
             smartCube3DView.showCubeState(cubeState);
+            applyLatestSmartCubeGyro(smartCube3DView);
         } else {
             scrambleView.setVisibility(View.VISIBLE);
             scrambleView.showCubeState(cubeState);
@@ -4211,6 +4224,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (smartCube3DView != null) {
             smartCube3DView.bringToFront();
             smartCube3DView.setVisibility(View.VISIBLE);
+            applyLatestSmartCubeGyro(smartCube3DView);
             smartCube3DView.animateMove(fromState, toState, move);
         } else {
             scrambleView.setVisibility(View.VISIBLE);

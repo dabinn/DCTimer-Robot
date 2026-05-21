@@ -105,6 +105,7 @@ public class CubeStateDialog extends DialogFragment {
         if (cube3DView != null) {
             cube3DView.onResume();
             setImage();
+            applyLatestGyro();
         }
     }
 
@@ -139,6 +140,7 @@ public class CubeStateDialog extends DialogFragment {
                     imageView.setVisibility(View.GONE);
                 }
                 cube3DView.showCubeState(currentCube.getCubeState());
+                applyLatestGyro();
             } else if (imageView != null) {
                 imageView.setVisibility(View.VISIBLE);
                 imageView.showCubeState(currentCube.getCubeState());
@@ -164,6 +166,7 @@ public class CubeStateDialog extends DialogFragment {
         }
         if (cube3DView != null) {
             cube3DView.animateMove(fromState, toState, move);
+            applyLatestGyro();
         } else if (imageView != null) {
             imageView.animateMove(fromState, toState, move);
         }
@@ -189,6 +192,12 @@ public class CubeStateDialog extends DialogFragment {
             cube3DView.resetGyroPosture(gyro[0], gyro[1], gyro[2], gyro[3]);
         } else {
             cube3DView.resetGyroPosture();
+        }
+    }
+
+    private void applyLatestGyro() {
+        if (cube3DView != null && getActivity() instanceof MainActivity) {
+            ((MainActivity) getActivity()).applyLatestSmartCubeGyro(cube3DView);
         }
     }
 

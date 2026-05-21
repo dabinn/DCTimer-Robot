@@ -208,8 +208,6 @@ public class SmartCube3DView extends GLSurfaceView {
                         z = pendingGyroQuaternion[2];
                         w = pendingGyroQuaternion[3];
                     }
-                    hasPendingGyroQuaternion = false;
-                    gyroFrameCallbackPosted = false;
                 }
                 if (hasPending) {
                     cubeRenderer.resetGyroPosture(x, y, z, w);
@@ -222,10 +220,6 @@ public class SmartCube3DView extends GLSurfaceView {
     }
 
     public void resetGyroPosture(final float x, final float y, final float z, final float w) {
-        synchronized (gyroUpdateLock) {
-            hasPendingGyroQuaternion = false;
-            gyroFrameCallbackPosted = false;
-        }
         queueEvent(new Runnable() {
             @Override
             public void run() {
@@ -497,7 +491,6 @@ public class SmartCube3DView extends GLSurfaceView {
                 targetGyroQuaternion = currentGyroQuaternion;
                 displayedGyroQuaternion = currentGyroQuaternion;
             }
-            lastGyroFrameTimeNanos = 0L;
             viewYaw = 0f;
             viewPitch = 0f;
             gyroViewEnabled = true;
@@ -512,7 +505,6 @@ public class SmartCube3DView extends GLSurfaceView {
                 displayedGyroQuaternion = q;
                 calibrationInverse = q.conjugate();
             }
-            lastGyroFrameTimeNanos = 0L;
             viewYaw = 0f;
             viewPitch = 0f;
             gyroViewEnabled = true;
