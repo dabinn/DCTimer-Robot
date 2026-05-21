@@ -1499,7 +1499,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 }
                 correctionBuilder.setSpan(new ForegroundColorSpan(spanColor), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
-            return correctionBuilder;
+            return appendSmartCubeScrambleHint(correctionBuilder);
         }
         SpannableStringBuilder builder = new SpannableStringBuilder();
         if (smartCubeScrambleProgressStyle == 1) {
@@ -1520,7 +1520,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 }
                 builder.setSpan(new ForegroundColorSpan(spanColor), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
-            return builder;
+            return appendSmartCubeScrambleHint(builder);
         }
         int startIndex = Math.max(0, smartCubeScrambleProgress);
         if (!TextUtils.isEmpty(smartCubeScramblePendingMove) && startIndex < smartCubeScrambleMoves.size()) {
@@ -1544,6 +1544,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
             builder.setSpan(new ForegroundColorSpan(spanColor), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
+        return appendSmartCubeScrambleHint(builder);
+    }
+
+    private CharSequence appendSmartCubeScrambleHint(SpannableStringBuilder builder) {
+        if (currentScramble == null || TextUtils.isEmpty(currentScramble.getHint())) {
+            return builder;
+        }
+        builder.append(currentScramble.getHint());
         return builder;
     }
 

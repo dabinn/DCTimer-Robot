@@ -114,6 +114,10 @@ public class Scrambler {
         return scramble + hint;
     }
 
+    public String getHint() {
+        return hint;
+    }
+
     public void setScramble(String scramble) {
         this.scramble = scramble;
     }
