@@ -197,7 +197,9 @@ public class CubeStateDialog extends DialogFragment {
 
     private void applyLatestGyro() {
         if (cube3DView != null && getActivity() instanceof MainActivity) {
-            ((MainActivity) getActivity()).applyLatestSmartCubeGyro(cube3DView);
+            MainActivity activity = (MainActivity) getActivity();
+            activity.applyLatestSmartCubeGyroCalibration(cube3DView);
+            activity.applyLatestSmartCubeGyro(cube3DView);
         }
     }
 

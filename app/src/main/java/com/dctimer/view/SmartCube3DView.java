@@ -191,6 +191,16 @@ public class SmartCube3DView extends GLSurfaceView {
         }
     }
 
+    public void setGyroCalibration(final float x, final float y, final float z, final float w) {
+        queueEvent(new Runnable() {
+            @Override
+            public void run() {
+                cubeRenderer.setGyroCalibration(x, y, z, w);
+            }
+        });
+        requestRender();
+    }
+
     public void resetGyroPosture() {
         queueEvent(new Runnable() {
             @Override
@@ -482,6 +492,16 @@ public class SmartCube3DView extends GLSurfaceView {
                 displayedGyroQuaternion = displayedGyroQuaternion.slerp(targetGyroQuaternion, alpha);
                 lastGyroFrameTimeNanos = frameTimeNanos;
             }
+            updateMvpMatrix();
+        }
+
+        void setGyroCalibration(float x, float y, float z, float w) {
+            Quaternion q = Quaternion.normalized(x, y, z, w);
+            if (q == null) {
+                return;
+            }
+            calibrationInverse = q.conjugate();
+            gyroViewEnabled = true;
             updateMvpMatrix();
         }
 

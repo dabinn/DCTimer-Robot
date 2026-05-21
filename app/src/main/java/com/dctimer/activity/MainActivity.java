@@ -89,7 +89,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private SmartCube3DView smartCube3DView; //智能魔方实时 3D 预览
     private final Object smartCubeGyroLock = new Object();
     private final float[] latestSmartCubeGyro = new float[4];
+    private final float[] smartCubeGyroCalibration = new float[4];
     private boolean hasLatestSmartCubeGyro;
+    private boolean hasSmartCubeGyroCalibration;
     private boolean smartCubeGyroUiUpdatePosted;
     private Bitmap bmScrambleView;
     private TextView tvStat;    //统计简要
@@ -1879,8 +1881,16 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             latestSmartCubeGyro[2] = z;
             latestSmartCubeGyro[3] = w;
             hasLatestSmartCubeGyro = true;
+            if (!hasSmartCubeGyroCalibration) {
+                smartCubeGyroCalibration[0] = x;
+                smartCubeGyroCalibration[1] = y;
+                smartCubeGyroCalibration[2] = z;
+                smartCubeGyroCalibration[3] = w;
+                hasSmartCubeGyroCalibration = true;
+            }
         }
         if (smartCube3DView != null) {
+            applyLatestSmartCubeGyroCalibration(smartCube3DView);
             smartCube3DView.setGyroQuaternion(x, y, z, w);
         }
         postSmartCubeGyroUiUpdate();
@@ -1928,6 +1938,31 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
+    private boolean getSmartCubeGyroCalibration(float[] out) {
+        synchronized (smartCubeGyroLock) {
+            if (!hasSmartCubeGyroCalibration) {
+                return false;
+            }
+            out[0] = smartCubeGyroCalibration[0];
+            out[1] = smartCubeGyroCalibration[1];
+            out[2] = smartCubeGyroCalibration[2];
+            out[3] = smartCubeGyroCalibration[3];
+            return true;
+        }
+    }
+
+    public boolean applyLatestSmartCubeGyroCalibration(SmartCube3DView view) {
+        if (view == null) {
+            return false;
+        }
+        float[] calibration = new float[4];
+        if (!getSmartCubeGyroCalibration(calibration)) {
+            return false;
+        }
+        view.setGyroCalibration(calibration[0], calibration[1], calibration[2], calibration[3]);
+        return true;
+    }
+
     public boolean applyLatestSmartCubeGyro(SmartCube3DView view) {
         if (view == null) {
             return false;
@@ -1936,6 +1971,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (!getLatestSmartCubeGyro(gyro)) {
             return false;
         }
+        applyLatestSmartCubeGyroCalibration(view);
         view.setGyroQuaternion(gyro[0], gyro[1], gyro[2], gyro[3]);
         return true;
     }
@@ -1954,6 +1990,15 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     public void resetSmartCubeGyroPosture() {
         float[] gyro = new float[4];
         boolean hasGyro = getLatestSmartCubeGyro(gyro);
+        if (hasGyro) {
+            synchronized (smartCubeGyroLock) {
+                smartCubeGyroCalibration[0] = gyro[0];
+                smartCubeGyroCalibration[1] = gyro[1];
+                smartCubeGyroCalibration[2] = gyro[2];
+                smartCubeGyroCalibration[3] = gyro[3];
+                hasSmartCubeGyroCalibration = true;
+            }
+        }
         resetSmartCubeGyroPosture(smartCube3DView, gyro, hasGyro);
         androidx.fragment.app.Fragment fragment = getSupportFragmentManager().findFragmentByTag("CubeState");
         if (fragment instanceof CubeStateDialog) {
