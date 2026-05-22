@@ -402,14 +402,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 new int[] {0, 0, 0, 0, 0, 0, 0, 20<<16|freezeTime, 0, 0, 0, 0, 95<<16|((int) (sensitivity *100)-5)},
                 new int[] {ST_WCA, ST_INSPECTION_ALERT, ST_TIME_FORMAT, ST_DECIMAL_MARK, ST_ENTER_TIME, ST_TIMER_UPDATE, ST_TIMER_ACCURACY, ST_START_DELAY, ST_MULTI_PHASE, ST_SIMULATE_SS, ST_SHOW_STATS, ST_DROP_TO_STOP, ST_SENSITIVITY});
         int smartSectionStart = cells.size();
-        Utils.addSection(headers, cells, getString(R.string.title_smart), getResources().getStringArray(R.array.item_smart),
-                new int[] {0, 0, 0, 1, 0},
+        String[] smartSettingItems = Arrays.copyOf(getResources().getStringArray(R.array.item_smart), 4);
+        Utils.addSection(headers, cells, getString(R.string.title_smart), smartSettingItems,
+                new int[] {0, 0, 0, 1},
                 new Object[] {getResources().getStringArray(R.array.opt_smart_solve_method)[smartCubeSolveMethod], getSmartCubeOrientationLabel(smartCubeSolveOrientation),
                         getResources().getStringArray(R.array.opt_smart_scramble_progress)[smartCubeScrambleProgressStyle],
-                        smartCubeGyroFollow,
-                        getResources().getStringArray(R.array.opt_smart_layout)[smartCubeLayoutMode]},
-                new int[5],
-                new int[] {ST_SMART_SOLVE_METHOD, ST_SMART_ORIENTATION, ST_SMART_SCRAMBLE_PROGRESS, ST_SMART_GYRO_FOLLOW, ST_SMART_LAYOUT});
+                        smartCubeGyroFollow},
+                new int[4],
+                new int[] {ST_SMART_SOLVE_METHOD, ST_SMART_ORIENTATION, ST_SMART_SCRAMBLE_PROGRESS, ST_SMART_GYRO_FOLLOW});
         cells.get(smartSectionStart + 4).put("desc", getString(R.string.smart_cube_gyro_follow_desc));
         Utils.addSection(headers, cells, getString(R.string.title_scramble), getResources().getStringArray(R.array.item_scramble),
                 new int[] {2, 1, 1, 2, 0},
