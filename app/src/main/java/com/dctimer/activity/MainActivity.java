@@ -401,13 +401,16 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 new Object[] {wca, inspectionAlert, itemStr[13][timeFormat], itemStr[16][decimalMark], itemStr[0][enterTime], itemStr[1][timerUpdate], itemStr[2][timerAccuracy], String.format("%.02fs", freezeTime/20f), itemStr[3][multiPhase], simulateSS, showStat, dropToStop, ""},
                 new int[] {0, 0, 0, 0, 0, 0, 0, 20<<16|freezeTime, 0, 0, 0, 0, 95<<16|((int) (sensitivity *100)-5)},
                 new int[] {ST_WCA, ST_INSPECTION_ALERT, ST_TIME_FORMAT, ST_DECIMAL_MARK, ST_ENTER_TIME, ST_TIMER_UPDATE, ST_TIMER_ACCURACY, ST_START_DELAY, ST_MULTI_PHASE, ST_SIMULATE_SS, ST_SHOW_STATS, ST_DROP_TO_STOP, ST_SENSITIVITY});
+        int smartSectionStart = cells.size();
         Utils.addSection(headers, cells, getString(R.string.title_smart), getResources().getStringArray(R.array.item_smart),
-                new int[] {0, 0, 0, 0},
+                new int[] {0, 0, 0, 1, 0},
                 new Object[] {getResources().getStringArray(R.array.opt_smart_solve_method)[smartCubeSolveMethod], getSmartCubeOrientationLabel(smartCubeSolveOrientation),
                         getResources().getStringArray(R.array.opt_smart_scramble_progress)[smartCubeScrambleProgressStyle],
+                        smartCubeGyroFollow,
                         getResources().getStringArray(R.array.opt_smart_layout)[smartCubeLayoutMode]},
-                new int[4],
-                new int[] {ST_SMART_SOLVE_METHOD, ST_SMART_ORIENTATION, ST_SMART_SCRAMBLE_PROGRESS, ST_SMART_LAYOUT});
+                new int[5],
+                new int[] {ST_SMART_SOLVE_METHOD, ST_SMART_ORIENTATION, ST_SMART_SCRAMBLE_PROGRESS, ST_SMART_GYRO_FOLLOW, ST_SMART_LAYOUT});
+        cells.get(smartSectionStart + 4).put("desc", getString(R.string.smart_cube_gyro_follow_desc));
         Utils.addSection(headers, cells, getString(R.string.title_scramble), getResources().getStringArray(R.array.item_scramble),
                 new int[] {2, 1, 1, 2, 0},
                 new Object[] {String.valueOf(scrambleSize), monoFont, showImage, "", ""},
@@ -1271,6 +1274,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         return enterTime == 4;
     }
 
+    private boolean isSmartCubeGyroSupportedDevice() {
+        return bleDeviceType == BLEDevice.TYPE_MOYU32_CUBE;
+    }
+
+    private boolean shouldFollowSmartCubeGyro() {
+        return smartCubeGyroFollow && isSmartCubeGyroSupportedDevice();
+    }
+
     private SmartCube getActiveSmartCube() {
         if (!isSmartCubeMode() || bluetoothTools == null || !isSmartCubeDeviceType(bleDeviceType)) {
             return null;
@@ -1889,6 +1900,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 hasSmartCubeGyroCalibration = true;
             }
         }
+        if (!shouldFollowSmartCubeGyro()) {
+            return;
+        }
         if (smartCube3DView != null) {
             applyLatestSmartCubeGyroCalibration(smartCube3DView);
             smartCube3DView.setGyroQuaternion(x, y, z, w);
@@ -1955,6 +1969,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (view == null) {
             return false;
         }
+        if (!shouldFollowSmartCubeGyro()) {
+            view.disableGyroView();
+            return false;
+        }
         float[] calibration = new float[4];
         if (!getSmartCubeGyroCalibration(calibration)) {
             return false;
@@ -1965,6 +1983,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     public boolean applyLatestSmartCubeGyro(SmartCube3DView view) {
         if (view == null) {
+            return false;
+        }
+        if (!shouldFollowSmartCubeGyro()) {
+            view.disableGyroView();
             return false;
         }
         float[] gyro = new float[4];
@@ -1978,6 +2000,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private void resetSmartCubeGyroPosture(SmartCube3DView view, float[] gyro, boolean hasGyro) {
         if (view == null) {
+            return;
+        }
+        if (!shouldFollowSmartCubeGyro()) {
+            view.disableGyroView();
             return;
         }
         if (hasGyro) {
@@ -2003,6 +2029,28 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         androidx.fragment.app.Fragment fragment = getSupportFragmentManager().findFragmentByTag("CubeState");
         if (fragment instanceof CubeStateDialog) {
             ((CubeStateDialog) fragment).resetGyroPosture(gyro, hasGyro);
+        }
+    }
+
+    private void disableSmartCubeGyroViews() {
+        if (smartCube3DView != null) {
+            smartCube3DView.disableGyroView();
+        }
+        androidx.fragment.app.Fragment fragment = getSupportFragmentManager().findFragmentByTag("CubeState");
+        if (fragment instanceof CubeStateDialog) {
+            ((CubeStateDialog) fragment).disableGyroView();
+        }
+    }
+
+    private void refreshSmartCubeGyroFollowViews() {
+        if (shouldFollowSmartCubeGyro()) {
+            applyLatestSmartCubeGyro(smartCube3DView);
+            androidx.fragment.app.Fragment fragment = getSupportFragmentManager().findFragmentByTag("CubeState");
+            if (fragment instanceof CubeStateDialog) {
+                ((CubeStateDialog) fragment).applyLatestGyro();
+            }
+        } else {
+            disableSmartCubeGyroViews();
         }
     }
 
@@ -2831,6 +2879,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         dialogInterface.dismiss();
                     }
                 }).setNegativeButton(R.string.btn_cancel, null).show();
+                break;
+            case ST_SMART_GYRO_FOLLOW:
+                smartCubeGyroFollow = !smartCubeGyroFollow;
+                stAdapter.setCheck(position, smartCubeGyroFollow);
+                setPref("scgyro", smartCubeGyroFollow);
+                refreshSmartCubeGyroFollowViews();
                 break;
             case ST_SMART_LAYOUT:
                 new AlertDialog.Builder(context).setSingleChoiceItems(ITEMS_ID[17], smartCubeLayoutMode, new DialogInterface.OnClickListener() {
@@ -3862,6 +3916,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         edit.remove("sensity");	edit.remove("monoscr");	edit.remove("showscr");
         edit.remove("timerupd");	edit.remove("timeform");    edit.remove("showstat");
         edit.remove("screenori");   edit.remove("resultorder");
+        edit.remove("scgyro");
         edit.apply();
     }
 

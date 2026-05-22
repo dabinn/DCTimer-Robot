@@ -37,6 +37,7 @@ public class SettingAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     public static final int ST_SHOW_STATS = 11;
     public static final int ST_DROP_TO_STOP = 12;
     public static final int ST_SENSITIVITY = 13;
+    public static final int ST_SMART_GYRO_FOLLOW = 14;
     public static final int ST_SMART_ORIENTATION = 15;
     public static final int ST_SMART_SCRAMBLE_PROGRESS = 16;
     public static final int ST_SMART_LAYOUT = 17;
@@ -184,6 +185,9 @@ public class SettingAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     break;
                 case ST_SMART_SCRAMBLE_PROGRESS:
                     map.put("detail", dct.getResources().getStringArray(R.array.opt_smart_scramble_progress)[smartCubeScrambleProgressStyle]);
+                    break;
+                case ST_SMART_GYRO_FOLLOW:
+                    map.put("detail", smartCubeGyroFollow);
                     break;
                 case ST_SMART_LAYOUT:
                     map.put("detail", dct.getResources().getStringArray(R.array.opt_smart_layout)[smartCubeLayoutMode]);
@@ -405,7 +409,13 @@ public class SettingAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                 vh.checkAccessory.setVisibility(View.VISIBLE);
                 vh.checkAccessory.setChecked((boolean) map.get("detail"));
                 vh.seekAccessory.setVisibility(View.GONE);
-                vh.detailView.setVisibility(View.GONE);
+                String description = (String) map.get("desc");
+                if (TextUtils.isEmpty(description)) {
+                    vh.detailView.setVisibility(View.GONE);
+                } else {
+                    vh.detailView.setVisibility(View.VISIBLE);
+                    vh.detailView.setText(description);
+                }
             } else {
                 //Log.w("setting", "seek");
                 vh.layoutCell.setBackgroundResource(R.color.colorBackground);

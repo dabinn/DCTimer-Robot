@@ -239,6 +239,19 @@ public class SmartCube3DView extends GLSurfaceView {
         requestRender();
     }
 
+    public void disableGyroView() {
+        synchronized (gyroUpdateLock) {
+            hasPendingGyroQuaternion = false;
+        }
+        queueEvent(new Runnable() {
+            @Override
+            public void run() {
+                cubeRenderer.disableGyroView();
+            }
+        });
+        requestRender();
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         switch (event.getActionMasked()) {
@@ -533,6 +546,18 @@ public class SmartCube3DView extends GLSurfaceView {
             viewYaw = 0f;
             viewPitch = 0f;
             gyroViewEnabled = true;
+            updateMvpMatrix();
+        }
+
+        void disableGyroView() {
+            currentGyroQuaternion = null;
+            targetGyroQuaternion = null;
+            displayedGyroQuaternion = null;
+            calibrationInverse = null;
+            lastGyroFrameTimeNanos = 0L;
+            viewYaw = 0f;
+            viewPitch = 0f;
+            gyroViewEnabled = false;
             updateMvpMatrix();
         }
 
