@@ -348,6 +348,7 @@ public class SmartCube3DView extends GLSurfaceView {
         private static final float STICKER_Z_OFFSET = 0.032f;
         private static final int CORNER_SEGMENTS = 5;
         private static final float MAX_VIEW_PITCH = 115f;
+        private static final float PROJECTION_FIT_SCALE = 1.18f;
         private static final float GYRO_DEFAULT_VIEW_YAW = 0f;
         private static final float GYRO_DEFAULT_VIEW_PITCH = 0f;
         private static final float GYRO_INTERPOLATION_TIME_CONSTANT_MS = 42f;
@@ -413,7 +414,10 @@ public class SmartCube3DView extends GLSurfaceView {
         public void onSurfaceChanged(GL10 gl, int width, int height) {
             GLES20.glViewport(0, 0, width, height);
             float aspect = width > 0 && height > 0 ? (float) width / (float) height : 1f;
-            Matrix.frustumM(projectionMatrix, 0, -aspect, aspect, -1f, 1f, 3f, 18f);
+            Matrix.frustumM(projectionMatrix, 0,
+                    -aspect * PROJECTION_FIT_SCALE, aspect * PROJECTION_FIT_SCALE,
+                    -PROJECTION_FIT_SCALE, PROJECTION_FIT_SCALE,
+                    3f, 18f);
             Matrix.setLookAtM(viewMatrix, 0, 4.8f, 4.1f, 7.2f, 0f, 0f, 0f, 0f, 1f, 0f);
             Matrix.setLookAtM(gyroViewMatrix, 0, 0f, 4.1f, 7.2f, 0f, 0f, 0f, 0f, 1f, 0f);
             Matrix.multiplyMM(vpMatrix, 0, projectionMatrix, 0, viewMatrix, 0);
