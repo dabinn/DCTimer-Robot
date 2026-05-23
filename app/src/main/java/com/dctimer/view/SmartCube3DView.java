@@ -102,7 +102,7 @@ public class SmartCube3DView extends GLSurfaceView {
         super(context, attrs);
         setEGLContextClientVersion(2);
         setEGLConfigChooser(8, 8, 8, 8, 16, 0);
-        setZOrderOnTop(true);
+        setZOrderMediaOverlay(true);
         getHolder().setFormat(PixelFormat.TRANSLUCENT);
         setPreserveEGLContextOnPause(true);
         cubeRenderer = new CubeRenderer();
