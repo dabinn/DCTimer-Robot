@@ -297,6 +297,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         tabHost.setOnTabChangedListener(new TabHost.OnTabChangeListener() {
             @Override
             public void onTabChanged(String s) {
+                if (isTimerTabActive()) {
+                    showScrambleView();
+                } else {
+                    hideTimerPageCubeState();
+                }
                 invalidateOptionsMenu();
             }
         });
@@ -1296,6 +1301,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         return getActiveSmartCube() != null;
     }
 
+    private boolean isTimerTabActive() {
+        return curTab == 0 && (tabHost == null || tabHost.getCurrentTab() == 0);
+    }
+
     private String getIdleTimerText() {
         return "0" + (decimalMark == 0 ? "." : ",") + (timerAccuracy == 0 ? "00" : "000");
     }
@@ -1826,6 +1835,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                if (!isTimerTabActive()) {
+                    hideTimerPageCubeState();
+                    return;
+                }
                 if (timer.getTimerState() == DCTTimer.RUNNING) {
                     resetSmartCubeReadyLayout();
                     if (refreshCubeView && shouldShowTimerPageCubeState()) {
@@ -4008,7 +4021,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             btnRight.setVisibility(vi);
         }
         toolbar.setVisibility(!v && shouldPreserveSmartCubeImmersiveLayoutSpace() ? View.INVISIBLE : vi);
-        if (shouldShowTimerPageCubeState()) {
+        if (isTimerTabActive() && shouldShowTimerPageCubeState()) {
             scrambleView.setVisibility(View.GONE);
             if (smartCube3DView != null) {
                 smartCube3DView.setAlpha(1f);
@@ -4290,6 +4303,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void showTimerPageCubeState(String cubeState) {
+        if (!isTimerTabActive()) {
+            hideTimerPageCubeState();
+            return;
+        }
         setSmartCubeImageSize();
         scrambleView.setVisibility(View.GONE);
         if (smartCube3DView != null) {
@@ -4304,6 +4321,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void animateTimerPageCubeState(String fromState, String toState, int move) {
+        if (!isTimerTabActive()) {
+            hideTimerPageCubeState();
+            return;
+        }
         setSmartCubeImageSize();
         scrambleView.setVisibility(View.GONE);
         if (smartCube3DView != null) {
