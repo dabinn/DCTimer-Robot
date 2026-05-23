@@ -1,7 +1,7 @@
 {
-  "versionCode": 224,
-  "versionName": "2.2.4",
+  "versionCode": 225,
+  "versionName": "2.2.5",
   "releaseUrl": "https://dctimer.huizhi.ink/",
-  "apkUrl": "https://dctimer.huizhi.ink/assets/DCTimer-BLE-v2.2.4.apk",
-  "notes": "DCTimer-BLE v2.2.4\n-新增智能实时3D魔方渲染（可拖动）"
+  "apkUrl": "https://dctimer.huizhi.ink/assets/DCTimer-BLE-v2.2.5.apk",
+  "notes": "DCTimer-BLE v2.2.5\n- 成绩列表新增最新在上/下排序设置（全局偏好）\n- 手动输入计时适配外部键盘输入\n- 设置页新增导航以及“智能”类别\n- 智能魔方解法适配 Roux\n- 新增“浅色保留”的打乱推进样式选择\n- 新增陀螺仪跟随视角（目前仅 Moyu）\n- 新增解法生成朝向基准自定义\n- 更新了魔表打乱公式/状态图，不再包含立柱状态以适应 WCA 规则\n- 修复了智能魔方电量解析、布局样式相关问题"
 }
