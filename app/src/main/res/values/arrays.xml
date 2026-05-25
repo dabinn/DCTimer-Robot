@@ -404,7 +404,7 @@
 
     <array name="opt_smart_layout">
         <item>Default</item>
-        <item>Immersive (for large-screen devices 10 inches and above)</item>
+        <item>Cube-centered (for large-screen devices 10 inches and above)</item>
     </array>
 
     <array name="item_stats">
