@@ -71,7 +71,7 @@ public class Scrambler {
             {0, 10},    //gear
             {25, 25, 25},   //siamese
             {80, 80},   //15puzzle
-            {25, 40, 20, 20, 25, 25, 8, 40, 0},    //other
+            {25, 40, 20, 20, 25, 25, 8, 40, 0, 0},    //other
             {0, 0, 0, 25, 25, 25, 0, 15},   //3x3 subsets
             {30, 25},   //bandage
             {30, 20},   //mega subsets
@@ -948,6 +948,11 @@ public class Scrambler {
                 imageType = TYPE_8PZ;
                 scrambleList.add(scr);
                 break;
+            case 521:   //CTO
+                scr = scrambleCTO();
+                imageType = 0;
+                scrambleList.add(scr);
+                break;
             case 543:   //Gigaminx
                 scr = gigascramble(scrambleLen); imageType = 0;
                 scrambleList.add(scr);
@@ -1122,6 +1127,40 @@ public class Scrambler {
 
     private String scrambleCube(int n) {
         return Cube.scramblestring(n, Math.abs(scrambleLen));
+    }
+
+    private String scrambleCTO() {
+        String[][] axis = {
+                {"U", "U'", "U2"}, {"D", "D'", "D2"}, {"F", "F'", "F2"},
+                {"B", "B'", "B2"}, {"L", "L'", "L2"}, {"R", "R'", "R2"}
+        };
+        String[][] lower = {
+                {"u", "u'", "u2"}, {"d", "d'", "d2"}, {"f", "f'", "f2"},
+                {"b", "b'", "b2"}, {"l", "l'", "l2"}, {"r", "r'", "r2"}
+        };
+        int len = 20 + r.nextInt(11);
+        StringBuilder sb = new StringBuilder();
+        int last = -1;
+        for (int i = 0; i < len; i++) {
+            int ax;
+            do {
+                ax = r.nextInt(axis.length);
+            } while (ax == last);
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(axis[ax][r.nextInt(axis[ax].length)]);
+            last = ax;
+        }
+        int extra = r.nextInt(7);
+        boolean[] used = new boolean[lower.length];
+        for (int i = 0; i < extra; i++) {
+            int ax;
+            do {
+                ax = r.nextInt(lower.length);
+            } while (used[ax]);
+            used[ax] = true;
+            sb.append(' ').append(lower[ax][r.nextInt(lower[ax].length)]);
+        }
+        return sb.toString();
     }
 
     private String scramble333() {
