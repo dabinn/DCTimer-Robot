@@ -201,6 +201,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private static final int REQUEST_BLE_PERMISSION = 6;
     private static final int ANDROID_API_S = 31;
     private static final int SMART_CUBE_CORRECTION_LIMIT = 10;
+    private static final int STATS_MIN_TEXT_SIZE_SP = 16;
+    private static final int STATS_MAX_TEXT_SIZE_SP = 30;
+    private static final float STATS_TIMER_TEXT_RATIO = 0.26f;
     private static final int SMART_CUBE_IMMERSIVE_MIN_SW_DP = 720;
     private static final int SMART_CUBE_IMMERSIVE_SCRAMBLE_OFFSET_DP = 56;
     private static final int MULTI_PHASE_DEFAULT_TEXT_SIZE_SP = 18;
@@ -4125,6 +4128,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     public void setTimerSize() {
         tvTimer.setTextSize(timerSize);
+        applyStatsTextSize();
         if (smartCubeImmersiveLayoutActive) {
             applySmartCubeImmersivePhaseTextSize();
         }
@@ -4292,6 +4296,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         phaseTextSize = Math.max(SMART_CUBE_IMMERSIVE_PHASE_MIN_SP,
                 Math.min(SMART_CUBE_IMMERSIVE_PHASE_MAX_SP, phaseTextSize));
         tvMulPhase.setTextSize(phaseTextSize);
+    }
+
+    private void applyStatsTextSize() {
+        int statsTextSize = Math.round(timerSize * STATS_TIMER_TEXT_RATIO);
+        statsTextSize = Math.max(STATS_MIN_TEXT_SIZE_SP, Math.min(STATS_MAX_TEXT_SIZE_SP, statsTextSize));
+        tvStat.setTextSize(statsTextSize);
     }
 
     private void setTextAlignmentCompat(TextView view, int textAlignment) {
