@@ -37,8 +37,9 @@ import static android.content.Context.CLIPBOARD_SERVICE;
 
 public class ResultDialog extends DialogFragment {
     private EditText etComment;
-    private TextView tvSolution;
+    private EditText tvSolution;
     private ImageView imgArrow;
+    private ImageView imgSolutionEdit;
     private int num;
     private String time;
     private String scramble;
@@ -48,6 +49,7 @@ public class ResultDialog extends DialogFragment {
     private String solution;
     private int puzzle;
     private boolean expandSol;
+    private boolean editingSolution;
 
     public static ResultDialog newInstance(int num, String time, String scramble, String date, int penalty, String comment, String solution, int puzzle) {
         ResultDialog dialog = new ResultDialog();
@@ -87,6 +89,7 @@ public class ResultDialog extends DialogFragment {
         LinearLayout llSolution = view.findViewById(R.id.ll_sol);
         tvSolution = view.findViewById(R.id.tv_solution);
         imgArrow = view.findViewById(R.id.iv_arrow);
+        imgSolutionEdit = view.findViewById(R.id.iv_solution_edit);
         tvNum.setText("#" + (num + 1));
         tvTime.setText(time);
         tvScramble.setText(scramble);
@@ -125,6 +128,9 @@ public class ResultDialog extends DialogFragment {
             tvSolution.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
+                    if (editingSolution) {
+                        return;
+                    }
                     android.content.ClipboardManager clip = (android.content.ClipboardManager) getActivity().getSystemService(CLIPBOARD_SERVICE);
                     clip.setPrimaryClip(ClipData.newPlainText("text", solution));
                     Toast.makeText(getActivity(), R.string.copy_success, Toast.LENGTH_SHORT).show();
@@ -134,6 +140,7 @@ public class ResultDialog extends DialogFragment {
             //btnSolution.setVisibility(View.GONE);
             llSolution.setVisibility(View.GONE);
         }
+        setSolutionEditMode(false);
         tvSolution.setVisibility(View.GONE);
         llSolution.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -145,6 +152,22 @@ public class ResultDialog extends DialogFragment {
                 } else {
                     tvSolution.setVisibility(View.GONE);
                     imgArrow.setImageResource(R.drawable.ic_arrow_down);
+                }
+            }
+        });
+        imgSolutionEdit.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (editingSolution) {
+                    saveSolutionIfChanged();
+                    setSolutionEditMode(false);
+                } else {
+                    if (!expandSol) {
+                        expandSol = true;
+                        tvSolution.setVisibility(View.VISIBLE);
+                        imgArrow.setImageResource(R.drawable.ic_arrow_up);
+                    }
+                    setSolutionEditMode(true);
                 }
             }
         });
@@ -193,7 +216,9 @@ public class ResultDialog extends DialogFragment {
                     }
                     //result.update(num, text);
                 }
+                saveSolutionIfChanged();
                 Utils.hideKeyboard(etComment);
+                Utils.hideKeyboard(tvSolution);
                 if (mod) {
                     if (getActivity() instanceof MainActivity) {
                         ((MainActivity) getActivity()).updateResult(num, penalty);
@@ -211,5 +236,31 @@ public class ResultDialog extends DialogFragment {
             }
         }).setNegativeButton(R.string.btn_close, null);
         return buidler.create();
+    }
+
+    private void setSolutionEditMode(boolean editing) {
+        editingSolution = editing;
+        tvSolution.setFocusable(editing);
+        tvSolution.setFocusableInTouchMode(editing);
+        tvSolution.setCursorVisible(editing);
+        tvSolution.setLongClickable(editing);
+        tvSolution.setBackgroundResource(editing ? R.drawable.edittext_background : android.R.color.transparent);
+        imgSolutionEdit.setImageResource(editing ? R.drawable.ic_check : R.drawable.ic_edit);
+        if (editing) {
+            tvSolution.setSelection(tvSolution.getText().length());
+            Utils.showKeyboard(tvSolution);
+        } else {
+            tvSolution.clearFocus();
+            Utils.hideKeyboard(tvSolution);
+        }
+    }
+
+    private void saveSolutionIfChanged() {
+        String text = tvSolution.getText().toString();
+        String oldSolution = solution == null ? "" : solution;
+        if (!text.equals(oldSolution) && getActivity() instanceof MainActivity) {
+            ((MainActivity) getActivity()).updateResultMoves(num, text);
+            solution = text;
+        }
     }
 }

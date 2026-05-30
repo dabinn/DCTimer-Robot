@@ -312,6 +312,16 @@ public class Result {
         mod = true;
     }
 
+    public void updateMoves(int i, String moves) {
+        if (mod) {
+            cursor = db.getResult(sessionId);
+        }
+        cursor.moveToPosition(i);
+        int id = cursor.getInt(0);
+        db.updateResultMoves(sessionId, id, moves);
+        mod = true;
+    }
+
     public int delete(int idx) {
         if (mod) {
             cursor = db.getResult(sessionId);

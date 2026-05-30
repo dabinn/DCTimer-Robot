@@ -242,6 +242,14 @@ public class DBHelper extends SQLiteOpenHelper {
         db.update(TBL_NAME[sid], cv, "id=?", new String[] {String.valueOf(id)});
     }
 
+    public void updateResultMoves(int sid, int id, String moves) {
+        if (db == null) db = getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("moves", moves);
+        if (sid > 15) sid = 15;
+        db.update(TBL_NAME[sid], cv, "id=?", new String[] {String.valueOf(id)});
+    }
+
     public void close() {
         if (db != null) db.close();
     }

@@ -4957,6 +4957,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         result.update(num, comment);
     }
 
+    public void updateResultMoves(int num, String moves) {
+        result.updateMoves(num, moves);
+    }
+
     public void copyScramble(String scramble) {
         android.content.ClipboardManager clip = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
         clip.setPrimaryClip(ClipData.newPlainText("text", scramble));

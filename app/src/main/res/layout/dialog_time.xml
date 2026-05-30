@@ -159,14 +159,32 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:src="@drawable/ic_arrow_down"/>
+
+                <ImageView
+                    android:id="@+id/iv_solution_edit"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginLeft="8dp"
+                    android:background="@color/transparent"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_edit" />
             </LinearLayout>
 
-            <TextView
+            <EditText
                 android:id="@+id/tv_solution"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:clickable="true"
                 android:focusable="true"
+                android:background="@color/transparent"
+                android:gravity="top"
+                android:inputType="textMultiLine"
+                android:imeOptions="flagNoExtractUi"
+                android:minLines="2"
+                android:paddingLeft="0dp"
+                android:paddingRight="0dp"
                 android:textSize="15sp"
                 android:textColor="@color/colorText" />
         </LinearLayout>
