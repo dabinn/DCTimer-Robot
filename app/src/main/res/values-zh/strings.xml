@@ -155,6 +155,7 @@
     <string name="confirm_delete_result">删除成绩：</string>
     <string name="confirm_delete_last">删除上一次成绩：</string>
     <string name="confirm_clear_session">确认清空成绩</string>
+    <string name="confirm_clear_session_again">成绩清空后无法恢复，是否确定？</string>
     <string name="confirm_delete_session">确认删除分组</string>
     <string name="confirm_reset">确认恢复默认设置</string>
     <string name="time_dnf">本次成绩：DNF</string>

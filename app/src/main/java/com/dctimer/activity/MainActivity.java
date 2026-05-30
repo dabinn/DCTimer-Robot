@@ -2469,14 +2469,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     break;
                 case R.id.btn_clear:    //清空分组
                     if (result.length() != 0) {
-                        new AlertDialog.Builder(context).setTitle(R.string.confirm_clear_session)
-                                .setNegativeButton(R.string.btn_cancel, null)
-                                .setPositiveButton(R.string.btn_ok, new DialogInterface.OnClickListener() {
-                                    public void onClick(DialogInterface arg0, int arg1) {
-                                        deleteAll();
-                                        setStatsLabel();
-                                    }
-                                }).show();
+                        confirmDeleteAll();
                     }
                     break;
                 case R.id.bt_left: //上一个打乱
@@ -4722,13 +4715,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         break;
                     case 4: //清空成绩
                         if (result.length() != 0)
-                            new AlertDialog.Builder(context).setTitle(R.string.confirm_clear_session)
-                                .setPositiveButton(R.string.btn_ok, new DialogInterface.OnClickListener() {
-                                    public void onClick(DialogInterface dialog, int which) {
-                                        deleteAll();
-                                        setStatsLabel();
-                                    }
-                                }).setNegativeButton(R.string.btn_cancel, null).show();
+                            confirmDeleteAll();
                         break;
                     case 5: //手动输入时间
                         inputTime();
@@ -5060,6 +5047,22 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (sortType != 0) result.sortResult();
         resAdapter.reload();
         setStatsLabel();
+    }
+
+    private void confirmDeleteAll() {
+        new AlertDialog.Builder(context).setTitle(R.string.confirm_clear_session)
+                .setNegativeButton(R.string.btn_cancel, null)
+                .setPositiveButton(R.string.btn_ok, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface arg0, int arg1) {
+                        new AlertDialog.Builder(context).setTitle(R.string.confirm_clear_session_again)
+                                .setNegativeButton(R.string.btn_cancel, null)
+                                .setPositiveButton(R.string.btn_ok, new DialogInterface.OnClickListener() {
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        deleteAll();
+                                    }
+                                }).show();
+                    }
+                }).show();
     }
 
     private void deleteAll() {

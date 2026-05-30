@@ -173,16 +173,7 @@ public class SessionListAdapter extends RecyclerView.Adapter<SessionListAdapter.
                     @Override
                     public void onClick(DialogInterface dialogInterface, int i) {
                         if (app.getResult().length() != 0) {
-                            new AlertDialog.Builder(parent).setTitle(R.string.confirm_clear_session)
-                                    .setNegativeButton(R.string.btn_cancel, null)
-                                    .setPositiveButton(R.string.btn_ok, new DialogInterface.OnClickListener() {
-                                        public void onClick(DialogInterface arg0, int arg1) {
-                                            app.getResult().clear();
-                                            mod = true;
-                                            sessionManager.getSession(position).setCount(0);
-                                            notifyDataSetChanged();
-                                        }
-                                    }).show();
+                            confirmClearSession(position);
                         }
                     }
                 });
@@ -226,6 +217,25 @@ public class SessionListAdapter extends RecyclerView.Adapter<SessionListAdapter.
             }
         });
         return holder;
+    }
+
+    private void confirmClearSession(final int position) {
+        new AlertDialog.Builder(parent).setTitle(R.string.confirm_clear_session)
+                .setNegativeButton(R.string.btn_cancel, null)
+                .setPositiveButton(R.string.btn_ok, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface arg0, int arg1) {
+                        new AlertDialog.Builder(parent).setTitle(R.string.confirm_clear_session_again)
+                                .setNegativeButton(R.string.btn_cancel, null)
+                                .setPositiveButton(R.string.btn_ok, new DialogInterface.OnClickListener() {
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        app.getResult().clear();
+                                        mod = true;
+                                        sessionManager.getSession(position).setCount(0);
+                                        notifyDataSetChanged();
+                                    }
+                                }).show();
+                    }
+                }).show();
     }
 
     @Override

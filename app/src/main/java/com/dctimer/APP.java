@@ -221,7 +221,7 @@ public class APP extends Application {
         swipeType[0] = sp.getInt("gesturel", 1);
         swipeType[1] = sp.getInt("gesturer", 2);
         swipeType[2] = sp.getInt("gestureu", 3);
-        swipeType[3] = sp.getInt("gestured", 4);
+        swipeType[3] = sp.getInt("gestured", 5);
         fullScreen = sp.getBoolean("fulls", false);	// 全屏显示
         screenOn = sp.getBoolean("scron", false);	// 屏幕常亮
         vibrateType = sp.getInt("vibra", 0);	// 震动反馈
@@ -258,7 +258,8 @@ public class APP extends Application {
         colors[0] = 0xffffffff;	colors[1] = 0xff000000;	colors[2] = 0xffff00ff;
         colors[3] = 0xffee3333;	colors[4] = 0xff009900; colors[5] = 0xffffffff;
         colors[6] = 0xff000000;
-        for (int i = 0; i < 4; i++) swipeType[i] = i + 1;
+        for (int i = 0; i < 3; i++) swipeType[i] = i + 1;
+        swipeType[3] = 5;
         samplingRate = 44100; dataFormat = AudioFormat.ENCODING_PCM_8BIT;
         smartCubeSolveOrientation = 0; smartCubeSolveMethod = 0; smartCubeScrambleProgressStyle = 0;
         smartCubeGyroFollow = true; smartCubeLayoutMode = 0;

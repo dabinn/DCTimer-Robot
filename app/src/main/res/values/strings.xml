@@ -157,6 +157,7 @@
     <string name="confirm_delete_result">"Delete result: "</string>
     <string name="confirm_delete_last">"Delete last result: "</string>
     <string name="confirm_clear_session">Clear all times in this session?</string>
+    <string name="confirm_clear_session_again">Times cannot be restored after clearing. Are you sure?</string>
     <string name="confirm_delete_session">Delete this session?</string>
     <string name="confirm_reset">Are you sure?</string>
     <string name="time_dnf">Time: DNF</string>

@@ -149,6 +149,7 @@
     <string name="confirm_delete_result">刪除成績：</string>
     <string name="confirm_delete_last">刪除上一次成績：</string>
     <string name="confirm_clear_session">確認清空成績</string>
+    <string name="confirm_clear_session_again">成績清空後無法恢復，是否確定？</string>
     <string name="confirm_delete_session">確認刪除分組</string>
     <string name="confirm_reset">確認恢復預設</string>
     <string name="time_dnf">本次成績：DNF</string>
