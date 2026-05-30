@@ -303,7 +303,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 if (isTimerTabActive()) {
                     showScrambleView();
                 } else {
-                    hideTimerPageCubeState();
+                    hideTimerPageCubeState(true);
                 }
                 invalidateOptionsMenu();
             }
@@ -4348,6 +4348,19 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private void hideTimerPageCubeState() {
         applySmartCubeImmersiveLayout(false);
+        if (smartCube3DView != null) {
+            smartCube3DView.setVisibility(View.GONE);
+        }
+    }
+
+    private void hideTimerPageCubeState(boolean preserveSmartCubeImmersiveLayout) {
+        if (!preserveSmartCubeImmersiveLayout) {
+            hideTimerPageCubeState();
+            return;
+        }
+        if (!shouldUseSmartCubeImmersiveLayout()) {
+            applySmartCubeImmersiveLayout(false);
+        }
         if (smartCube3DView != null) {
             smartCube3DView.setVisibility(View.GONE);
         }
