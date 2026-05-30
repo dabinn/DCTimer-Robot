@@ -408,13 +408,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         int smartSectionStart = cells.size();
         String[] smartSettingItems = getResources().getStringArray(R.array.item_smart);
         Utils.addSection(headers, cells, getString(R.string.title_smart), smartSettingItems,
-                new int[] {0, 0, 0, 1, 0},
+                new int[] {0, 0, 0, 2, 1, 0},
                 new Object[] {getResources().getStringArray(R.array.opt_smart_solve_method)[smartCubeSolveMethod], getSmartCubeOrientationLabel(smartCubeSolveOrientation),
                         getResources().getStringArray(R.array.opt_smart_scramble_progress)[smartCubeScrambleProgressStyle],
-                        smartCubeGyroFollow, getResources().getStringArray(R.array.opt_smart_layout)[smartCubeLayoutMode]},
-                new int[5],
-                new int[] {ST_SMART_SOLVE_METHOD, ST_SMART_ORIENTATION, ST_SMART_SCRAMBLE_PROGRESS, ST_SMART_GYRO_FOLLOW, ST_SMART_LAYOUT});
-        cells.get(smartSectionStart + 4).put("desc", getString(R.string.smart_cube_gyro_follow_desc));
+                        String.valueOf(smartCubeSize), smartCubeGyroFollow, getResources().getStringArray(R.array.opt_smart_layout)[smartCubeLayoutMode]},
+                new int[] {0, 0, 0, 16<<16|(smartCubeSize/10-16), 0, 0},
+                new int[] {ST_SMART_SOLVE_METHOD, ST_SMART_ORIENTATION, ST_SMART_SCRAMBLE_PROGRESS, ST_SMART_CUBE_SIZE, ST_SMART_GYRO_FOLLOW, ST_SMART_LAYOUT});
+        cells.get(smartSectionStart + 5).put("desc", getString(R.string.smart_cube_gyro_follow_desc));
         Utils.addSection(headers, cells, getString(R.string.title_scramble), getResources().getStringArray(R.array.item_scramble),
                 new int[] {2, 1, 1, 2, 0},
                 new Object[] {String.valueOf(scrambleSize), monoFont, showImage, "", ""},
@@ -3747,12 +3747,17 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 break;
             case ST_IMAGE_SIZE: //打乱状态
                 imageSize = progress * 10 + 160;
-                if (shouldShowTimerPageCubeState()) {
-                    setSmartCubeImageSize();
-                } else {
+                if (!shouldShowTimerPageCubeState()) {
                     setImageSize();
                 }
                 setPref("svsize", imageSize);
+                break;
+            case ST_SMART_CUBE_SIZE: //虚拟魔方大小
+                smartCubeSize = progress * 10 + 160;
+                if (shouldShowTimerPageCubeState() && !shouldUseSmartCubeImmersiveLayout()) {
+                    setSmartCubeImageSize();
+                }
+                setPref("scvsize", smartCubeSize);
                 break;
             case ST_TIMER_SIZE: //计时器大小
                 timerSize = progress + 50;
@@ -3916,7 +3921,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         edit.remove("sensity");	edit.remove("monoscr");	edit.remove("showscr");
         edit.remove("timerupd");	edit.remove("timeform");    edit.remove("showstat");
         edit.remove("screenori");   edit.remove("resultorder");
-        edit.remove("scgyro");
+        edit.remove("scgyro"); edit.remove("scvsize");
         edit.apply();
     }
 
@@ -4190,8 +4195,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             return;
         }
         applySmartCubeImmersiveLayout(false);
-        int width = (int) (imageSize * dpi * 0.67f);
-        int height = (int) (imageSize * dpi * 0.76f);
+        int width = (int) (smartCubeSize * dpi * 0.67f);
+        int height = (int) (smartCubeSize * dpi * 0.76f);
         int bottomMargin = APP.getPixel(5);
         ViewGroup.LayoutParams current = smartCube3DView != null ? smartCube3DView.getLayoutParams() : scrambleView.getLayoutParams();
         if (current instanceof RelativeLayout.LayoutParams) {

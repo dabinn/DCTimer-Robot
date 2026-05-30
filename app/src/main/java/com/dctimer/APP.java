@@ -101,6 +101,7 @@ public class APP extends Application {
     public static int smartCubeSolveOrientation;
     public static int smartCubeSolveMethod;
     public static int smartCubeScrambleProgressStyle;
+    public static int smartCubeSize;
     public static boolean smartCubeGyroFollow;
     public static int smartCubeLayoutMode;
 
@@ -235,6 +236,8 @@ public class APP extends Application {
         if (smartCubeSolveMethod < 0 || smartCubeSolveMethod > 1) smartCubeSolveMethod = 0;
         smartCubeScrambleProgressStyle = sp.getInt("scadv", 0);
         if (smartCubeScrambleProgressStyle < 0 || smartCubeScrambleProgressStyle > 1) smartCubeScrambleProgressStyle = 0;
+        smartCubeSize = sp.getInt("scvsize", 220);
+        if (smartCubeSize < 160 || smartCubeSize > 320) smartCubeSize = 220;
         smartCubeGyroFollow = sp.getBoolean("scgyro", true);
         smartCubeLayoutMode = sp.getInt("sclayout", 0);
         if (smartCubeLayoutMode < 0 || smartCubeLayoutMode > 1) smartCubeLayoutMode = 0;
@@ -262,7 +265,7 @@ public class APP extends Application {
         swipeType[3] = 5;
         samplingRate = 44100; dataFormat = AudioFormat.ENCODING_PCM_8BIT;
         smartCubeSolveOrientation = 0; smartCubeSolveMethod = 0; smartCubeScrambleProgressStyle = 0;
-        smartCubeGyroFollow = true; smartCubeLayoutMode = 0;
+        smartCubeSize = 220; smartCubeGyroFollow = true; smartCubeLayoutMode = 0;
     }
 
     public static int getPixel(int dp) {
