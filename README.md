@@ -25,7 +25,7 @@
 ## 下载安装
 
 - [Github Releases](https://github.com/huizhiLLL/DCTimer-Android-BLE/releases/latest)
-- [官网直链](https://dctimer.huizhi.ink/assets/DCTimer-BLE-v2.2.5.apk)
+- [官网直链](https://dctimer.huizhi.ink/assets/DCTimer-BLE-v2.2.6.apk)
 
 > DCTimer-BLE 与原 DCTimer 的包名不同，因此不会发生安装冲突
 > 兼容原数据格式，从原 DCTimer 导出数据再导入 DCTimer-BLE 中即可完成数据迁移
