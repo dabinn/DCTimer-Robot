@@ -235,6 +235,20 @@ h1 {
   filter: drop-shadow(0 18px 34px rgba(0, 102, 204, 0.14));
 }
 
+.gsap-ready .github-link,
+.gsap-ready .logo-mark,
+.gsap-ready h1,
+.gsap-ready .tag-list span,
+.gsap-ready .tagline,
+.gsap-ready .download-button,
+.gsap-ready .hero-media,
+.gsap-ready .wave,
+.gsap-ready .feature-row,
+.gsap-ready .migration-notes-inner,
+.gsap-ready .site-footer {
+  will-change: transform, opacity;
+}
+
 .wave {
   position: absolute;
   right: 0;

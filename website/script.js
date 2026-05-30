@@ -44,6 +44,80 @@ const getMidpoint = (a, b) => ({
 
 const getPointerPair = () => [...zoomState.pointers.values()].slice(0, 2);
 
+const initGsapAnimations = () => {
+  if (!window.gsap) return;
+
+  const { gsap } = window;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (reduceMotion) {
+    gsap.set([
+      ".github-link",
+      ".logo-mark",
+      "h1",
+      ".tag-list span",
+      ".tagline",
+      ".download-button",
+      ".hero-media",
+      ".wave",
+      ".feature-row",
+      ".migration-notes-inner",
+      ".site-footer",
+    ], { clearProps: "all" });
+    return;
+  }
+
+  document.documentElement.classList.add("gsap-ready");
+  gsap.defaults({ duration: 0.72, ease: "power3.out" });
+
+  const heroTimeline = gsap.timeline({ defaults: { autoAlpha: 0, y: 24 } });
+  heroTimeline
+    .from(".github-link", { y: -12, duration: 0.45 })
+    .from(".logo-mark", { scale: 0.94, duration: 0.58 }, 0.08)
+    .from("h1", {}, 0.16)
+    .from(".tag-list span", { y: 14, duration: 0.48, stagger: 0.055 }, 0.32)
+    .from(".tagline", { y: 16, duration: 0.54 }, 0.48)
+    .from(".download-button", { y: 18, duration: 0.54, stagger: 0.08 }, 0.62)
+    .from(".hero-media", { x: 34, y: 0, scale: 0.985, duration: 0.86 }, 0.22)
+    .from(".wave", { y: 22, duration: 0.82 }, 0.48);
+
+  if (!window.ScrollTrigger) return;
+
+  gsap.registerPlugin(ScrollTrigger);
+  gsap.set([".feature-row", ".migration-notes-inner"], { autoAlpha: 0, y: 38 });
+
+  ScrollTrigger.batch(".feature-row, .migration-notes-inner", {
+    start: "top 82%",
+    once: true,
+    interval: 0.08,
+    batchMax: 3,
+    onEnter: (elements) => {
+      gsap.to(elements, {
+        autoAlpha: 1,
+        y: 0,
+        duration: 0.72,
+        ease: "power3.out",
+        stagger: 0.12,
+        overwrite: "auto",
+      });
+    },
+  });
+
+  gsap.from(".site-footer", {
+    autoAlpha: 0,
+    y: 18,
+    duration: 0.46,
+    ease: "power2.out",
+    scrollTrigger: {
+      trigger: ".site-footer",
+      start: "top bottom",
+      once: true,
+    },
+  });
+};
+
+initGsapAnimations();
+
 document.querySelectorAll(".image-zoom-trigger").forEach((button) => {
   button.addEventListener("click", () => {
     if (!dialog || !dialogImage) return;
