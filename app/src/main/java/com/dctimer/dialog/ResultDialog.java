@@ -5,6 +5,7 @@ import android.app.Dialog;
 import android.content.ClipData;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Color;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -22,6 +23,8 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.TableLayout;
+import android.widget.TableRow;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -29,7 +32,16 @@ import com.dctimer.APP;
 import com.dctimer.R;
 import com.dctimer.activity.MainActivity;
 import com.dctimer.activity.WebActivity;
+import com.dctimer.util.StringUtils;
 import com.dctimer.util.Utils;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 import scrambler.Scrambler;
 
@@ -37,7 +49,9 @@ import static android.content.Context.CLIPBOARD_SERVICE;
 
 public class ResultDialog extends DialogFragment {
     private EditText etComment;
-    private EditText tvSolution;
+    private TextView tvSolution;
+    private EditText etSolution;
+    private TableLayout tableSolveStats;
     private ImageView imgArrow;
     private ImageView imgSolutionEdit;
     private int num;
@@ -47,11 +61,12 @@ public class ResultDialog extends DialogFragment {
     private int penalty;
     private String comment;
     private String solution;
+    private String solveMeta;
     private int puzzle;
     private boolean expandSol;
     private boolean editingSolution;
 
-    public static ResultDialog newInstance(int num, String time, String scramble, String date, int penalty, String comment, String solution, int puzzle) {
+    public static ResultDialog newInstance(int num, String time, String scramble, String date, int penalty, String comment, String solution, String solveMeta, int puzzle) {
         ResultDialog dialog = new ResultDialog();
         Bundle bundle = new Bundle();
         bundle.putInt("num", num);
@@ -61,6 +76,7 @@ public class ResultDialog extends DialogFragment {
         bundle.putInt("penalty", penalty);
         bundle.putString("comment", comment);
         bundle.putString("solution", solution);
+        bundle.putString("solveMeta", solveMeta);
         bundle.putInt("puzzle", puzzle);
         dialog.setArguments(bundle);
         return dialog;
@@ -76,6 +92,7 @@ public class ResultDialog extends DialogFragment {
         penalty = getArguments().getInt("penalty", 0);
         comment = getArguments().getString("comment");
         solution = getArguments().getString("solution");
+        solveMeta = getArguments().getString("solveMeta");
         puzzle = getArguments().getInt("puzzle", 0);
         AlertDialog.Builder buidler = new AlertDialog.Builder(getActivity());
         final View view = getActivity().getLayoutInflater().inflate(R.layout.dialog_time, null);
@@ -88,8 +105,10 @@ public class ResultDialog extends DialogFragment {
         //Button btnSolution = view.findViewById(R.id.bt_solution);
         LinearLayout llSolution = view.findViewById(R.id.ll_sol);
         tvSolution = view.findViewById(R.id.tv_solution);
+        etSolution = view.findViewById(R.id.et_solution);
         imgArrow = view.findViewById(R.id.iv_arrow);
         imgSolutionEdit = view.findViewById(R.id.iv_solution_edit);
+        tableSolveStats = view.findViewById(R.id.table_solve_stats);
         tvNum.setText("#" + (num + 1));
         tvTime.setText(time);
         tvScramble.setText(scramble);
@@ -125,12 +144,10 @@ public class ResultDialog extends DialogFragment {
         }
         if (!TextUtils.isEmpty(solution)) {
             tvSolution.setText(solution);
+            etSolution.setText(solution);
             tvSolution.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    if (editingSolution) {
-                        return;
-                    }
                     android.content.ClipboardManager clip = (android.content.ClipboardManager) getActivity().getSystemService(CLIPBOARD_SERVICE);
                     clip.setPrimaryClip(ClipData.newPlainText("text", solution));
                     Toast.makeText(getActivity(), R.string.copy_success, Toast.LENGTH_SHORT).show();
@@ -142,15 +159,20 @@ public class ResultDialog extends DialogFragment {
         }
         setSolutionEditMode(false);
         tvSolution.setVisibility(View.GONE);
+        etSolution.setVisibility(View.GONE);
+        bindSolveStats(tableSolveStats, solveMeta);
         llSolution.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 expandSol = !expandSol;
                 if (expandSol) {
-                    tvSolution.setVisibility(View.VISIBLE);
+                    getActiveSolutionView().setVisibility(View.VISIBLE);
+                    setSolveStatsVisible(true);
                     imgArrow.setImageResource(R.drawable.ic_arrow_up);
                 } else {
                     tvSolution.setVisibility(View.GONE);
+                    etSolution.setVisibility(View.GONE);
+                    setSolveStatsVisible(false);
                     imgArrow.setImageResource(R.drawable.ic_arrow_down);
                 }
             }
@@ -164,7 +186,6 @@ public class ResultDialog extends DialogFragment {
                 } else {
                     if (!expandSol) {
                         expandSol = true;
-                        tvSolution.setVisibility(View.VISIBLE);
                         imgArrow.setImageResource(R.drawable.ic_arrow_up);
                     }
                     setSolutionEditMode(true);
@@ -218,7 +239,7 @@ public class ResultDialog extends DialogFragment {
                 }
                 saveSolutionIfChanged();
                 Utils.hideKeyboard(etComment);
-                Utils.hideKeyboard(tvSolution);
+                Utils.hideKeyboard(etSolution);
                 if (mod) {
                     if (getActivity() instanceof MainActivity) {
                         ((MainActivity) getActivity()).updateResult(num, penalty);
@@ -240,27 +261,146 @@ public class ResultDialog extends DialogFragment {
 
     private void setSolutionEditMode(boolean editing) {
         editingSolution = editing;
-        tvSolution.setFocusable(editing);
-        tvSolution.setFocusableInTouchMode(editing);
-        tvSolution.setCursorVisible(editing);
-        tvSolution.setLongClickable(editing);
-        tvSolution.setBackgroundResource(editing ? R.drawable.edittext_background : android.R.color.transparent);
         imgSolutionEdit.setImageResource(editing ? R.drawable.ic_check : R.drawable.ic_edit);
+        tvSolution.setVisibility(expandSol && !editing ? View.VISIBLE : View.GONE);
+        etSolution.setVisibility(expandSol && editing ? View.VISIBLE : View.GONE);
+        setSolveStatsVisible(expandSol);
         if (editing) {
-            tvSolution.setSelection(tvSolution.getText().length());
-            Utils.showKeyboard(tvSolution);
+            etSolution.setText(solution == null ? "" : solution);
+            etSolution.setSelection(etSolution.getText().length());
+            Utils.showKeyboard(etSolution);
         } else {
-            tvSolution.clearFocus();
-            Utils.hideKeyboard(tvSolution);
+            etSolution.clearFocus();
+            Utils.hideKeyboard(etSolution);
         }
     }
 
     private void saveSolutionIfChanged() {
-        String text = tvSolution.getText().toString();
+        String text = etSolution.getText().toString();
         String oldSolution = solution == null ? "" : solution;
         if (!text.equals(oldSolution) && getActivity() instanceof MainActivity) {
             ((MainActivity) getActivity()).updateResultMoves(num, text);
             solution = text;
+            tvSolution.setText(solution);
+            etSolution.setText(solution);
+        }
+    }
+
+    private View getActiveSolutionView() {
+        return editingSolution ? etSolution : tvSolution;
+    }
+
+    private void setSolveStatsVisible(boolean visible) {
+        if (tableSolveStats != null && tableSolveStats.getChildCount() > 0) {
+            tableSolveStats.setVisibility(visible ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void bindSolveStats(TableLayout table, String meta) {
+        table.removeAllViews();
+        List<PhaseStat> stats = parsePhaseStats(meta);
+        if (stats.isEmpty()) {
+            table.setVisibility(View.GONE);
+            return;
+        }
+        addStatsRow(table, "", "Time", "Moves", "TPS", true);
+        for (PhaseStat stat : stats) {
+            addStatsRow(table, stat.name, formatSeconds(stat.timeMs), String.valueOf(stat.moves), formatTps(stat.moves, stat.timeMs), false);
+        }
+        table.setVisibility(expandSol ? View.VISIBLE : View.GONE);
+    }
+
+    private List<PhaseStat> parsePhaseStats(String meta) {
+        List<PhaseStat> result = new ArrayList<>();
+        if (TextUtils.isEmpty(meta)) {
+            return result;
+        }
+        try {
+            JSONObject root = new JSONObject(meta);
+            JSONArray phases = root.optJSONArray("phases");
+            if (phases == null || phases.length() == 0) {
+                return result;
+            }
+            for (int i = 0; i < phases.length(); i++) {
+                JSONObject phase = phases.optJSONObject(i);
+                if (phase == null) {
+                    continue;
+                }
+                String name = phase.optString("name");
+                int moves = phase.optInt("moveCount", 0);
+                int timeMs = Math.max(0, phase.optInt("endMs", 0) - phase.optInt("startMs", 0));
+                if (TextUtils.isEmpty(name) || moves <= 0) {
+                    continue;
+                }
+                addPhaseStat(result, normalizePhaseName(name), moves, timeMs);
+            }
+        } catch (JSONException e) {
+            Log.w("dct", "parse solve_meta failed", e);
+            result.clear();
+        }
+        return result;
+    }
+
+    private String normalizePhaseName(String name) {
+        return name != null && name.startsWith("F2L") ? "F2L" : name;
+    }
+
+    private void addPhaseStat(List<PhaseStat> stats, String name, int moves, int timeMs) {
+        for (PhaseStat stat : stats) {
+            if (stat.name.equals(name)) {
+                stat.moves += moves;
+                stat.timeMs += timeMs;
+                return;
+            }
+        }
+        stats.add(new PhaseStat(name, moves, timeMs));
+    }
+
+    private void addStatsRow(TableLayout table, String phase, String moves, String seconds, String tps, boolean header) {
+        TableRow row = new TableRow(getActivity());
+        row.setLayoutParams(new TableLayout.LayoutParams(TableLayout.LayoutParams.MATCH_PARENT, TableLayout.LayoutParams.WRAP_CONTENT));
+        row.addView(createStatsCell(phase, header, 1.05f));
+        row.addView(createStatsCell(moves, header, 0.85f));
+        row.addView(createStatsCell(seconds, header, 0.95f));
+        row.addView(createStatsCell(tps, header, 1.15f));
+        table.addView(row);
+    }
+
+    private TextView createStatsCell(String text, boolean header, float weight) {
+        TextView cell = new TextView(getActivity());
+        TableRow.LayoutParams params = new TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, weight);
+        cell.setLayoutParams(params);
+        cell.setText(text);
+        cell.setTextColor(header ? 0xff666666 : Color.BLACK);
+        cell.setTextSize(header ? 12 : 13);
+        cell.setSingleLine(true);
+        cell.setEllipsize(TextUtils.TruncateAt.END);
+        int horizontal = APP.getPixel(4);
+        int vertical = APP.getPixel(3);
+        cell.setPadding(horizontal, vertical, horizontal, vertical);
+        return cell;
+    }
+
+    private String formatSeconds(int ms) {
+        return StringUtils.timeToString(ms) + " s";
+    }
+
+    private String formatTps(int moves, int ms) {
+        if (ms <= 0) {
+            return "-";
+        }
+        return String.format(Locale.US, "%.2f", moves * 1000f / ms);
+    }
+
+    private static class PhaseStat {
+        final String name;
+        int moves;
+        int timeMs;
+
+        PhaseStat(String name, int moves, int timeMs) {
+            this.name = name;
+            this.moves = moves;
+            this.timeMs = timeMs;
         }
     }
 }

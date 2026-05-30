@@ -169,24 +169,44 @@
                     android:clickable="true"
                     android:focusable="true"
                     android:padding="4dp"
-                    android:src="@drawable/ic_edit" />
+                    android:src="@drawable/ic_edit"
+                    android:tint="#dd007aff" />
             </LinearLayout>
 
-            <EditText
+            <TextView
                 android:id="@+id/tv_solution"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:clickable="true"
                 android:focusable="true"
-                android:background="@color/transparent"
+                android:textSize="15sp"
+                android:textColor="@color/colorText" />
+
+            <EditText
+                android:id="@+id/et_solution"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/edittext_background"
                 android:gravity="top"
                 android:inputType="textMultiLine"
                 android:imeOptions="flagNoExtractUi"
-                android:minLines="2"
-                android:paddingLeft="0dp"
-                android:paddingRight="0dp"
+                android:minLines="3"
+                android:paddingLeft="3dp"
+                android:paddingRight="3dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
                 android:textSize="15sp"
-                android:textColor="@color/colorText" />
+                android:textColor="@color/colorText"
+                android:visibility="gone" />
+
+            <TableLayout
+                android:id="@+id/table_solve_stats"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:shrinkColumns="0,1,2,3"
+                android:stretchColumns="1,2,3"
+                android:visibility="gone" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

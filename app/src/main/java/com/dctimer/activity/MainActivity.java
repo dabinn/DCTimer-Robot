@@ -4933,13 +4933,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         String date = result.getString(5);
         String comment = result.getString(6);
         String solution = result.getString(13);
+        String solveMeta = result.getString(14);
         int id = result.getId(p);
         Log.w("dct", "id: "+id);
         if (date == null) date = "";
         if (multiPhase > 0) {   //TODO 显示各分段成绩
 
         }
-        ResultDialog dialog = ResultDialog.newInstance(p, time, scramble, date, penalty, comment, solution, sessionManager.getPuzzle(sessionIdx));
+        ResultDialog dialog = ResultDialog.newInstance(p, time, scramble, date, penalty, comment, solution, solveMeta, sessionManager.getPuzzle(sessionIdx));
         dialog.show(getSupportFragmentManager(), "result");
     }
 
