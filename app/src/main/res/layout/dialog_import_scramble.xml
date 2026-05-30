@@ -30,4 +30,19 @@
             android:entries="@array/item_import_type" />
     </LinearLayout>
 
+    <EditText
+        android:id="@+id/edit_scramble"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:layout_marginTop="10dp"
+        android:background="@android:drawable/edit_text"
+        android:gravity="top|start"
+        android:hint="@string/import_scramble_hint"
+        android:inputType="textMultiLine|textNoSuggestions"
+        android:minLines="4"
+        android:padding="8dp"
+        android:scrollbars="vertical"
+        android:textColor="@color/colorText"
+        android:textSize="16sp" />
+
 </LinearLayout>

@@ -190,6 +190,7 @@
     <string name="multi_phase_mean">Mean</string>
     <string name="scramble_num">"Number of scramble(1~500): "</string>
     <string name="scramble_type">Scramble type:</string>
+    <string name="import_scramble_hint">Enter scrambles manually, or leave empty to choose a file</string>
     <string name="scramble_path">"Path: "</string>
     <string name="scramble_filename">"File name: "</string>
     <string name="override">Override database</string>

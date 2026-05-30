@@ -9,6 +9,7 @@ import androidx.fragment.app.DialogFragment;
 import androidx.appcompat.app.AlertDialog;
 import android.view.View;
 import android.widget.AdapterView;
+import android.widget.EditText;
 import android.widget.Spinner;
 
 import com.dctimer.R;
@@ -27,6 +28,7 @@ public class ImportScrambleDialog extends DialogFragment {
         AlertDialog.Builder buidler = new AlertDialog.Builder(getActivity());
         View view = getActivity().getLayoutInflater().inflate(R.layout.dialog_import_scramble, null);
         Spinner spinner = view.findViewById(R.id.sp_type);
+        EditText editScramble = view.findViewById(R.id.edit_scramble);
         spinner.setOnItemSelectedListener(new Spinner.OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 importType = position;
@@ -37,7 +39,12 @@ public class ImportScrambleDialog extends DialogFragment {
                 .setPositiveButton(R.string.btn_ok, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface di, int i) {
                         if (getActivity() instanceof MainActivity) {
-                            ((MainActivity) getActivity()).requestScrambleImport();
+                            String scramble = editScramble.getText().toString().trim();
+                            if (scramble.length() > 0) {
+                                ((MainActivity) getActivity()).importScramble(scramble);
+                            } else {
+                                ((MainActivity) getActivity()).requestScrambleImport();
+                            }
                         }
                     }
                 }).setNegativeButton(R.string.btn_cancel, null);
