@@ -4028,11 +4028,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 smartCube3DView.setAlpha(1f);
                 smartCube3DView.setVisibility(View.VISIBLE);
             }
-        } else if (showImage) {
+        } else if (shouldShowScrambleImage()) {
             hideTimerPageCubeState();
             scrambleView.setVisibility(vi);
         } else {
-            scrambleView.setVisibility(View.GONE);
+            hideScrambleImage();
             hideTimerPageCubeState();
         }
     }
@@ -4372,6 +4372,15 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         scrambleView.setImageBitmap(bitmap);
     }
 
+    private boolean shouldShowScrambleImage() {
+        return showImage && currentScramble != null && currentScramble.getImageType() > 0;
+    }
+
+    private void hideScrambleImage() {
+        scrambleView.setVisibility(View.GONE);
+        scrambleView.setImageBitmap(null);
+    }
+
     private void setTextsColor() {
         int color = APP.getTextColor();
         setTimerColor(color);
@@ -4508,7 +4517,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    scrambleView.setVisibility(View.GONE);
+                    hideScrambleImage();
                     hideTimerPageCubeState();
                 }
             });
@@ -4543,7 +4552,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         } else runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                scrambleView.setVisibility(View.GONE);
+                hideScrambleImage();
                 hideTimerPageCubeState();
             }
         });
