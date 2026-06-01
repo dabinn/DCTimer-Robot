@@ -293,7 +293,7 @@ public class SmartCubeSolveReconstruction {
             reconstructedMoves.addAll(moves);
             phases.add(createPhase(orderedPhaseNames.get(i), moves, 0, moves.size() - 1));
         }
-        return new PhaseBuildResult(reconstructedMoves, phases);
+        return new PhaseBuildResult(reconstructedMoves, includePhaseGaps(phases));
     }
 
     private static int updatePhaseStatus(int status, int progress) {
@@ -372,6 +372,20 @@ public class SmartCubeSolveReconstruction {
         String moveText = joinMoves(moves, start, safeEnd);
         int count = countNonRotationMoves(moves, start, safeEnd);
         return new Phase(name, moveText, count, moves.get(start).startMs, moves.get(safeEnd).endMs);
+    }
+
+    private static List<Phase> includePhaseGaps(List<Phase> phases) {
+        List<Phase> result = new ArrayList<>();
+        int previousEndMs = 0;
+        for (Phase phase : phases) {
+            if (phase.moveCount <= 0) {
+                result.add(phase);
+                continue;
+            }
+            result.add(new Phase(phase.name, phase.moves, phase.moveCount, previousEndMs, phase.endMs));
+            previousEndMs = phase.endMs;
+        }
+        return result;
     }
 
     private static int getCf4opProgress(String facelet) {

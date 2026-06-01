@@ -303,9 +303,16 @@ public class ResultDialog extends DialogFragment {
             table.setVisibility(View.GONE);
             return;
         }
-        addStatsRow(table, "", "Time", "Moves", "TPS", true);
+        addStatsRow(table, "", "Time", "Moves", "TPS", true, false);
         for (PhaseStat stat : stats) {
-            addStatsRow(table, stat.name, formatSeconds(stat.timeMs), String.valueOf(stat.moves), formatTps(stat.moves, stat.timeMs), false);
+            addStatsRow(table, stat.name, formatSeconds(stat.timeMs), String.valueOf(stat.moves),
+                    formatTps(stat.moves, stat.timeMs), false, false);
+            if (stat.children != null && !stat.children.isEmpty()) {
+                for (PhaseStat child : stat.children) {
+                    addStatsRow(table, child.name, formatSeconds(child.timeMs), String.valueOf(child.moves),
+                            formatTps(child.moves, child.timeMs), false, true);
+                }
+            }
         }
         table.setVisibility(expandSol ? View.VISIBLE : View.GONE);
     }
@@ -332,7 +339,7 @@ public class ResultDialog extends DialogFragment {
                 if (TextUtils.isEmpty(name) || moves <= 0) {
                     continue;
                 }
-                addPhaseStat(result, normalizePhaseName(name), moves, timeMs);
+                addPhaseStat(result, name, moves, timeMs);
             }
         } catch (JSONException e) {
             Log.w("dct", "parse solve_meta failed", e);
@@ -341,11 +348,18 @@ public class ResultDialog extends DialogFragment {
         return result;
     }
 
-    private String normalizePhaseName(String name) {
-        return name != null && name.startsWith("F2L") ? "F2L" : name;
-    }
-
     private void addPhaseStat(List<PhaseStat> stats, String name, int moves, int timeMs) {
+        if (name != null && name.startsWith("F2L")) {
+            PhaseStat f2l = findPhaseStat(stats, "F2L");
+            if (f2l == null) {
+                f2l = new PhaseStat("F2L", 0, 0);
+                stats.add(f2l);
+            }
+            f2l.moves += moves;
+            f2l.timeMs += timeMs;
+            f2l.children.add(new PhaseStat(name, moves, timeMs));
+            return;
+        }
         for (PhaseStat stat : stats) {
             if (stat.name.equals(name)) {
                 stat.moves += moves;
@@ -356,23 +370,32 @@ public class ResultDialog extends DialogFragment {
         stats.add(new PhaseStat(name, moves, timeMs));
     }
 
-    private void addStatsRow(TableLayout table, String phase, String moves, String seconds, String tps, boolean header) {
+    private PhaseStat findPhaseStat(List<PhaseStat> stats, String name) {
+        for (PhaseStat stat : stats) {
+            if (stat.name.equals(name)) {
+                return stat;
+            }
+        }
+        return null;
+    }
+
+    private void addStatsRow(TableLayout table, String phase, String moves, String seconds, String tps, boolean header, boolean detail) {
         TableRow row = new TableRow(getActivity());
         row.setLayoutParams(new TableLayout.LayoutParams(TableLayout.LayoutParams.MATCH_PARENT, TableLayout.LayoutParams.WRAP_CONTENT));
-        row.addView(createStatsCell(phase, header, 1.05f));
-        row.addView(createStatsCell(moves, header, 0.85f));
-        row.addView(createStatsCell(seconds, header, 0.95f));
-        row.addView(createStatsCell(tps, header, 1.15f));
+        row.addView(createStatsCell(detail ? "  " + phase : phase, header, detail, 1.05f));
+        row.addView(createStatsCell(moves, header, detail, 0.85f));
+        row.addView(createStatsCell(seconds, header, detail, 0.95f));
+        row.addView(createStatsCell(tps, header, detail, 1.15f));
         table.addView(row);
     }
 
-    private TextView createStatsCell(String text, boolean header, float weight) {
+    private TextView createStatsCell(String text, boolean header, boolean detail, float weight) {
         TextView cell = new TextView(getActivity());
         TableRow.LayoutParams params = new TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, weight);
         cell.setLayoutParams(params);
         cell.setText(text);
-        cell.setTextColor(header ? 0xff666666 : Color.BLACK);
-        cell.setTextSize(header ? 12 : 13);
+        cell.setTextColor(header || detail ? 0xff666666 : Color.BLACK);
+        cell.setTextSize(header || detail ? 12 : 13);
         cell.setSingleLine(true);
         cell.setEllipsize(TextUtils.TruncateAt.END);
         int horizontal = APP.getPixel(4);
@@ -396,6 +419,7 @@ public class ResultDialog extends DialogFragment {
         final String name;
         int moves;
         int timeMs;
+        final List<PhaseStat> children = new ArrayList<>();
 
         PhaseStat(String name, int moves, int timeMs) {
             this.name = name;

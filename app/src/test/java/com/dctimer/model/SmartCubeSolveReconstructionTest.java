@@ -5,6 +5,8 @@ import com.dctimer.util.Utils;
 
 import org.junit.Test;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
@@ -141,6 +143,29 @@ public class SmartCubeSolveReconstructionTest {
         }
     }
 
+    @Test
+    public void phaseTimesIncludeGapSincePreviousPhase() throws Exception {
+        List<Object> phases = new ArrayList<>();
+        phases.add(newPhase("Cross", 8, 100, 1000));
+        phases.add(newPhase("F2L 1", 6, 1400, 2000));
+        phases.add(newPhase("F2L 2", 7, 2500, 3000));
+        phases.add(newPhase("F2L 3", 6, 3600, 4000));
+        phases.add(newPhase("F2L 4", 7, 4600, 5000));
+
+        List<?> adjusted = invokeIncludePhaseGaps(phases);
+
+        assertEquals(0, getPhaseStartMs(adjusted.get(0)));
+        assertEquals(1000, getPhaseStartMs(adjusted.get(1)));
+        assertEquals(2000, getPhaseStartMs(adjusted.get(2)));
+        assertEquals(3000, getPhaseStartMs(adjusted.get(3)));
+        assertEquals(4000, getPhaseStartMs(adjusted.get(4)));
+        int f2lTimeMs = 0;
+        for (int i = 1; i <= 4; i++) {
+            f2lTimeMs += getPhaseEndMs(adjusted.get(i)) - getPhaseStartMs(adjusted.get(i));
+        }
+        assertEquals(4000, f2lTimeMs);
+    }
+
     private static int invokeCf4opProgress(String facelets) throws Exception {
         Method method = SmartCubeSolveReconstruction.class.getDeclaredMethod("getCf4opProgress", String.class);
         method.setAccessible(true);
@@ -161,6 +186,33 @@ public class SmartCubeSolveReconstructionTest {
             }
         }
         return 0;
+    }
+
+    private static Object newPhase(String name, int moveCount, int startMs, int endMs) throws Exception {
+        Class<?> phaseClass = Class.forName("com.dctimer.model.SmartCubeSolveReconstruction$Phase");
+        Constructor<?> constructor = phaseClass.getDeclaredConstructor(String.class, String.class, int.class, int.class, int.class);
+        constructor.setAccessible(true);
+        return constructor.newInstance(name, name, moveCount, startMs, endMs);
+    }
+
+    private static List<?> invokeIncludePhaseGaps(List<Object> phases) throws Exception {
+        Method method = SmartCubeSolveReconstruction.class.getDeclaredMethod("includePhaseGaps", List.class);
+        method.setAccessible(true);
+        return (List<?>) method.invoke(null, phases);
+    }
+
+    private static int getPhaseStartMs(Object phase) throws Exception {
+        return getPhaseIntField(phase, "startMs");
+    }
+
+    private static int getPhaseEndMs(Object phase) throws Exception {
+        return getPhaseIntField(phase, "endMs");
+    }
+
+    private static int getPhaseIntField(Object phase, String fieldName) throws Exception {
+        Field field = phase.getClass().getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return (Integer) field.get(phase);
     }
 
 }
