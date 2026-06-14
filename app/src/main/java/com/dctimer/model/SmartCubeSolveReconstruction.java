@@ -542,13 +542,12 @@ public class SmartCubeSolveReconstruction {
             sb.append(solveText.trim());
             sb.append('\n');
         }
-        sb.append("Total: ")
+        sb.append("STM: ")
                 .append(moveCount)
                 .append(" moves");
         sb.append('\n');
         sb.append("TPS: ")
-                .append(String.format(Locale.US, "%.1f", solveTimeMs > 0 ? moveCount * 1000f / solveTimeMs : 0f))
-                .append(" tps");
+                .append(String.format(Locale.US, "%.1f", solveTimeMs > 0 ? moveCount * 1000f / solveTimeMs : 0f));
         return sb.toString();
     }
 
