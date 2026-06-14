@@ -161,8 +161,8 @@ h1 {
 }
 
 .download-button svg {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     flex: 0 0 auto;
     fill: currentColor;
 }
@@ -366,7 +366,7 @@ h1 {
     text-align: center;
 }
 
-/* 新增：双卡片信息展示板块 (Changelog + 迁移说明) */
+/* 新增：双列信息展示板块 (Changelog + 迁移说明，无边框和背景，改用竖线分割) */
 .info-section {
     padding: 0 clamp(24px, 8vw, 150px) 92px;
     background: var(--canvas);
@@ -375,27 +375,30 @@ h1 {
 .info-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: clamp(24px, 4vw, 56px);
     width: min(100%, 1640px);
     margin: 0 auto;
+    position: relative;
+}
+
+/* 仅在桌面端添加中间的竖线分割 */
+@media (min-width: 1025px) {
+    .info-grid::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 1px;
+        background: rgba(0, 102, 204, 0.18);
+        transform: translateX(-50%);
+    }
 }
 
 .info-card {
-    padding: clamp(28px, 4vw, 48px);
-    border: 1px solid rgba(0, 102, 204, 0.12);
-    border-radius: 16px;
-    background: #f8fbff;
-    box-shadow: 0 4px 12px rgba(0, 102, 204, 0.02);
-    transition:
-        transform 240ms ease,
-        box-shadow 240ms ease;
+    padding: 0 clamp(24px, 4vw, 56px);
 }
 
-.info-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 24px rgba(0, 102, 204, 0.06);
-}
-
+/* 去除卡片悬停效果，改为自然纯文本排版 */
 .info-card h2 {
     display: flex;
     align-items: center;
@@ -445,10 +448,37 @@ h1 {
     font-size: 0.88em;
 }
 
+.footer-link {
+    color: var(--blue);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1.5px solid transparent;
+    transition:
+        border-color 180ms ease,
+        opacity 180ms ease;
+}
+
+.footer-link:hover {
+    opacity: 0.82;
+    border-color: var(--blue);
+}
+
+.footer-contact {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 0 auto;
+}
+
+.qq-icon {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+    opacity: 0.85;
+}
+
 .image-dialog {
-    width: min(94vw, 1280px);
-    max-width: none;
-    max-height: 92vh;
     padding: 0;
     border: 0;
     background: transparent;
@@ -492,11 +522,12 @@ h1 {
 .site-footer {
     display: grid;
     gap: 6px;
-    padding: 28px 20px 34px;
-    color: var(--muted);
-    background: var(--parchment);
+    padding: 42px 20px 48px;
+    color: rgba(29, 29, 31, 0.48);
+    background: transparent;
+    border-top: 1px solid rgba(0, 102, 204, 0.16);
     text-align: center;
-    font-size: 18px;
+    font-size: 16px;
     line-height: 1.45;
 }
 
@@ -667,8 +698,7 @@ h1 {
     }
 
     .info-card {
-        padding: 24px 20px;
-        border-radius: 12px;
+        padding: 0;
     }
 
     .info-card h2 {
