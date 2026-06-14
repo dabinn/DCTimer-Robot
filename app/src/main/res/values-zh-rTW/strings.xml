@@ -23,7 +23,7 @@
     <string name="action_share">分享</string>
     <string name="action_exit">退出</string>
     <string name="action_stackmat">Stackmat計時器</string>
-    <string name="action_smartcube">智能魔方</string>
+    <string name="action_smartcube">智能方塊</string>
     <string name="action_scramble">轉亂詳情</string>
 
     <string name="scrambling">轉亂中…</string>
@@ -48,10 +48,11 @@
     <string name="num_of_solve">還原次數：</string>
     <string name="connected">已連線</string>
     <string name="not_connected">未連線</string>
+    <string name="connect_fail">連線失敗</string>
     <string name="disconnect">中斷連線</string>
     <string name="status">狀態</string>
     <string name="select_device">選擇設備</string>
-    <string name="select_smart_cube">選擇智能魔方</string>
+    <string name="select_smart_cube">選擇智能方塊</string>
     <string name="smart_cube_gyro_follow_desc">目前僅支援 Moyu</string>
     <string name="select_smart_timer">選擇藍牙計時器</string>
     <!-- 设置 -->
@@ -75,6 +76,8 @@
     <string name="eight_sec">8秒</string>
     <string name="twelve_sec">12秒</string>
     <string name="background_color">背景顏色</string>
+    <string name="light_mode">淺色</string>
+    <string name="dark_mode">深色</string>
     <string name="smart_cube_orientation_format">%1$s頂 / %2$s前</string>
     <!-- 提示 -->
     <string name="exit_tip">再按一次退出程式</string>
@@ -98,10 +101,13 @@
     <string name="scan_device">正在掃描…</string>
     <string name="cube_not_connected">已中斷連線</string>
     <string name="ble_not_supported">不支援藍牙BLE</string>
+    <string name="ble_device_not_supported">當前裝置暫未適配對應藍牙協議</string>
     <string name="smart_timer_wca_disabled">藍牙計時器模式不支援 WCA 觀察</string>
     <string name="smart_timer_wca_auto_disabled">已自動關閉 WCA 觀察與觀察提示</string>
     <string name="search_hint">搜尋時間或注釋</string>
     <string name="delete_fail">刪除成績失敗</string>
+    <string name="new_session_best">新單次最佳：</string>
+    <string name="new_average_best">新最佳平均：</string>
     <!-- 统计 -->
     <string name="detail_avg">詳細統計：%1$d次去尾平均</string>
     <string name="detail_mean">詳細統計：%1$d次平均</string>
@@ -131,7 +137,7 @@
     <string name="btn_delete">不保存</string>
     <string name="btn_open">打開</string>
     <string name="btn_scan">掃描</string>
-    <string name="btn_cube_reset">重置魔方</string>
+    <string name="btn_cube_reset">重置方塊</string>
     <string name="btn_reset_posture">重置姿態</string>
     <string name="btn_refresh">刷新</string>
     <string name="btn_mark_solve">標記爲還原狀態</string>
@@ -155,6 +161,8 @@
     <string name="time_dnf">本次成績：DNF</string>
     <string name="confirm_save">是否記錄本次成績？</string>
     <string name="confirm_overwrite">已存在該檔案，是否覆蓋？</string>
+    <string name="smart_cube_reset_done">已重置為還原狀態</string>
+    <string name="smart_cube_restore_first">請先復原方塊</string>
     <string name="delete_items">是否刪除所選中的分組</string>
     <string name="solve_none">無</string>
     <string name="cube2_face">底面</string>
@@ -191,12 +199,22 @@
     <string name="import_db">匯入</string>
     <string name="export_db">匯出</string>
     <string name="import_export">匯入匯出數據庫</string>
+    <string name="date_format">yyyy年M月d日</string>
+    <string name="week_format">yyyy年第w週</string>
+    <string name="month_format">yyyy年M月</string>
+    <string name="quarter_format">%1$d年第%2$d季度</string>
+    <string name="year_format">yyyy年</string>
     <string name="face_top">頂面</string>
     <string name="face_bottom">底面</string>
     <string name="face_left">左面</string>
     <string name="face_right">右面</string>
     <string name="face_front">前面</string>
     <string name="face_back">後面</string>
+    <!-- 分享內容 -->
+    <string name="share_c0">我剛剛用DCTimer完成了測速，</string>
+    <string name="share_c1">"我剛剛完成了%1$d次%2$s轉亂測速，單次最佳%3$s，平均%4$s，"</string>
+    <string name="share_c2">"最佳%1$d次平均%2$s，"</string>
+    <string name="share_c3">"你也來試試？ #DCTimer# 安卓方塊專用計時器"</string>
     <!-- 更多 -->
     <string name="menu_more">更多</string>
     <string name="menu_lab">實驗室</string>

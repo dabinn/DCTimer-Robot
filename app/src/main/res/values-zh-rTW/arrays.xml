@@ -135,6 +135,11 @@
         <item>高效順序</item>
     </array>
 
+    <array name="item_15p">
+        <item>拼塊移動</item>
+        <item>空格移動</item>
+    </array>
+
     <array name="item_mnl">
         <item>1x3x3</item>
         <item>Super 1x3x3</item>
@@ -152,6 +157,17 @@
         <item>11x11x11</item>
     </array>
 
+    <array name="item_cmt">
+        <item>普通</item>
+        <item>迷你</item>
+    </array>
+
+    <array name="item_smc">
+        <item>1x1x3塊</item>
+        <item>1x2x3塊</item>
+        <item>2x2x2塊</item>
+    </array>
+
     <array name="item_other">
         <item>插銷方塊</item>
         <item>直昇機</item>
@@ -166,9 +182,25 @@
         <item>楓葉</item>
     </array>
 
+    <array name="item_333_sub">
+        <item>2-gen R,U</item>
+        <item>2-gen L,U</item>
+        <item>橋式 M,U</item>
+        <item>3-gen F,R,U</item>
+        <item>3-gen R,U,L</item>
+        <item>3-gen R,r,U</item>
+        <item>僅半轉</item>
+        <item>LSLL(舊)</item>
+    </array>
+
     <array name="item_bandage">
         <item>Bicube</item>
         <item>SQ1 /,(1,0)</item>
+    </array>
+
+    <array name="item_minx_sub">
+        <item>2-gen R,U</item>
+        <item>LSLL</item>
     </array>
 
     <array name="item_gear">
@@ -222,7 +254,7 @@
         <item>計時器</item>
         <item>手動輸入</item>
         <item>Stackmat</item>
-        <item>智能魔方</item>
+        <item>智能方塊</item>
         <item>藍牙計時器</item>
     </array>
 
@@ -298,6 +330,22 @@
         <item>twist metric</item>
     </array>
 
+    <array name="opt_time_format">
+        <item>hh:mm:ss.xy(z)</item>
+        <item>mm:ss.xy(z)</item>
+        <item>ss.xy(z)</item>
+    </array>
+
+    <array name="opt_decimal">
+        <item>.</item>
+        <item>,</item>
+    </array>
+
+    <array name="opt_average">
+        <item>去尾平均</item>
+        <item>平均</item>
+    </array>
+
     <array name="item_timer">
         <item>使用WCA觀察</item>
         <item>觀察時語音提示</item>
@@ -318,7 +366,7 @@
         <item>使用解法</item>
         <item>解法朝向基準</item>
         <item>轉亂推進樣式</item>
-        <item>虛擬魔方大小</item>
+        <item>虛擬方塊大小</item>
         <item>陀螺儀跟隨視角</item>
         <item>佈局</item>
     </array>
@@ -352,7 +400,7 @@
 
     <array name="opt_smart_layout">
         <item>預設</item>
-        <item>魔方置中（適用於10吋及以上大螢幕裝置）</item>
+        <item>方塊置中（適用於10吋及以上大螢幕裝置）</item>
     </array>
 
     <array name="item_stats">
@@ -404,6 +452,26 @@
         <item>觸感反饋</item>
         <item>觸感持續時間</item>
         <item>熒幕方向</item>
+    </array>
+
+    <array name="opt_solve_pyr">
+        <item>D</item>
+        <item>L</item>
+        <item>R</item>
+        <item>F</item>
+    </array>
+
+    <array name="opt_eg_scramble">
+        <item>CLL(EG0)</item>
+        <item>EG1</item>
+        <item>EG2</item>
+        <item>Pi</item>
+        <item>H</item>
+        <item>U</item>
+        <item>T</item>
+        <item>L</item>
+        <item>Sune</item>
+        <item>Anti-sune</item>
     </array>
 
     <array name="opt_gesture">
@@ -471,5 +539,20 @@
         <item>順時針轉90度</item>
         <item>轉180度</item>
         <item>逆時針轉90度</item>
+    </array>
+
+    <array name="sampling_rate">
+        <item>"8000"</item>
+        <item>"11025"</item>
+        <item>"16000"</item>
+        <item>"22050"</item>
+        <item>"24000"</item>
+        <item>"32000"</item>
+        <item>"44100"</item>
+    </array>
+
+    <array name="data_format">
+        <item>8 bit</item>
+        <item>16 bit</item>
     </array>
 </resources>

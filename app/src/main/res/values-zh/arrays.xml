@@ -135,6 +135,11 @@
         <item>高效顺序</item>
     </array>
 
+    <array name="item_15p">
+        <item>拼块移动</item>
+        <item>空位移动</item>
+    </array>
+
     <array name="item_mnl">
         <item>1x3x3</item>
         <item>Super 1x3x3</item>
@@ -152,6 +157,17 @@
         <item>11x11x11</item>
     </array>
 
+    <array name="item_cmt">
+        <item>普通</item>
+        <item>迷你</item>
+    </array>
+
+    <array name="item_smc">
+        <item>1x1x3块</item>
+        <item>1x2x3块</item>
+        <item>2x2x2块</item>
+    </array>
+
     <array name="item_other">
         <item>插销魔方</item>
         <item>直升机</item>
@@ -164,6 +180,27 @@
         <item>8 puzzle</item>
         <item>CTO</item>
         <item>枫叶</item>
+    </array>
+
+    <array name="item_333_sub">
+        <item>2-gen R,U</item>
+        <item>2-gen L,U</item>
+        <item>桥式 M,U</item>
+        <item>3-gen F,R,U</item>
+        <item>3-gen R,U,L</item>
+        <item>3-gen R,r,U</item>
+        <item>仅半转</item>
+        <item>LSLL(旧)</item>
+    </array>
+
+    <array name="item_bandage">
+        <item>Bicube</item>
+        <item>SQ1 /,(1,0)</item>
+    </array>
+
+    <array name="item_minx_sub">
+        <item>2-gen R,U</item>
+        <item>LSLL</item>
     </array>
 
     <array name="item_gear">
@@ -293,6 +330,17 @@
         <item>twist metric</item>
     </array>
 
+    <array name="opt_time_format">
+        <item>hh:mm:ss.xy(z)</item>
+        <item>mm:ss.xy(z)</item>
+        <item>ss.xy(z)</item>
+    </array>
+
+    <array name="opt_decimal">
+        <item>.</item>
+        <item>,</item>
+    </array>
+
     <array name="opt_average">
         <item>去尾平均</item>
         <item>平均</item>
@@ -406,6 +454,26 @@
         <item>屏幕方向</item>
     </array>
 
+    <array name="opt_solve_pyr">
+        <item>D</item>
+        <item>L</item>
+        <item>R</item>
+        <item>F</item>
+    </array>
+
+    <array name="opt_eg_scramble">
+        <item>CLL(EG0)</item>
+        <item>EG1</item>
+        <item>EG2</item>
+        <item>Pi</item>
+        <item>H</item>
+        <item>U</item>
+        <item>T</item>
+        <item>L</item>
+        <item>Sune</item>
+        <item>Anti-sune</item>
+    </array>
+
     <array name="opt_gesture">
         <item>无</item>
         <item>删除上一次成绩</item>
@@ -471,5 +539,20 @@
         <item>顺时针转90度</item>
         <item>转180度</item>
         <item>逆时针转90度</item>
+    </array>
+
+    <array name="sampling_rate">
+        <item>"8000"</item>
+        <item>"11025"</item>
+        <item>"16000"</item>
+        <item>"22050"</item>
+        <item>"24000"</item>
+        <item>"32000"</item>
+        <item>"44100"</item>
+    </array>
+
+    <array name="data_format">
+        <item>8 bit</item>
+        <item>16 bit</item>
     </array>
 </resources>
