@@ -58,7 +58,12 @@ public class SmartCube implements Serializable {
 
     public int setCubeState(String state) {
         this.cubeState = state;
-        return Util.toCubieCube(state, cc);
+        int check = Util.toCubieCube(state, cc);
+        if (check == 0 && isTargetScrambleState(cubeState)) {
+            scrambledNotified = true;
+            callback.onScrambled(this);
+        }
+        return check;
     }
 
     public int getVersion() {
@@ -105,12 +110,20 @@ public class SmartCube implements Serializable {
             targetState = scramble;
             scrambledNotified = false;
         }
-        if (!scrambledNotified && callback != null && Utils.isSameStateIgnoringRotation(cubeState, scramble)) {
+        if (isTargetScrambleState(cubeState)) {
             scrambledNotified = true;
             callback.onScrambled(this);
         }
         if (callback != null && Utils.isSolvedIgnoringRotation(cubeState))
             callback.onSolved(this);
+    }
+
+    private boolean isTargetScrambleState(String state) {
+        if (scrambledNotified || callback == null || state == null || targetState == null
+                || state.length() == 0 || targetState.length() == 0) {
+            return false;
+        }
+        return state.equals(targetState) || Utils.isSameStateIgnoringRotation(state, targetState);
     }
 
     public void markScrambled() {

@@ -2,7 +2,12 @@ package com.dctimer.model;
 
 import org.junit.Test;
 
+import java.lang.reflect.Field;
+
+import cs.min2phase.Tools;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class SmartCubeResultTest {
     private static final String SOLVED = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
@@ -21,5 +26,30 @@ public class SmartCubeResultTest {
         cube.calcResult();
 
         assertEquals(1200, cube.getResult());
+    }
+
+    @Test
+    public void setCubeStateNotifiesWhenFaceletSyncReachesTargetScramble() throws Exception {
+        SmartCube cube = new SmartCube();
+        String targetScrambleState = Tools.fromScramble("R U");
+        Field targetState = SmartCube.class.getDeclaredField("targetState");
+        targetState.setAccessible(true);
+        targetState.set(cube, targetScrambleState);
+
+        final boolean[] scrambled = {false};
+        cube.setStateChangedCallback(new SmartCube.StateChangedCallback() {
+            @Override
+            public void onScrambled(SmartCube cube) {
+                scrambled[0] = true;
+            }
+
+            @Override
+            public void onSolved(SmartCube cube) {
+            }
+        });
+
+        cube.setCubeState(targetScrambleState);
+
+        assertTrue(scrambled[0]);
     }
 }

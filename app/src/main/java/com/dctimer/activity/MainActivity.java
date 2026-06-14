@@ -1893,11 +1893,22 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     public void refreshSmartCubeStateUi() {
+        SmartCube cube = getActiveSmartCube();
+        if (isCurrentSmartCubeAtScrambleTarget(cube)) {
+            completeSmartCubeScramble(cube);
+        }
         refreshTimerPageSmartCubeUi();
         androidx.fragment.app.Fragment fragment = getSupportFragmentManager().findFragmentByTag("CubeState");
         if (fragment instanceof CubeStateDialog) {
             ((CubeStateDialog) fragment).refreshState();
         }
+    }
+
+    private boolean isCurrentSmartCubeAtScrambleTarget(SmartCube cube) {
+        if (cube == null || currentScramble == null || !currentScramble.is333Scramble()) {
+            return false;
+        }
+        return Utils.isSameStateIgnoringRotation(cube.getCubeState(), currentScramble.getCubeState());
     }
 
     public void onSmartCubeGyroChanged(float x, float y, float z, float w) {
@@ -2151,6 +2162,34 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
+    private void completeSmartCubeScramble(SmartCube cube) {
+        if (cube == null || timer.getTimerState() == DCTTimer.RUNNING) {
+            return;
+        }
+        if (canStart && (timer.getTimerState() == DCTTimer.READY || timer.getTimerState() == DCTTimer.INSPECTING)) {
+            return;
+        }
+        cube.markScrambled();
+        timer.stopInspect();
+        canStart = true;
+        smartCubeSkipStartForCurrentMove = true;
+        if (wca && !currentScramble.isBlindfoldScramble()) {
+            timer.setTimerState(DCTTimer.READY);
+            startSmartCubeInspection();
+        } else {
+            timer.setTimerState(DCTTimer.READY);
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    showReadyTimerText();
+                    setTimerColor(0xff00ff00);
+                    tvMulPhase.setText("");
+                    refreshTimerPageSmartCubeUi();
+                }
+            });
+        }
+    }
+
     private void startSmartCubeSolve() {
         runOnUiThread(new Runnable() {
             @Override
@@ -2224,27 +2263,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         @Override
         public void onScrambled(SmartCube cube) {
             Log.w("dct", "已打乱");
-            if (timer.getTimerState() != DCTTimer.RUNNING) {
-                cube.markScrambled();
-                timer.stopInspect();
-                canStart = true;
-                smartCubeSkipStartForCurrentMove = true;
-                if (wca && !currentScramble.isBlindfoldScramble()) {
-                    timer.setTimerState(DCTTimer.READY);
-                    startSmartCubeInspection();
-                } else {
-                    timer.setTimerState(DCTTimer.READY);
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            showReadyTimerText();
-                            setTimerColor(0xff00ff00);
-                            tvMulPhase.setText("");
-                            refreshTimerPageSmartCubeUi();
-                        }
-                    });
-                }
-            }
+            completeSmartCubeScramble(cube);
         }
 
         @Override
