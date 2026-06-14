@@ -1,134 +1,279 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#31573a">
-    <meta name="description" content="DCTimer-BLE 是一款支持智能魔方与蓝牙计时器的 Android 计时应用，基于 DCTimer 优化而来。">
-    <title>DCTimer-BLE</title>
-    <link rel="icon" href="assets/dctimer-logo.png">
-    <link rel="stylesheet" href="https://gw.alipayobjects.com/os/k/jinkai/style.css">
-    <link rel="stylesheet" href="styles.css">
-  </head>
-  <body>
-    <main>
-      <section class="hero" id="top">
-        <a class="github-link" href="https://github.com/huizhiLLL/DCTimer-BLE" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub 仓库">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 0.5C5.65 0.5 0.5 5.65 0.5 12c0 5.08 3.29 9.39 7.86 10.91 0.58 0.1 0.79-0.25 0.79-0.55v-2.02c-3.2 0.7-3.87-1.36-3.87-1.36-0.52-1.33-1.28-1.68-1.28-1.68-1.04-0.71 0.08-0.7 0.08-0.7 1.15 0.08 1.76 1.18 1.76 1.18 1.03 1.75 2.69 1.25 3.35 0.95 0.1-0.74 0.4-1.25 0.73-1.54-2.55-0.29-5.23-1.28-5.23-5.68 0-1.25 0.45-2.28 1.18-3.08-0.12-0.29-0.51-1.46 0.11-3.04 0 0 0.96-0.31 3.15 1.18A10.95 10.95 0 0 1 12 6.18c0.97 0 1.95 0.13 2.87 0.39 2.18-1.49 3.14-1.18 3.14-1.18 0.63 1.58 0.24 2.75 0.12 3.04 0.74 0.8 1.18 1.83 1.18 3.08 0 4.41-2.69 5.38-5.25 5.67 0.41 0.36 0.78 1.06 0.78 2.13v3.15c0 0.3 0.21 0.66 0.79 0.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35 0.5 12 0.5Z"></path>
-          </svg>
-        </a>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#31573a" />
+        <meta
+            name="description"
+            content="DCTimer-BLE 是一款支持智能魔方与蓝牙计时器的 Android 计时应用，基于 DCTimer 优化而来。"
+        />
+        <title>DCTimer-BLE</title>
+        <link rel="icon" href="assets/dctimer-logo.png" />
 
-        <div class="hero-grid">
-          <div class="hero-copy">
-            <div class="logo-mark" aria-hidden="true">
-              <img src="assets/dctimer-logo.png" alt="">
-            </div>
-            <h1>DCTimer-BLE</h1>
-            <div class="tag-list" aria-label="软件标签">
-              <span>Android</span>
-              <span>GAN</span>
-              <span>Moyu</span>
-              <span>Qiyi</span>
-            </div>
-            <p class="tagline">支持智能魔方的优化版 DCTimer</p>
-            <div class="button-row">
-              <a class="primary-button download-button" href="https://github.com/huizhiLLL/DCTimer-BLE/releases/latest" target="_blank" rel="noopener noreferrer">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 0.5C5.65 0.5 0.5 5.65 0.5 12c0 5.08 3.29 9.39 7.86 10.91 0.58 0.1 0.79-0.25 0.79-0.55v-2.02c-3.2 0.7-3.87-1.36-3.87-1.36-0.52-1.33-1.28-1.68-1.28-1.68-1.04-0.71 0.08-0.7 0.08-0.7 1.15 0.08 1.76 1.18 1.76 1.18 1.03 1.75 2.69 1.25 3.35 0.95 0.1-0.74 0.4-1.25 0.73-1.54-2.55-0.29-5.23-1.28-5.23-5.68 0-1.25 0.45-2.28 1.18-3.08-0.12-0.29-0.51-1.46 0.11-3.04 0 0 0.96-0.31 3.15 1.18A10.95 10.95 0 0 1 12 6.18c0.97 0 1.95 0.13 2.87 0.39 2.18-1.49 3.14-1.18 3.14-1.18 0.63 1.58 0.24 2.75 0.12 3.04 0.74 0.8 1.18 1.83 1.18 3.08 0 4.41-2.69 5.38-5.25 5.67 0.41 0.36 0.78 1.06 0.78 2.13v3.15c0 0.3 0.21 0.66 0.79 0.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35 0.5 12 0.5Z"></path>
-                </svg>
-                <span class="button-label">
-                  <span>GitHub Releases</span>
-                  <small>v2.2.6</small>
-                </span>
-              </a>
-              <a class="store-button download-button" href="assets/DCTimer-BLE-v2.2.6.apk" download>
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3a1 1 0 1 1 1.4 1.42l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.42l2.3 2.3V4a1 1 0 0 1 1-1Zm-7 12a1 1 0 0 1 1 1v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2a1 1 0 1 1 2 0v2a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-2a1 1 0 0 1 1-1Z"></path>
-                </svg>
-                <span>直链下载</span>
-              </a>
-            </div>
-          </div>
+        <!-- DNS Prefetch / Preconnect to external CDN assets -->
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+        <link rel="preconnect" href="https://gw.alipayobjects.com" />
 
-          <div class="hero-media" aria-label="应用截图">
-            <button class="image-zoom-trigger" type="button" data-full="assets/web1.svg" data-alt="DCTimer-BLE 应用截图">
-              <img class="hero-screenshot" src="assets/web1.svg" alt="DCTimer-BLE 应用截图">
+        <!-- Open Graph / Facebook Meta Tags -->
+        <meta property="og:type" content="website" />
+        <meta
+            property="og:title"
+            content="DCTimer-BLE - 智能魔方与蓝牙计时器"
+        />
+        <meta
+            property="og:description"
+            content="DCTimer-BLE 是一款支持智能魔方与蓝牙计时器的 Android 计时应用，基于 DCTimer 优化而来。"
+        />
+        <meta
+            property="og:image"
+            content="https://dctimer.huizhi.ink/assets/dctimer-logo.png"
+        />
+        <meta property="og:url" content="https://dctimer.huizhi.ink/" />
+
+        <!-- Twitter Meta Tags -->
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta
+            property="twitter:title"
+            content="DCTimer-BLE - 智能魔方与蓝牙计时器"
+        />
+        <meta
+            property="twitter:description"
+            content="DCTimer-BLE 是一款支持智能魔方与蓝牙计时器的 Android 计时应用，基于 DCTimer 优化而来。"
+        />
+        <meta
+            property="twitter:image"
+            content="https://dctimer.huizhi.ink/assets/dctimer-logo.png"
+        />
+
+        <link
+            rel="stylesheet"
+            href="https://gw.alipayobjects.com/os/k/jinkai/style.css"
+        />
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+    <body>
+        <main>
+            <section class="hero" id="top">
+                <a
+                    class="github-link"
+                    href="https://github.com/huizhiLLL/DCTimer-BLE"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="打开 GitHub 仓库"
+                >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                            d="M12 0.5C5.65 0.5 0.5 5.65 0.5 12c0 5.08 3.29 9.39 7.86 10.91 0.58 0.1 0.79-0.25 0.79-0.55v-2.02c-3.2 0.7-3.87-1.36-3.87-1.36-0.52-1.33-1.28-1.68-1.28-1.68-1.04-0.71 0.08-0.7 0.08-0.7 1.15 0.08 1.76 1.18 1.76 1.18 1.03 1.75 2.69 1.25 3.35 0.95 0.1-0.74 0.4-1.25 0.73-1.54-2.55-0.29-5.23-1.28-5.23-5.68 0-1.25 0.45-2.28 1.18-3.08-0.12-0.29-0.51-1.46 0.11-3.04 0 0 0.96-0.31 3.15 1.18A10.95 10.95 0 0 1 12 6.18c0.97 0 1.95 0.13 2.87 0.39 2.18-1.49 3.14-1.18 3.14-1.18 0.63 1.58 0.24 2.75 0.12 3.04 0.74 0.8 1.18 1.83 1.18 3.08 0 4.41-2.69 5.38-5.25 5.67 0.41 0.36 0.78 1.06 0.78 2.13v3.15c0 0.3 0.21 0.66 0.79 0.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35 0.5 12 0.5Z"
+                        ></path>
+                    </svg>
+                </a>
+
+                <div class="hero-grid">
+                    <div class="hero-copy">
+                        <div class="logo-mark" aria-hidden="true">
+                            <img src="assets/dctimer-logo.png" alt="" />
+                        </div>
+                        <h1>DCTimer-BLE</h1>
+                        <div class="tag-list" aria-label="软件标签">
+                            <span>Android</span>
+                            <span>GAN</span>
+                            <span>Moyu</span>
+                            <span>Qiyi</span>
+                        </div>
+                        <p class="tagline">支持智能魔方的优化版 DCTimer</p>
+                        <div class="button-row">
+                            <a
+                                class="primary-button download-button"
+                                href="assets/DCTimer-BLE-v2.2.6.apk"
+                                download
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path
+                                        d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3a1 1 0 1 1 1.4 1.42l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.42l2.3 2.3V4a1 1 0 0 1 1-1Zm-7 12a1 1 0 0 1 1 1v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2a1 1 0 1 1 2 0v2a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-2a1 1 0 0 1 1-1Z"
+                                    ></path>
+                                </svg>
+                                <span
+                                    >APK 下载
+                                    <small class="apk-version"
+                                        >v2.2.6</small
+                                    ></span
+                                >
+                            </a>
+                            <a
+                                class="store-button download-button"
+                                href="https://github.com/huizhiLLL/DCTimer-BLE/releases/latest"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path
+                                        d="M12 0.5C5.65 0.5 0.5 5.65 0.5 12c0 5.08 3.29 9.39 7.86 10.91 0.58 0.1 0.79-0.25 0.79-0.55v-2.02c-3.2 0.7-3.87-1.36-3.87-1.36-0.52-1.33-1.28-1.68-1.28-1.68-1.04-0.71 0.08-0.7 0.08-0.7 1.15 0.08 1.76 1.18 1.76 1.18 1.03 1.75 2.69 1.25 3.35 0.95 0.1-0.74 0.4-1.25 0.73-1.54-2.55-0.29-5.23-1.28-5.23-5.68 0-1.25 0.45-2.28 1.18-3.08-0.12-0.29-0.51-1.46 0.11-3.04 0 0 0.96-0.31 3.15 1.18A10.95 10.95 0 0 1 12 6.18c0.97 0 1.95 0.13 2.87 0.39 2.18-1.49 3.14-1.18 3.14-1.18 0.63 1.58 0.24 2.75 0.12 3.04 0.74 0.8 1.18 1.83 1.18 3.08 0 4.41-2.69 5.38-5.25 5.67 0.41 0.36 0.78 1.06 0.78 2.13v3.15c0 0.3 0.21 0.66 0.79 0.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35 0.5 12 0.5Z"
+                                    ></path>
+                                </svg>
+                                <span>GitHub Releases</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="hero-media" aria-label="应用截图">
+                        <button
+                            class="image-zoom-trigger"
+                            type="button"
+                            data-full="assets/web1.svg"
+                            data-alt="DCTimer-BLE 应用截图"
+                        >
+                            <img
+                                class="hero-screenshot"
+                                src="assets/web1.svg"
+                                alt="DCTimer-BLE 应用截图"
+                            />
+                        </button>
+                    </div>
+                </div>
+
+                <div class="wave" aria-hidden="true">
+                    <svg viewBox="0 0 1428 174" preserveAspectRatio="none">
+                        <path
+                            class="wave-back"
+                            d="M0,38 C138,32 204,82 350,98 C520,117 650,54 824,60 C1006,67 1118,99 1428,42 L1428,174 L0,174 Z"
+                        ></path>
+                        <path
+                            class="wave-mid"
+                            d="M0,96 C132,128 260,154 457,132 C648,111 746,47 920,44 C1084,41 1214,75 1428,104 L1428,174 L0,174 Z"
+                        ></path>
+                        <path
+                            class="wave-front"
+                            d="M0,108 C162,160 333,174 574,150 C774,130 839,64 1030,72 C1184,79 1304,112 1428,148 L1428,174 L0,174 Z"
+                        ></path>
+                    </svg>
+                </div>
+            </section>
+
+            <section class="features">
+                <div class="section-title"></div>
+                <article class="feature-row" id="devices">
+                    <div class="feature-copy">
+                        <h3>智能</h3>
+                        <ol>
+                            <li>
+                                兼容 GAN
+                                智能、魔域智能、奇艺智能（含风系列）以及奇艺智能计时器
+                            </li>
+                            <li>精心优化的打乱推进/纠错体验</li>
+                            <li>视角可拖动的 3D 实时虚拟魔方</li>
+                            <li>
+                                无需获取 MAC 地址，从软件启动到连接成功只需 4-6s
+                            </li>
+                        </ol>
+                    </div>
+                    <div class="feature-art" aria-label="支持设备截图">
+                        <img
+                            src="assets/web2.png"
+                            alt="DCTimer-BLE 支持设备截图"
+                            loading="lazy"
+                        />
+                    </div>
+                </article>
+
+                <article class="feature-row reverse">
+                    <div class="feature-copy">
+                        <h3>改进</h3>
+                        <ol>
+                            <li>手动输入计时自动分割，无需输入小数点</li>
+                            <li>成绩列表的 PB 历程标注和排序</li>
+                            <li>补全 WCA 观察模式下的 8s/12s 语音提醒</li>
+                            <li>底层升级，新安卓设备更稳定</li>
+                        </ol>
+                    </div>
+                    <div
+                        class="feature-art feature-art-wide"
+                        aria-label="功能改进截图"
+                    >
+                        <button
+                            class="image-zoom-trigger"
+                            type="button"
+                            data-full="assets/web3.svg"
+                            data-alt="DCTimer-BLE 功能改进截图"
+                        >
+                            <img
+                                src="assets/web3.svg"
+                                alt="DCTimer-BLE 功能改进截图"
+                                loading="lazy"
+                            />
+                        </button>
+                        <p class="feature-caption">PB 历程标注和排序</p>
+                    </div>
+                </article>
+            </section>
+            <section class="info-section">
+                <div class="info-grid">
+                    <article
+                        class="info-card changelog-card"
+                        aria-labelledby="changelog-title"
+                    >
+                        <h2 id="changelog-title">
+                            最新更新 <span class="version-badge">v2.2.6</span>
+                        </h2>
+                        <ul id="changelog-content">
+                            <li>详情窗口的解法中新增分段时间/TPS 统计表</li>
+                            <li>解法内容支持手动修改</li>
+                            <li>
+                                新增“魔方居中”布局选项，适用于 10
+                                寸及以上大屏设备
+                            </li>
+                            <li>清空成绩加入二次确认</li>
+                            <li>向下轻扫手势默认改为手动输入成绩</li>
+                            <li>导入打乱支持直接输入</li>
+                            <li>“其他”分组中新增 CTO 打乱模式</li>
+                        </ul>
+                    </article>
+
+                    <article
+                        class="info-card migration-card"
+                        aria-labelledby="migration-notes-title"
+                    >
+                        <h2 id="migration-notes-title">迁移与使用说明</h2>
+                        <ol>
+                            <li>
+                                DCTimer-BLE 与原 DCTimer
+                                是不同的包名，无需担心安装覆盖或冲突。
+                            </li>
+                            <li>
+                                DCTimer-BLE 兼容原 DCTimer
+                                的数据，只需从原软件导出再导入即可完成数据迁移。
+                            </li>
+                            <li>
+                                某些设备下 DCTimer
+                                可能会出现数据导出失败问题。建议将导出时的路径删除
+                                <code>DCTimer/</code>，即留下
+                                <code>/storage/emulated/0/database.db</code>；
+                                导入时在手机存储的根路径下找到 db 文件即可。
+                            </li>
+                            <li>
+                                对于奇艺智能计时器，需要先同时长按两个按键完成重置，才能正常连接使用
+                            </li>
+                        </ol>
+                    </article>
+                </div>
+            </section>
+            <footer class="site-footer">
+                <p>基于原 DCTimer 开源仓库改进，GPL v3 开源，欢迎 issue/pr</p>
+                <p>问题反馈交流群：1057871931</p>
+            </footer>
+        </main>
+        <dialog class="image-dialog" aria-label="图片放大预览">
+            <button
+                class="image-dialog-close"
+                type="button"
+                aria-label="关闭预览"
+            >
+                ×
             </button>
-          </div>
-        </div>
-
-        <div class="wave" aria-hidden="true">
-          <svg viewBox="0 0 1428 174" preserveAspectRatio="none">
-            <path class="wave-back" d="M0,38 C138,32 204,82 350,98 C520,117 650,54 824,60 C1006,67 1118,99 1428,42 L1428,174 L0,174 Z"></path>
-            <path class="wave-mid" d="M0,96 C132,128 260,154 457,132 C648,111 746,47 920,44 C1084,41 1214,75 1428,104 L1428,174 L0,174 Z"></path>
-            <path class="wave-front" d="M0,108 C162,160 333,174 574,150 C774,130 839,64 1030,72 C1184,79 1304,112 1428,148 L1428,174 L0,174 Z"></path>
-          </svg>
-        </div>
-      </section>
-
-      <section class="features">
-        <div class="section-title">
-        </div>
-        <article class="feature-row" id="devices">
-          <div class="feature-copy">
-            <h3>智能</h3>
-            <ol>
-              <li>兼容 GAN 智能、魔域智能、奇艺智能（含风系列）以及奇艺智能计时器</li>
-              <li>精心优化的打乱推进/纠错体验</li>
-              <li>视角可拖动的 3D 实时虚拟魔方</li>
-              <li>无需获取 MAC 地址，从软件启动到连接成功只需 4-6s</li>
-            </ol>
-          </div>
-          <div class="feature-art" aria-label="支持设备截图">
-            <img src="assets/web2.png" alt="DCTimer-BLE 支持设备截图">
-          </div>
-        </article>
-
-        <article class="feature-row reverse">
-          <div class="feature-copy">
-            <h3>改进</h3>
-            <ol>
-              <li>手动输入计时自动分割，无需输入小数点</li>
-              <li>成绩列表的 PB 历程标注和排序</li>
-              <li>补全 WCA 观察模式下的 8s/12s 语音提醒</li>
-              <li>底层升级，新安卓设备更稳定</li>
-            </ol>
-          </div>
-          <div class="feature-art feature-art-wide" aria-label="功能改进截图">
-            <button class="image-zoom-trigger" type="button" data-full="assets/web3.svg" data-alt="DCTimer-BLE 功能改进截图">
-              <img src="assets/web3.svg" alt="DCTimer-BLE 功能改进截图">
-            </button>
-            <p class="feature-caption">PB 历程标注和排序</p>
-          </div>
-        </article>
-      </section>
-      <section class="migration-notes" aria-labelledby="migration-notes-title">
-        <div class="migration-notes-inner">
-          <h2 id="migration-notes-title">说明</h2>
-          <ol>
-            <li>DCTimer-BLE 与原 DCTimer 是不同的包名，无需担心安装覆盖或冲突。</li>
-            <li>DCTimer-BLE 兼容原 DCTimer 的数据，只需从原软件导出再导入即可完成数据迁移。</li>
-            <li>
-              某些设备下 DCTimer 可能会出现数据导出失败问题。建议将导出时的路径删除
-              <code>DCTimer/</code>，即留下 <code>/storage/emulated/0/database.db</code>；
-              导入时在手机存储的根路径下找到 db 文件即可。
-            </li>
-            <li>对于奇艺智能计时器，需要先同时长按两个按键完成重置，才能正常连接使用</li>
-          </ol>
-        </div>
-      </section>
-      <footer class="site-footer">
-        <p>基于原 DCTimer 开源仓库改进，GPL v3 开源，欢迎 issue/pr</p>
-        <p>问题反馈交流群：1057871931</p>
-      </footer>
-    </main>
-    <dialog class="image-dialog" aria-label="图片放大预览">
-      <button class="image-dialog-close" type="button" aria-label="关闭预览">×</button>
-      <img src="" alt="">
-    </dialog>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrollTrigger.min.js"></script>
-    <script src="script.js"></script>
-  </body>
+            <img src="" alt="" />
+        </dialog>
+        <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrollTrigger.min.js"></script>
+        <script src="script.js"></script>
+    </body>
 </html>
