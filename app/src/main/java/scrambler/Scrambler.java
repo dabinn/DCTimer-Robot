@@ -71,7 +71,7 @@ public class Scrambler {
             {0, 10},    //gear
             {25, 25, 25},   //siamese
             {80, 80},   //15puzzle
-            {25, 40, 20, 20, 25, 25, 8, 40, 0, 0},    //other
+            {25, 40, 20, 20, 25, 25, 8, 40, 0, 0, 0},    //other
             {0, 0, 0, 25, 25, 25, 0, 15},   //3x3 subsets
             {30, 25},   //bandage
             {30, 20},   //mega subsets
@@ -952,6 +952,11 @@ public class Scrambler {
                 break;
             case 521:   //CTO
                 scr = scrambleCTO();
+                imageType = 0;
+                scrambleList.add(scr);
+                break;
+            case 522:   //Ivy Cube
+                scr = IvyCube.scramble();
                 imageType = 0;
                 scrambleList.add(scr);
                 break;
