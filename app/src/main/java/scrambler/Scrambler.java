@@ -120,6 +120,8 @@ public class Scrambler {
 
     public void setScramble(String scramble) {
         this.scramble = scramble;
+        hint = "";
+        cubeState = "";
     }
 
     public int getCategory() {
