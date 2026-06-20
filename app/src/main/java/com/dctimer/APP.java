@@ -13,6 +13,9 @@ import com.dctimer.database.SessionManager;
 import com.dctimer.model.BLEDevice;
 import com.dctimer.model.Result;
 
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.os.LocaleListCompat;
+
 import java.util.List;
 
 /**
@@ -104,6 +107,7 @@ public class APP extends Application {
     public static int smartCubeSize;
     public static boolean smartCubeGyroFollow;
     public static int smartCubeLayoutMode;
+    public static int appLanguage;
 
     @Override
     public void onCreate() {
@@ -230,6 +234,9 @@ public class APP extends Application {
         screenOri = sp.getInt("screenori", 0);	// 屏幕方向
         samplingRate = sp.getInt("srate", 44100);
         dataFormat = sp.getInt("dform", AudioFormat.ENCODING_PCM_8BIT);
+        appLanguage = sp.getInt("applang", 0);
+        if (appLanguage < 0 || appLanguage > 3) appLanguage = 0;
+        applyAppLanguage(appLanguage);
         smartCubeSolveOrientation = sp.getInt("scori", 0);
         if (smartCubeSolveOrientation < 0 || smartCubeSolveOrientation >= 24) smartCubeSolveOrientation = 0;
         smartCubeSolveMethod = sp.getInt("scmethod", 0);
@@ -266,6 +273,19 @@ public class APP extends Application {
         samplingRate = 44100; dataFormat = AudioFormat.ENCODING_PCM_8BIT;
         smartCubeSolveOrientation = 0; smartCubeSolveMethod = 0; smartCubeScrambleProgressStyle = 0;
         smartCubeSize = 220; smartCubeGyroFollow = true; smartCubeLayoutMode = 0;
+        appLanguage = 0; applyAppLanguage(appLanguage);
+    }
+
+    public static void applyAppLanguage(int language) {
+        String languageTag = "";
+        if (language == 1) {
+            languageTag = "en";
+        } else if (language == 2) {
+            languageTag = "zh-CN";
+        } else if (language == 3) {
+            languageTag = "zh-TW";
+        }
+        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(languageTag));
     }
 
     public static int getPixel(int dp) {

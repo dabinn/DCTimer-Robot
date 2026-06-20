@@ -403,6 +403,13 @@
         <item>魔方居中（适用于10寸及以上大屏设备）</item>
     </array>
 
+    <array name="opt_app_language">
+        <item>跟随系统</item>
+        <item>English</item>
+        <item>简体中文</item>
+        <item>繁體中文</item>
+    </array>
+
     <array name="item_stats">
         <item>提示对每次成绩的操作</item>
         <item>滚动平均1</item>
@@ -428,6 +435,7 @@
     </array>
 
     <array name="item_interface">
+        <item>语言</item>
         <item>计时器字体</item>
         <item>计时器字体大小</item>
         <item>背景颜色</item>

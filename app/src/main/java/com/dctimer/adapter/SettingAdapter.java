@@ -81,6 +81,7 @@ public class SettingAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
     public static final int ST_VIBRATE = 60;
     public static final int ST_VIBRATE_TIME = 61;
     public static final int ST_SCREEN_ORIENTATION = 62;
+    public static final int ST_APP_LANGUAGE = 63;
     private MainActivity dct;
     private Map<Integer, String> headers;
     private List<Map<String, Object>> cells;
@@ -239,6 +240,9 @@ public class SettingAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
                     break;
                 case ST_TIMER_FONT:    //计时器字体
                     map.put("detail", itemStr[8][timerFont]);
+                    break;
+                case ST_APP_LANGUAGE:    //应用语言
+                    map.put("detail", dct.getResources().getStringArray(R.array.opt_app_language)[appLanguage]);
                     break;
                 case ST_TIMER_SIZE:    //计时器大小
                     map.put("detail", String.valueOf(timerSize));

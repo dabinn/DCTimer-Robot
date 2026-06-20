@@ -410,6 +410,13 @@
         <item>Cube-centered (for large-screen devices 10 inches and above)</item>
     </array>
 
+    <array name="opt_app_language">
+        <item>Follow system</item>
+        <item>English</item>
+        <item>Simplified Chinese</item>
+        <item>Traditional Chinese</item>
+    </array>
+
     <array name="item_stats">
         <item>Prompt when new time detected</item>
         <item>Rolling average 1</item>
@@ -435,6 +442,7 @@
     </array>
 
     <array name="item_interface">
+        <item>Language</item>
         <item>Timer font</item>
         <item>Timer size</item>
         <item>Background color</item>

@@ -234,6 +234,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        sp = super.getSharedPreferences("dctimer", Activity.MODE_PRIVATE);
+        int savedAppLanguage = sp.getInt("applang", 0);
+        if (savedAppLanguage < 0 || savedAppLanguage > 3) savedAppLanguage = 0;
+        APP.applyAppLanguage(savedAppLanguage);
         Window window = getWindow();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {    //5.0
             window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
@@ -241,7 +245,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         setContentView(R.layout.activity_main);
         context = this;
         app = getInstance();
-        sp = super.getSharedPreferences("dctimer", Activity.MODE_PRIVATE);
         //edit = sp.edit();
         uiMode = getResources().getConfiguration().uiMode;
         dm = getResources().getDisplayMetrics();
@@ -435,10 +438,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 new int[5], new Object[] {"", "", "", "", itemStr[7][megaColorScheme]}, new int[5],
                 new int[] {ST_SCHEME_NNN, ST_SCHEME_PYR, ST_SCHEME_SQ1, ST_SCHEME_SKEWB, ST_MEGA_SCHEME});
         Utils.addSection(headers, cells, getString(R.string.title_interface), getResources().getStringArray(R.array.item_interface),
-                new int[] {0, 2, 0, 0, 0, 1, 2, 0, 0, 0},
-                new Object[] {itemStr[8][timerFont], String.valueOf(timerSize), "", "", "", !useBgcolor, "", "", "", ""},
-                new int[] {0, 70<<16|(timerSize-50), 0, 0, 0, 0, 80<<16|(opacity-20), 0, 0, 0, 0},
-                new int[] {ST_TIMER_FONT, ST_TIMER_SIZE, ST_BACKGROUND_COLOR, ST_TEXT_COLOR, ST_BACKGROUND_IMAGE, ST_SHOW_BACKGROUND_IMAGE, ST_OPACITY, ST_BEST_TIME_COLOR, ST_WORST_TIME_COLOR, ST_BEST_AVERAGE_COLOR});
+                new int[] {0, 0, 2, 0, 0, 0, 1, 2, 0, 0, 0},
+                new Object[] {getResources().getStringArray(R.array.opt_app_language)[appLanguage], itemStr[8][timerFont], String.valueOf(timerSize), "", "", "", !useBgcolor, "", "", "", ""},
+                new int[] {0, 0, 70<<16|(timerSize-50), 0, 0, 0, 0, 80<<16|(opacity-20), 0, 0, 0},
+                new int[] {ST_APP_LANGUAGE, ST_TIMER_FONT, ST_TIMER_SIZE, ST_BACKGROUND_COLOR, ST_TEXT_COLOR, ST_BACKGROUND_IMAGE, ST_SHOW_BACKGROUND_IMAGE, ST_OPACITY, ST_BEST_TIME_COLOR, ST_WORST_TIME_COLOR, ST_BEST_AVERAGE_COLOR});
         Utils.addSection(headers, cells, getString(R.string.title_gesture), getResources().getStringArray(R.array.item_gesture),
                 new int[4], new Object[] {itemStr[15][swipeType[0]], itemStr[15][swipeType[1]], itemStr[15][swipeType[2]], itemStr[15][swipeType[3]]}, new int[4],
                 new int[] {ST_GESTURE_LEFT, ST_GESTURE_RIGHT, ST_GESTURE_UP, ST_GESTURE_DOWN});
@@ -3252,6 +3255,19 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     }
                 }).setNegativeButton(R.string.btn_cancel, null).show();
                 break;
+            case ST_APP_LANGUAGE:    //应用语言
+                new AlertDialog.Builder(context).setSingleChoiceItems(R.array.opt_app_language, appLanguage, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        if (appLanguage == i) return;
+                        appLanguage = i;
+                        setPref("applang", i);
+                        APP.applyAppLanguage(i);
+                        dialogInterface.dismiss();
+                        recreate();
+                    }
+                }).setNegativeButton(R.string.btn_cancel, null).show();
+                break;
             case 45:    //背景颜色
                 AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(context);
                 View dialogLayout = LayoutInflater.from(context).inflate(R.layout.dialog_color_picker, null);
@@ -3945,6 +3961,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         edit.remove("timerupd");	edit.remove("timeform");    edit.remove("showstat");
         edit.remove("screenori");   edit.remove("resultorder");
         edit.remove("scgyro"); edit.remove("scvsize");
+        edit.remove("applang");
         edit.apply();
     }
 

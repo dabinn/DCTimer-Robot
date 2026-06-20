@@ -403,6 +403,13 @@
         <item>方塊置中（適用於10吋及以上大螢幕裝置）</item>
     </array>
 
+    <array name="opt_app_language">
+        <item>跟隨系統</item>
+        <item>English</item>
+        <item>简体中文</item>
+        <item>繁體中文</item>
+    </array>
+
     <array name="item_stats">
         <item>有新成績時顯示提示</item>
         <item>轉動平均1</item>
@@ -428,6 +435,7 @@
     </array>
 
     <array name="item_interface">
+        <item>語言</item>
         <item>計時器字型</item>
         <item>計時器字型大小</item>
         <item>背景顔色</item>
