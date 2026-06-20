@@ -38,7 +38,7 @@ public class ScramblerTest {
             assertFalse(scrambler.getScramble().isEmpty());
             for (String token : scrambler.getScramble().split(" ")) {
                 assertFalse(token.isEmpty());
-                assertFalse(token.matches(".*[^RLDB'].*"));
+                assertFalse(token.matches(".*[^RLUB'].*"));
             }
         }
     }

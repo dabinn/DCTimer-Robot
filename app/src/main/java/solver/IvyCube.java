@@ -95,7 +95,7 @@ public class IvyCube {
             int move = seq[i] >> 1;
             int pow = seq[i] & 1;
             if (sb.length() > 0) sb.append(' ');
-            sb.append("RLDB".charAt(move)).append(suff[pow]);
+            sb.append("RLUB".charAt(move)).append(suff[pow]);
         }
         return sb.toString();
     }
