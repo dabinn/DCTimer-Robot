@@ -2384,6 +2384,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         timer.setTimerState(DCTTimer.READY);
                     }
                     save(time);
+                    timer.setTimerState(DCTTimer.READY);
                     if (!screenOn) {
                         releaseWakeLock();
                     }
