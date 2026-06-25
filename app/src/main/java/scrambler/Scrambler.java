@@ -77,7 +77,7 @@ public class Scrambler {
             {30, 25},   //bandage
             {30, 20},   //mega subsets
             {5, 0, 0, 0, 0, 0, 0},  //relay
-            {0, 0, -60, 0, 0, 0, 0, 0, -70, 0, 0, 0, 0, -80, -100, 0, -60, 5},  //wca
+            {0, 0, -60, 0, 0, 0, 0, 0, -70, 0, 0, 0, 0, -80, -100, 0, -60, 5, 25},  //wca
     };
     private static String[] rotate5 = {"", "3Fw", "3Fw'", "3Fw 3Uw", "3Fw 3Uw2", "3Fw 3Uw'", "3Fw' 3Uw", "3Fw' 3Uw2", "3Fw' 3Uw'", "3Rw", "3Rw2", "3Rw'",
             "3Rw 3Uw", "3Rw 3Uw2", "3Rw 3Uw'", "3Rw2 3Uw", "3Rw2 3Uw2", "3Rw2 3Uw'", "3Rw' 3Uw", "3Rw' 3Uw2", "3Rw' 3Uw'", "3Uw", "3Uw2", "3Uw'"};
@@ -315,7 +315,7 @@ public class Scrambler {
             if (imageType == TYPE_CLK) {
                 clock.image(scramble);
             }
-        } else if (category == 517) { //FTO
+        } else if (category == -14 || category == 517) { //FTO
             imageType = TYPE_FTO;
         }
     }
@@ -443,6 +443,11 @@ public class Scrambler {
                     if (j < scrambleLen) sb.append("\n");
                 }
                 scr = sb.toString(); imageType = TYPE_REL; break;
+            case -14:  //WCA - FTO
+                scr = megascramble(new String[][] {{"U", "D"}, {"F", "B"}, {"L", "BR"}, {"R", "BL"}}, cubesuff2, scrambleLen);
+                imageType = TYPE_FTO;
+                scrambleList.add(scr);
+                break;
             case 0: //2阶-随机状态
                 scr = Cube222.scramble();
                 imageType = 2;
