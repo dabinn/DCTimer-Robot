@@ -1,0 +1,12 @@
+name: 其他问题
+description: 不适合归类为 Bug 或功能建议
+title: "[Other] "
+labels: ["question"]
+body:
+  - type: textarea
+    id: topic
+    attributes:
+      label: 主题
+      description: 简要说明这条 Issue 想讨论或记录什么
+    validations:
+      required: true

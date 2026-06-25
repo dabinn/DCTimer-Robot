@@ -1,0 +1,47 @@
+name: Bug 反馈
+description: 反馈可复现的问题、崩溃、异常行为
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量提供可复现信息，尤其是魔方型号、APP 版本以及设备型号
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 问题描述
+      description: 说明遇到的问题，以及原本的预期
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 如果方便，请完整的描述复现步骤
+      placeholder: |
+        1. 打开 ...
+        2. 连接 ...
+        3. 点击/操作 ...
+        4. 出现 ...
+
+  - type: input
+    id: cube
+    attributes:
+      label: 蓝牙硬件型号
+      description: 如果问题和智能魔方或蓝牙计时器有关，请填写具体型号
+      placeholder: 例如：MoYu32、Tornado V4、GAN v4、QiYi Smart Timer
+
+  - type: input
+    id: app-version
+    attributes:
+      label: App 版本
+      placeholder: 例如：2.2.6
+
+  - type: input
+    id: android-device
+    attributes:
+      label: 手机型号与 Android 版本
+      placeholder: 例如：Pixel 8 / Android 15

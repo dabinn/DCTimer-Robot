@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 项目说明
+    url: https://github.com/huizhiLLL/DCTimer-BLE/releases/latest
+    about: 提交 Issue 前可以先检查当前 APP 的版本是否为最新，请基于最新发行版提交 Issue

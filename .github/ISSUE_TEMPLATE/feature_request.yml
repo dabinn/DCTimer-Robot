@@ -1,0 +1,18 @@
+name: 功能建议
+description: 提出新功能、改进方向、设备支持或体验优化建议
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 功能建议
+      description: 背景，预期的实现效果和方案
+    validations:
+      required: true
+
+  - type: textarea
+    id: reference
+    attributes:
+      label: 相关的实现参考
+      description: 如果预期功能在其他地方有类似的实现效果或参考，可以指出
