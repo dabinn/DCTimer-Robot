@@ -42,6 +42,7 @@ public class Scrambler {
     public static final int TYPE_REDI = 29;
     public static final int TYPE_REL = 30;
     public static final int TYPE_8PZ = 31;
+    public static final int TYPE_FTO = 32;
 
     public static final int SCRAMBLE_NONE = 0;
     public static final int SCRAMBLING = 1;
@@ -94,6 +95,65 @@ public class Scrambler {
     private Megaminx megaminx = new Megaminx();
     private Clock clock = new Clock();
     private Random r = new Random();
+
+    private static final int[] FTO_CORN_FACELETS = {
+            0, 54, 9, 63, 4, 53, 22, 62, 8, 67, 35, 49, 27, 36, 18, 45,
+            13, 44, 31, 71, 26, 40, 17, 58
+    };
+    private static final int[] FTO_EDGE_FACELETS = {
+            1, 57, 3, 64, 6, 51, 28, 39, 21, 37, 15, 42,
+            12, 55, 10, 66, 33, 69, 30, 46, 19, 48, 24, 60
+    };
+    private static final int[] FTO_CTUF_FACELETS = {
+            2, 5, 7, 11, 14, 16, 20, 23, 25, 29, 32, 34
+    };
+    private static final int[] FTO_CTRL_FACELETS = {
+            38, 41, 43, 47, 50, 52, 65, 68, 70, 56, 59, 61
+    };
+    private static final int[] FTO_CTRL_COLORS = {4, 5, 7, 6};
+    private static final int[] FTO_MOVE_IDX = {0, 8, 2, 10, 14, 4, 12, 6};
+    private static final int[][] FTO_MOVE_CP = {
+            {1, 2, 0, 3, 4, 5}, {4, 1, 2, 3, 5, 0},
+            {0, 5, 2, 1, 4, 3}, {0, 1, 3, 4, 2, 5},
+            {0, 1, 2, 5, 3, 4}, {0, 3, 1, 2, 4, 5},
+            {5, 0, 2, 3, 4, 1}, {2, 1, 4, 3, 0, 5}
+    };
+    private static final int[][] FTO_MOVE_CO = {
+            {0, 0, 0, 0, 0, 0}, {1, 0, 0, 0, 1, 0},
+            {0, 1, 0, 0, 0, 1}, {0, 0, 1, 1, 0, 0},
+            {0, 0, 0, 0, 0, 0}, {0, 1, 1, 0, 0, 0},
+            {1, 1, 0, 0, 0, 0}, {1, 0, 1, 0, 0, 0}
+    };
+    private static final int[][] FTO_MOVE_EP = {
+            {2, 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+            {0, 1, 2, 3, 4, 6, 7, 5, 8, 9, 10, 11},
+            {0, 1, 2, 3, 10, 5, 6, 7, 8, 9, 11, 4},
+            {0, 1, 2, 8, 4, 5, 6, 7, 9, 3, 10, 11},
+            {0, 1, 2, 4, 5, 3, 6, 7, 8, 9, 10, 11},
+            {0, 1, 10, 3, 4, 5, 6, 7, 8, 2, 9, 11},
+            {6, 1, 2, 3, 4, 5, 11, 7, 8, 9, 10, 0},
+            {0, 8, 2, 3, 4, 5, 6, 1, 7, 9, 10, 11}
+    };
+    private static final int[][] FTO_MOVE_UF = {
+            {1, 2, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+            {0, 1, 2, 4, 5, 3, 6, 7, 8, 9, 10, 11},
+            {0, 1, 2, 3, 4, 5, 7, 8, 6, 9, 10, 11},
+            {0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 9},
+            {0, 1, 2, 3, 9, 10, 5, 7, 4, 8, 6, 11},
+            {0, 6, 7, 3, 4, 5, 11, 9, 8, 2, 10, 1},
+            {5, 3, 2, 8, 4, 7, 6, 0, 1, 9, 10, 11},
+            {11, 1, 10, 2, 0, 5, 6, 7, 8, 9, 3, 4}
+    };
+    private static final int[][] FTO_MOVE_RL = {
+            {0, 1, 2, 3, 6, 7, 11, 9, 8, 5, 10, 4},
+            {0, 9, 10, 3, 4, 5, 2, 7, 1, 8, 6, 11},
+            {5, 3, 2, 11, 4, 10, 6, 7, 8, 9, 0, 1},
+            {8, 1, 7, 2, 0, 5, 6, 3, 4, 9, 10, 11},
+            {1, 2, 0, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+            {0, 1, 2, 4, 5, 3, 6, 7, 8, 9, 10, 11},
+            {0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 9},
+            {0, 1, 2, 3, 4, 5, 7, 8, 6, 9, 10, 11}
+    };
 
     public Scrambler(SharedPreferences sp) {
         this.pref = sp;
@@ -255,6 +315,8 @@ public class Scrambler {
             if (imageType == TYPE_CLK) {
                 clock.image(scramble);
             }
+        } else if (category == 517) { //FTO
+            imageType = TYPE_FTO;
         }
     }
 
@@ -927,7 +989,7 @@ public class Scrambler {
                 scrambleList.add(scr);
                 break;
             case 517:	//FTO
-                scr = megascramble(new String[][] {{"U", "D"}, {"F", "B"}, {"L", "BR"}, {"R", "BL"}}, cubesuff2, scrambleLen); imageType = 0;
+                scr = megascramble(new String[][] {{"U", "D"}, {"F", "B"}, {"L", "BR"}, {"R", "BL"}}, cubesuff2, scrambleLen); imageType = TYPE_FTO;
                 scrambleList.add(scr);
                 break;
             case 518:   //Redi
@@ -1395,6 +1457,8 @@ public class Scrambler {
             int[] img = SkewbFCN.image(scramble);
             if (img == null) return;
             drawSkewb(img, width, p, c);
+        } else if (imageType == TYPE_FTO) { //FTO
+            drawFto(scramble, width, p, c);
         } else if (imageType == TYPE_15P || imageType == TYPE_15PB) {   //15 puzzle
             int[] img = FifteenPuzzle.image(scramble, imageType == TYPE_15P);
             int wid = width / 6;
@@ -1969,6 +2033,169 @@ public class Scrambler {
             drawPolygon(p, c, colors[img[d++]],
                     new float[] {stx + dx3, stx + (dx3 + dx2) / 2, stx + (dx1 + dx3) / 2},
                     new float[] {sty + dy3, sty + (dy3 + dy2) / 2, sty + (dy1 + dy3) / 2}, true);
+        }
+    }
+
+    private void drawFto(String scramble, int width, Paint p, Canvas c) {
+        int[] colors = {
+                pref.getInt("csfto1", Color.WHITE), pref.getInt("csfto2", 0xff880088),
+                pref.getInt("csfto3", 0xff00dd00), pref.getInt("csfto4", Color.RED),
+                pref.getInt("csfto5", Color.BLUE), pref.getInt("csfto6", 0xffbbbbbb),
+                pref.getInt("csfto7", Color.YELLOW), pref.getInt("csfto8", 0xffff9900)
+        };
+        int[] img = ftoImage(scramble);
+        float sp = width / 60f;
+        float block = (width - sp * 3) / 4f;
+        float left = (width - block * 4 - sp) / 2f;
+        float top = (width * 3 / 4f - block * 2) / 2f;
+        drawFtoBlock(img, new int[] {4, 0, 6, 2}, left, top, block * 2, colors, p, c);
+        drawFtoBlock(img, new int[] {5, 1, 7, 3}, left + block * 2 + sp, top, block * 2, colors, p, c);
+    }
+
+    private void drawFtoBlock(int[] img, int[] faces, float x, float y, float size,
+                              int[] colors, Paint p, Canvas c) {
+        float midX = x + size / 2f;
+        float midY = y + size / 2f;
+        float gap = Math.max(1f, size / 80f);
+        drawFtoFace(img, faces[0],
+                shrinkTriangle(new float[] {x, midX, x}, new float[] {y, midY, y + size}, gap, true),
+                shrinkTriangle(new float[] {x, midX, x}, new float[] {y, midY, y + size}, gap, false),
+                colors, p, c);
+        drawFtoFace(img, faces[1],
+                shrinkTriangle(new float[] {x, x + size, midX}, new float[] {y, y, midY}, gap, true),
+                shrinkTriangle(new float[] {x, x + size, midX}, new float[] {y, y, midY}, gap, false),
+                colors, p, c);
+        drawFtoFace(img, faces[2],
+                shrinkTriangle(new float[] {x + size, x + size, midX}, new float[] {y, y + size, midY}, gap, true),
+                shrinkTriangle(new float[] {x + size, x + size, midX}, new float[] {y, y + size, midY}, gap, false),
+                colors, p, c);
+        drawFtoFace(img, faces[3],
+                shrinkTriangle(new float[] {x, midX, x + size}, new float[] {y + size, midY, y + size}, gap, true),
+                shrinkTriangle(new float[] {x, midX, x + size}, new float[] {y + size, midY, y + size}, gap, false),
+                colors, p, c);
+    }
+
+    private float[] shrinkTriangle(float[] ax, float[] ay, float gap, boolean xAxis) {
+        float cx = (ax[0] + ax[1] + ax[2]) / 3f;
+        float cy = (ay[0] + ay[1] + ay[2]) / 3f;
+        float[] out = new float[3];
+        for (int i = 0; i < 3; i++) {
+            float dx = cx - ax[i];
+            float dy = cy - ay[i];
+            float len = (float) Math.sqrt(dx * dx + dy * dy);
+            float scale = len == 0 ? 0 : gap / len;
+            out[i] = xAxis ? ax[i] + dx * scale : ay[i] + dy * scale;
+        }
+        return out;
+    }
+
+    private void drawFtoFace(int[] img, int face, float[] ax, float[] ay,
+                             int[] colors, Paint p, Canvas c) {
+        int d = face * 9;
+        float[][] px = new float[4][4];
+        float[][] py = new float[4][4];
+        for (int i = 0; i <= 3; i++) {
+            for (int j = 0; j <= 3 - i; j++) {
+                px[i][j] = (ax[0] * (3 - i - j) + ax[1] * i + ax[2] * j) / 3f;
+                py[i][j] = (ay[0] * (3 - i - j) + ay[1] * i + ay[2] * j) / 3f;
+            }
+        }
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3 - row; col++) {
+                drawPolygon(p, c, colors[img[d++]],
+                        new float[] {px[row][col], px[row + 1][col], px[row][col + 1]},
+                        new float[] {py[row][col], py[row + 1][col], py[row][col + 1]}, true);
+                if (row < 2 && col < 2 - row) {
+                    drawPolygon(p, c, colors[img[d++]],
+                            new float[] {px[row + 1][col], px[row + 1][col + 1], px[row][col + 1]},
+                            new float[] {py[row + 1][col], py[row + 1][col + 1], py[row][col + 1]}, true);
+                }
+            }
+        }
+    }
+
+    private int[] ftoImage(String scramble) {
+        int[] cp = {0, 1, 2, 3, 4, 5};
+        int[] co = {0, 0, 0, 0, 0, 0};
+        int[] ep = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+        int[] uf = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+        int[] rl = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+        if (!TextUtils.isEmpty(scramble)) {
+            String[] moves = scramble.trim().split("\\s+");
+            for (String move : moves) {
+                int moveIdx = parseFtoMove(move);
+                if (moveIdx < 0) {
+                    continue;
+                }
+                applyFtoMove(cp, co, ep, uf, rl, moveIdx);
+            }
+        }
+        int[] img = new int[72];
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 9; j++) {
+                img[i * 9 + j] = i;
+            }
+        }
+        for (int i = 0; i < 6; i++) {
+            int p = cp[i];
+            int o = co[i] * 2;
+            for (int j = 0; j < 4; j++) {
+                img[FTO_CORN_FACELETS[i * 4 + (j + o) % 4]] = FTO_CORN_FACELETS[p * 4 + j] / 9;
+            }
+        }
+        for (int i = 0; i < 12; i++) {
+            int p = ep[i];
+            img[FTO_EDGE_FACELETS[i * 2]] = FTO_EDGE_FACELETS[p * 2] / 9;
+            img[FTO_EDGE_FACELETS[i * 2 + 1]] = FTO_EDGE_FACELETS[p * 2 + 1] / 9;
+            img[FTO_CTUF_FACELETS[i]] = uf[i] / 3;
+            img[FTO_CTRL_FACELETS[i]] = FTO_CTRL_COLORS[rl[i] / 3];
+        }
+        return img;
+    }
+
+    private int parseFtoMove(String move) {
+        if (move == null || move.length() == 0) {
+            return -1;
+        }
+        boolean prime = move.endsWith("'");
+        String base = prime ? move.substring(0, move.length() - 1) : move;
+        int face;
+        switch (base) {
+            case "U": face = 0; break;
+            case "D": face = 1; break;
+            case "F": face = 2; break;
+            case "B": face = 3; break;
+            case "L": face = 4; break;
+            case "BR": face = 5; break;
+            case "R": face = 6; break;
+            case "BL": face = 7; break;
+            default: return -1;
+        }
+        return FTO_MOVE_IDX[face] + (prime ? 1 : 0);
+    }
+
+    private void applyFtoMove(int[] cp, int[] co, int[] ep, int[] uf, int[] rl, int move) {
+        int idx = move / 2;
+        applyFtoMoveOnce(cp, co, ep, uf, rl, idx);
+        if ((move & 1) != 0) {
+            applyFtoMoveOnce(cp, co, ep, uf, rl, idx);
+        }
+    }
+
+    private void applyFtoMoveOnce(int[] cp, int[] co, int[] ep, int[] uf, int[] rl, int idx) {
+        int[] oldCp = cp.clone();
+        int[] oldCo = co.clone();
+        int[] oldEp = ep.clone();
+        int[] oldUf = uf.clone();
+        int[] oldRl = rl.clone();
+        for (int i = 0; i < 6; i++) {
+            cp[i] = oldCp[FTO_MOVE_CP[idx][i]];
+            co[i] = oldCo[FTO_MOVE_CP[idx][i]] ^ FTO_MOVE_CO[idx][i];
+        }
+        for (int i = 0; i < 12; i++) {
+            ep[i] = oldEp[FTO_MOVE_EP[idx][i]];
+            uf[i] = oldUf[FTO_MOVE_UF[idx][i]];
+            rl[i] = oldRl[FTO_MOVE_RL[idx][i]];
         }
     }
 
