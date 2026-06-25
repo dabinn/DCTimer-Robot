@@ -58,6 +58,37 @@ a {
     transition: transform 180ms ease;
 }
 
+.changelog-link {
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    color: var(--blue);
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.56em;
+    font-weight: 600;
+    line-height: 1.2;
+    transition:
+        color 180ms ease,
+        opacity 180ms ease;
+}
+
+.changelog-link:hover {
+    color: #0071e3;
+    opacity: 0.82;
+}
+
+.changelog-link:active {
+    opacity: 0.64;
+}
+
+.changelog-link:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 4px;
+    border-radius: 4px;
+}
+
 .github-link:hover {
     transform: scale(1.04);
 }
@@ -519,6 +550,136 @@ h1 {
         sans-serif;
 }
 
+.changelog-dialog {
+    width: min(720px, calc(100vw - 32px));
+    max-height: min(760px, calc(100vh - 32px));
+    padding: 0;
+    border: 0;
+    border-radius: 12px;
+    color: var(--ink);
+    background: white;
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.2);
+    overscroll-behavior: contain;
+}
+
+.changelog-dialog::backdrop {
+    background: rgba(12, 18, 24, 0.42);
+}
+
+.changelog-dialog-panel {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    max-height: min(760px, calc(100vh - 32px));
+}
+
+.changelog-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 24px 28px 18px;
+    border-bottom: 1px solid rgba(0, 102, 204, 0.14);
+}
+
+.changelog-dialog-header h2 {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.changelog-dialog-close {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    color: rgba(29, 29, 31, 0.72);
+    background: rgba(0, 102, 204, 0.08);
+    cursor: pointer;
+    font:
+        28px/1 Arial,
+        sans-serif;
+    transition:
+        background-color 180ms ease,
+        color 180ms ease;
+}
+
+.changelog-dialog-close:hover {
+    color: var(--ink);
+    background: rgba(0, 102, 204, 0.14);
+}
+
+.changelog-dialog-close:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 3px;
+}
+
+.changelog-dialog-body {
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 28px;
+}
+
+.changelog-version {
+    padding: 24px 0;
+    border-bottom: 1px solid rgba(29, 29, 31, 0.14);
+}
+
+.changelog-version:last-child {
+    border-bottom: 0;
+}
+
+.changelog-version-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 14px;
+}
+
+.changelog-version h3 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.changelog-version time {
+    flex: 0 0 auto;
+    color: rgba(29, 29, 31, 0.58);
+    font-size: 17px;
+    line-height: 1.2;
+}
+
+.changelog-version ul {
+    margin: 0;
+    padding-left: 26px;
+    color: #333333;
+    font-size: 19px;
+    line-height: 1.55;
+}
+
+.changelog-version li {
+    margin-bottom: 8px;
+}
+
+.changelog-version li:last-child {
+    margin-bottom: 0;
+}
+
+.changelog-loading,
+.changelog-empty {
+    margin: 0;
+    padding: 30px 0;
+    color: rgba(29, 29, 31, 0.62);
+    font-size: 19px;
+}
+
 .site-footer {
     display: grid;
     gap: 6px;
@@ -579,6 +740,10 @@ h1 {
         right: 18px;
         width: 32px;
         height: 32px;
+    }
+
+    .changelog-link {
+        font-size: 0.62em;
     }
 
     .hero-grid {
@@ -714,6 +879,44 @@ h1 {
 
     .info-card code {
         word-break: break-all;
+    }
+
+    .changelog-dialog {
+        width: calc(100vw - 24px);
+        max-height: calc(100vh - 24px);
+    }
+
+    .changelog-dialog-panel {
+        max-height: calc(100vh - 24px);
+    }
+
+    .changelog-dialog-header {
+        padding: 20px 20px 16px;
+    }
+
+    .changelog-dialog-header h2 {
+        font-size: 26px;
+    }
+
+    .changelog-dialog-body {
+        padding: 0 20px;
+    }
+
+    .changelog-version-heading {
+        align-items: flex-start;
+    }
+
+    .changelog-version h3 {
+        font-size: 22px;
+    }
+
+    .changelog-version time {
+        font-size: 16px;
+    }
+
+    .changelog-version ul {
+        padding-left: 22px;
+        font-size: 18px;
     }
 }
 

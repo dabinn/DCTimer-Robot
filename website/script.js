@@ -1,6 +1,10 @@
 const dialog = document.querySelector(".image-dialog");
 const dialogImage = dialog?.querySelector("img");
 const closeButton = dialog?.querySelector(".image-dialog-close");
+const changelogTrigger = document.querySelector(".changelog-link");
+const changelogDialog = document.querySelector(".changelog-dialog");
+const changelogCloseButton = document.querySelector(".changelog-dialog-close");
+const fullChangelogContent = document.getElementById("full-changelog-content");
 const zoomState = {
   scale: 1,
   x: 0,
@@ -12,6 +16,10 @@ const zoomState = {
   startMidX: 0,
   startMidY: 0,
   pointers: new Map(),
+};
+const pageScrollLock = {
+  isLocked: false,
+  scrollY: 0,
 };
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -44,6 +52,150 @@ const getMidpoint = (a, b) => ({
 });
 
 const getPointerPair = () => [...zoomState.pointers.values()].slice(0, 2);
+
+const lockPageScroll = () => {
+  if (pageScrollLock.isLocked) return;
+
+  pageScrollLock.scrollY = window.scrollY;
+  document.body.style.position = "fixed";
+  document.body.style.top = `-${pageScrollLock.scrollY}px`;
+  document.body.style.left = "0";
+  document.body.style.right = "0";
+  document.body.style.width = "100%";
+  pageScrollLock.isLocked = true;
+};
+
+const unlockPageScroll = () => {
+  if (!pageScrollLock.isLocked) return;
+
+  const previousScrollBehavior = document.documentElement.style.scrollBehavior;
+  document.documentElement.style.scrollBehavior = "auto";
+  document.body.style.position = "";
+  document.body.style.top = "";
+  document.body.style.left = "";
+  document.body.style.right = "";
+  document.body.style.width = "";
+  window.scrollTo(0, pageScrollLock.scrollY);
+  document.documentElement.style.scrollBehavior = previousScrollBehavior;
+  pageScrollLock.isLocked = false;
+};
+
+const compareVersionsDesc = (a, b) => {
+  const aParts = a.version.split(".").map((part) => Number.parseInt(part, 10));
+  const bParts = b.version.split(".").map((part) => Number.parseInt(part, 10));
+  const length = Math.max(aParts.length, bParts.length);
+
+  for (let index = 0; index < length; index += 1) {
+    const difference = (bParts[index] || 0) - (aParts[index] || 0);
+    if (difference !== 0) return difference;
+  }
+
+  return b.version.localeCompare(a.version);
+};
+
+const parseChangelogMarkdown = (filename, markdown) => {
+  const version = filename.replace(/\.md$/i, "");
+  const metadataMatch = markdown.match(/^---\s*\n([\s\S]*?)\n---\s*/);
+  const metadata = {};
+  let body = markdown;
+
+  if (metadataMatch) {
+    body = markdown.slice(metadataMatch[0].length);
+    metadataMatch[1].split(/\r?\n/).forEach((line) => {
+      const match = line.match(/^([^:]+):\s*(.*)$/);
+      if (!match) return;
+      metadata[match[1].trim().toLowerCase()] = match[2].trim();
+    });
+  }
+
+  const items = body
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^([-*+]|\d+\.)\s+/.test(line))
+    .map((line) => line.replace(/^([-*+]|\d+\.)\s+/, "").trim())
+    .filter(Boolean);
+
+  return {
+    version,
+    date: metadata.data || metadata.date || "",
+    items,
+  };
+};
+
+const renderFullChangelog = (entries) => {
+  if (!fullChangelogContent) return;
+
+  fullChangelogContent.innerHTML = "";
+
+  if (entries.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "changelog-empty";
+    empty.textContent = "暂无更新日志";
+    fullChangelogContent.appendChild(empty);
+    return;
+  }
+
+  entries.forEach((entry) => {
+    const section = document.createElement("section");
+    section.className = "changelog-version";
+
+    const heading = document.createElement("div");
+    heading.className = "changelog-version-heading";
+
+    const version = document.createElement("h3");
+    version.textContent = `v${entry.version}`;
+
+    const date = document.createElement("time");
+    date.textContent = entry.date || "日期未填写";
+
+    heading.append(version, date);
+    section.appendChild(heading);
+
+    const list = document.createElement("ul");
+    if (entry.items.length > 0) {
+      entry.items.forEach((item) => {
+        const li = document.createElement("li");
+        li.textContent = item;
+        list.appendChild(li);
+      });
+    } else {
+      const li = document.createElement("li");
+      li.textContent = "暂无更新内容";
+      list.appendChild(li);
+    }
+
+    section.appendChild(list);
+    fullChangelogContent.appendChild(section);
+  });
+};
+
+const loadFullChangelog = async () => {
+  if (!fullChangelogContent) return;
+
+  try {
+    const listResponse = await fetch("changelog/index.json");
+    if (!listResponse.ok) throw new Error("更新日志清单加载失败");
+
+    const filenames = await listResponse.json();
+    const entries = await Promise.all(
+      filenames.map(async (filename) => {
+        const response = await fetch(`changelog/${filename}`);
+        if (!response.ok) throw new Error(`${filename} 加载失败`);
+        const markdown = await response.text();
+        return parseChangelogMarkdown(filename, markdown);
+      }),
+    );
+
+    renderFullChangelog(entries.sort(compareVersionsDesc));
+  } catch (error) {
+    fullChangelogContent.innerHTML = "";
+    const failed = document.createElement("p");
+    failed.className = "changelog-empty";
+    failed.textContent = "更新日志暂时无法加载";
+    fullChangelogContent.appendChild(failed);
+    console.warn("无法加载更新日志:", error);
+  }
+};
 
 const initGsapAnimations = () => {
   if (!window.gsap) return;
@@ -178,6 +330,7 @@ const loadUpdateJson = async () => {
 // 执行动画和数据动态加载
 initGsapAnimations();
 loadUpdateJson();
+loadFullChangelog();
 
 document.querySelectorAll(".image-zoom-trigger").forEach((button) => {
   button.addEventListener("click", () => {
@@ -193,6 +346,23 @@ document.querySelectorAll(".image-zoom-trigger").forEach((button) => {
 closeButton?.addEventListener("click", () => {
   dialog?.close();
 });
+
+changelogTrigger?.addEventListener("click", () => {
+  lockPageScroll();
+  changelogDialog?.showModal();
+});
+
+changelogCloseButton?.addEventListener("click", () => {
+  changelogDialog?.close();
+});
+
+changelogDialog?.addEventListener("click", (event) => {
+  if (event.target === changelogDialog) {
+    changelogDialog.close();
+  }
+});
+
+changelogDialog?.addEventListener("close", unlockPageScroll);
 
 dialog?.addEventListener("click", (event) => {
   if (event.target === dialog) {
@@ -270,6 +440,10 @@ dialogImage?.addEventListener("lostpointercapture", endPointer);
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && dialog?.open) {
     dialog.close();
+  }
+
+  if (event.key === "Escape" && changelogDialog?.open) {
+    changelogDialog.close();
   }
 });
 
