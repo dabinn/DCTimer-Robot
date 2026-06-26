@@ -26,7 +26,7 @@
 ## Download
 
 - [GitHub Releases](https://github.com/huizhiLLL/DCTimer-Android-BLE/releases/latest)
-- [Official direct download](https://dctimer.huizhi.ink/assets/DCTimer-BLE-v2.2.6.apk)
+- [Official download](https://dctimer.huizhi.ink)
 
 > DCTimer-BLE uses a different package name from the original DCTimer, so it will not conflict during installation
 > It is compatible with the original data format. Export data from the original DCTimer and import it into DCTimer-BLE to migrate your data.

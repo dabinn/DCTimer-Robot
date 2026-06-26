@@ -284,8 +284,15 @@ const loadUpdateJson = async () => {
     const apkDownloadBtn = document.querySelector(
       ".primary-button.download-button",
     );
-    if (apkDownloadBtn && data.apkUrl) {
-      apkDownloadBtn.setAttribute("href", data.apkUrl);
+    if (apkDownloadBtn) {
+      const apkUrl =
+        data.apkUrl ||
+        (data.versionName
+          ? `assets/DCTimer-BLE-v${data.versionName}.apk`
+          : "");
+      if (apkUrl) {
+        apkDownloadBtn.setAttribute("href", apkUrl);
+      }
     }
 
     const apkBtnSub = document.querySelector(
