@@ -72,6 +72,16 @@
 
 如果这个项目对你有帮助，希望你能给它一颗 Star， 这将成为我后续维护的动力 ~
 
+<details>
+  <summary>赞助支持</summary>
+
+  <p>
+    <img src=".github/assets/sponsor-wechat.png" alt="微信支付赞助码" width="260" />
+    <img src=".github/assets/sponsor-alipay.jpg" alt="支付宝赞助码" width="260" />
+  </p>
+</details>
+
 ## License
 
 GPLv3
+
