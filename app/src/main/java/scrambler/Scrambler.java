@@ -111,6 +111,12 @@ public class Scrambler {
             38, 41, 43, 47, 50, 52, 65, 68, 70, 56, 59, 61
     };
     private static final int[] FTO_CTRL_COLORS = {4, 5, 7, 6};
+    private static final int[][] FTO_FACELET_DRAW_ORDER = {
+            {4, 5, 6, 7, 8, 1, 2, 3, 0},
+            {8, 7, 3, 2, 0, 6, 5, 1, 4},
+            {8, 7, 3, 2, 0, 6, 5, 1, 4},
+            {4, 5, 6, 7, 8, 1, 2, 3, 0}
+    };
     private static final int[] FTO_MOVE_IDX = {0, 8, 2, 10, 14, 4, 12, 6};
     private static final int[][] FTO_MOVE_CP = {
             {1, 2, 0, 3, 4, 5}, {4, 1, 2, 3, 5, 0},
@@ -2042,19 +2048,23 @@ public class Scrambler {
     }
 
     private void drawFto(String scramble, int width, Paint p, Canvas c) {
-        int[] colors = {
+        int[] rawColors = {
                 pref.getInt("csfto1", Color.WHITE), pref.getInt("csfto2", 0xff880088),
                 pref.getInt("csfto3", 0xff00dd00), pref.getInt("csfto4", Color.RED),
                 pref.getInt("csfto5", Color.BLUE), pref.getInt("csfto6", 0xffbbbbbb),
                 pref.getInt("csfto7", Color.YELLOW), pref.getInt("csfto8", 0xffff9900)
+        };
+        int[] colors = {
+                rawColors[0], rawColors[2], rawColors[5], rawColors[7],
+                rawColors[6], rawColors[4], rawColors[3], rawColors[1]
         };
         int[] img = ftoImage(scramble);
         float sp = width / 60f;
         float block = (width - sp * 3) / 4f;
         float left = (width - block * 4 - sp) / 2f;
         float top = (width * 3 / 4f - block * 2) / 2f;
-        drawFtoBlock(img, new int[] {4, 0, 6, 2}, left, top, block * 2, colors, p, c);
-        drawFtoBlock(img, new int[] {5, 1, 7, 3}, left + block * 2 + sp, top, block * 2, colors, p, c);
+        drawFtoBlock(img, new int[] {7, 0, 6, 1}, left, top, block * 2, colors, p, c);
+        drawFtoBlock(img, new int[] {2, 5, 3, 4}, left + block * 2 + sp, top, block * 2, colors, p, c);
     }
 
     private void drawFtoBlock(int[] img, int[] faces, float x, float y, float size,
@@ -2062,19 +2072,19 @@ public class Scrambler {
         float midX = x + size / 2f;
         float midY = y + size / 2f;
         float gap = Math.max(1f, size / 80f);
-        drawFtoFace(img, faces[0],
+        drawFtoFace(img, faces[0], FTO_FACELET_DRAW_ORDER[0],
                 shrinkTriangle(new float[] {x, midX, x}, new float[] {y, midY, y + size}, gap, true),
                 shrinkTriangle(new float[] {x, midX, x}, new float[] {y, midY, y + size}, gap, false),
                 colors, p, c);
-        drawFtoFace(img, faces[1],
+        drawFtoFace(img, faces[1], FTO_FACELET_DRAW_ORDER[1],
                 shrinkTriangle(new float[] {x, x + size, midX}, new float[] {y, y, midY}, gap, true),
                 shrinkTriangle(new float[] {x, x + size, midX}, new float[] {y, y, midY}, gap, false),
                 colors, p, c);
-        drawFtoFace(img, faces[2],
+        drawFtoFace(img, faces[2], FTO_FACELET_DRAW_ORDER[2],
                 shrinkTriangle(new float[] {x + size, x + size, midX}, new float[] {y, y + size, midY}, gap, true),
                 shrinkTriangle(new float[] {x + size, x + size, midX}, new float[] {y, y + size, midY}, gap, false),
                 colors, p, c);
-        drawFtoFace(img, faces[3],
+        drawFtoFace(img, faces[3], FTO_FACELET_DRAW_ORDER[3],
                 shrinkTriangle(new float[] {x, midX, x + size}, new float[] {y + size, midY, y + size}, gap, true),
                 shrinkTriangle(new float[] {x, midX, x + size}, new float[] {y + size, midY, y + size}, gap, false),
                 colors, p, c);
@@ -2094,9 +2104,10 @@ public class Scrambler {
         return out;
     }
 
-    private void drawFtoFace(int[] img, int face, float[] ax, float[] ay,
+    private void drawFtoFace(int[] img, int face, int[] order, float[] ax, float[] ay,
                              int[] colors, Paint p, Canvas c) {
-        int d = face * 9;
+        int d = 0;
+        int faceStart = face * 9;
         float[][] px = new float[4][4];
         float[][] py = new float[4][4];
         for (int i = 0; i <= 3; i++) {
@@ -2107,11 +2118,11 @@ public class Scrambler {
         }
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 3 - row; col++) {
-                drawPolygon(p, c, colors[img[d++]],
+                drawPolygon(p, c, colors[img[faceStart + order[d++]]],
                         new float[] {px[row][col], px[row + 1][col], px[row][col + 1]},
                         new float[] {py[row][col], py[row + 1][col], py[row][col + 1]}, true);
                 if (row < 2 && col < 2 - row) {
-                    drawPolygon(p, c, colors[img[d++]],
+                    drawPolygon(p, c, colors[img[faceStart + order[d++]]],
                             new float[] {px[row + 1][col], px[row + 1][col + 1], px[row][col + 1]},
                             new float[] {py[row + 1][col], py[row + 1][col + 1], py[row][col + 1]}, true);
                 }
