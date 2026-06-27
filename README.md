@@ -67,10 +67,13 @@
 
 - [Soda](https://space.bilibili.com/400839068)：奇艺智能及风智能测试魔方来源
 - [Visionary](https://space.bilibili.com/674586122)：GAN 智能魔方测试
-- 9247：赞助了该项目 特此感谢🙏
 ---
 
 如果这个项目对你有帮助，希望你能给它一颗 Star， 这将成为我后续维护的动力 ~
+
+**感谢以下对该项目的赞助支持:**
+- 9247
+- [锤子](https://space.bilibili.com/3493132083661706)
 
 <details>
   <summary>赞助支持</summary>
