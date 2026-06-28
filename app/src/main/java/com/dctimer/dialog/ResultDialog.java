@@ -142,21 +142,16 @@ public class ResultDialog extends DialogFragment {
             etComment.setText(comment);
             etComment.setSelection(comment.length());
         }
-        if (!TextUtils.isEmpty(solution)) {
-            tvSolution.setText(solution);
-            etSolution.setText(solution);
-            tvSolution.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    android.content.ClipboardManager clip = (android.content.ClipboardManager) getActivity().getSystemService(CLIPBOARD_SERVICE);
-                    clip.setPrimaryClip(ClipData.newPlainText("text", solution));
-                    Toast.makeText(getActivity(), R.string.copy_success, Toast.LENGTH_SHORT).show();
-                }
-            });
-        } else {
-            //btnSolution.setVisibility(View.GONE);
-            llSolution.setVisibility(View.GONE);
-        }
+        tvSolution.setText(TextUtils.isEmpty(solution) ? "" : solution);
+        etSolution.setText(TextUtils.isEmpty(solution) ? "" : solution);
+        tvSolution.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                android.content.ClipboardManager clip = (android.content.ClipboardManager) getActivity().getSystemService(CLIPBOARD_SERVICE);
+                clip.setPrimaryClip(ClipData.newPlainText("text", tvSolution.getText().toString()));
+                Toast.makeText(getActivity(), R.string.copy_success, Toast.LENGTH_SHORT).show();
+            }
+        });
         setSolutionEditMode(false);
         tvSolution.setVisibility(View.GONE);
         etSolution.setVisibility(View.GONE);
