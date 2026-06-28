@@ -24,17 +24,18 @@
 ---
 ## 下载安装
 
-- [Github Releases](https://github.com/huizhiLLL/DCTimer-Android-BLE/releases/latest)
 - [官网下载](https://dctimer.huizhi.ink)
+- [Github Releases](https://github.com/huizhiLLL/DCTimer-Android-BLE/releases/latest)
 
-> - DCTimer-BLE 与原 DCTimer 的包名不同，因此不会发生安装冲突
-> - DCTimer-BLE 兼容原数据格式，从原 DCTimer 导出数据再导入 DCTimer-BLE 中即可完成数据迁移
-> - 某些设备下 DCTimer可能会出现数据导出失败问题,建议将导出时的路径删除`DCTimer`，即留下`/storage/emulated/0/database.db`；导入时在手机存储的根路径下找到 db 文件即可。
+## 说明
+- DCTimer-BLE 使用了新的包名，不会与原 DCTimer 发生安装冲突
+- DCTimer-BLE 兼容原数据格式，可从原 DCTimer 导出数据再导入
+- 某些设备下的 DCTimer 可能会出现数据导出失败问题，建议将导出时的路径删除`DCTimer`，即留下`/storage/emulated/0/database.db`；导入时在手机存储的根路径下选择该 db 文件
 
 ## 特点
 
 - 兼容主流的智能魔方品牌
-- 可拖动的智能实时 3D 魔方渲染
+- 可拖动的智能实时 3D 魔方渲染以及陀螺仪跟随视角（目前仅 Moyu）
 - 精心优化的智能打乱推进/纠错体验
 - 连接快速（无需手动获取 MAC 地址，软件启动到连接成功只需 4-6s）
 
@@ -47,19 +48,19 @@
 
 ## 新增 / 改进
 
-- 手动输入计时自动分割，无需额外输入小数点
+- 手动输入计时自动分割，无需输入小数点
 - wca 观察模式补全 8s/12s 语音提醒
 - 成绩列表的 PB 历程标注和排序
-- 新增 CTO、枫叶打乱
+- CTO、枫叶打乱以及 FTO 打乱状态图绘制
 - 魔表打乱状态绘制适应 WCA 新规则
-- 导入导出数据库、导入/导出打乱、背景图选择已切换到系统文档选择器
-- 升级到 `AndroidX / AGP 8.9.2 / Gradle 8.11.1 / targetSdk 35`，新安卓设备更稳定
+- 导入导出数据库、导入/导出打乱、背景图选择切换到系统文档选择器
+- 升级到 `AndroidX / AGP 8.9.2 / Gradle 8.11.1 / targetSdk 35`
 
-## 致谢
+## 鸣谢
 
 - [DCTimer-Android](https://github.com/MeigenChou/DCTimer-Android)：DCTimer-Android 原仓库
-- [cstimer](https://github.com/cs0x7f/cstimer)：智能魔方协议参考
-- [smartcube-web-bluetooth](https://github.com/poliva/smartcube-web-bluetooth)：智能魔方协议以及部分算法参考
+- [cstimer](https://github.com/cs0x7f/cstimer)：智能魔方协议以及部分算法参考
+- [smartcube-web-bluetooth](https://github.com/poliva/smartcube-web-bluetooth)：智能魔方协议参考
 - [qiyi_smartcube_protocol](https://codeberg.org/Flying-Toast/qiyi_smartcube_protocol)：智能魔方协议参考
 - [CubicTimer](https://github.com/hato-ya/CubicTimer)：奇艺智能计时器协议参考
 - [妙言](https://miaoyan.app)：官网设计参考

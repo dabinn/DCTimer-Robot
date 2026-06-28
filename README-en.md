@@ -25,18 +25,21 @@
 
 ## Download
 
-- [GitHub Releases](https://github.com/huizhiLLL/DCTimer-Android-BLE/releases/latest)
 - [Official download](https://dctimer.huizhi.ink)
+- [GitHub Releases](https://github.com/huizhiLLL/DCTimer-Android-BLE/releases/latest)
 
-> DCTimer-BLE uses a different package name from the original DCTimer, so it will not conflict during installation
-> It is compatible with the original data format. Export data from the original DCTimer and import it into DCTimer-BLE to migrate your data.
+## Notes
+
+- DCTimer-BLE uses a new package name, so it will not conflict with the original DCTimer during installation
+- DCTimer-BLE is compatible with the original data format. You can export data from the original DCTimer and import it into DCTimer-BLE
+- On some devices, DCTimer may fail to export data. If that happens, remove `DCTimer` from the export path and keep `/storage/emulated/0/database.db`; when importing, choose that db file from the root path of phone storage
 
 ## Features
 
 - Compatible with mainstream smart cube brands
-- Draggable real-time 3D rendering for smart cubes
+- Draggable real-time 3D smart cube rendering and gyroscope-following view (currently MoYu only)
 - Carefully optimized smart scramble guidance and correction flow
-- Fast connection, with no manual MAC address entry required. From app launch to connected, it usually takes only 4-6 seconds.
+- Fast connection, with no manual MAC address entry required. From app launch to connected, it usually takes only 4-6 seconds
 
 ## Support
 
@@ -45,31 +48,44 @@
 - `GAN` (`v2 / v3 / v4`) (GAN smart cube)
 - `QiYi Smart Timer` (QiYi smart timer)
 
-## Improvements
+## New / Improved
 
-- Upgraded to `AndroidX / AGP 8.9.2 / Gradle 8.11.1 / targetSdk 35` for better stability on newer Android devices
-- Database import/export, scramble import/export, and background image selection have been migrated to the system document picker
-- The solve entry now supports separate `Smart Cube` / `Bluetooth Timer` modes
-- Added 8s/12s voice reminders for WCA inspection mode
 - Manual time entry now auto-splits the time, so no extra decimal point is needed
+- Added 8s/12s voice reminders for WCA inspection mode
 - PB history markers and sorting in the solve list
+- CTO, Maple Leaf scramble, and FTO scramble state rendering
+- Clock scramble state rendering adapted to the new WCA rules
+- Database import/export, scramble import/export, and background image selection have been migrated to the system document picker
+- Upgraded to `AndroidX / AGP 8.9.2 / Gradle 8.11.1 / targetSdk 35`
 
 ## Acknowledgements
 
 - [DCTimer-Android](https://github.com/MeigenChou/DCTimer-Android): original DCTimer-Android repository
-- [cstimer](https://github.com/cs0x7f/cstimer): smart cube protocol reference
-- [smartcube-web-bluetooth](https://github.com/poliva/smartcube-web-bluetooth)：smart cube protocol reference
+- [cstimer](https://github.com/cs0x7f/cstimer): smart cube protocol and partial algorithm reference
+- [smartcube-web-bluetooth](https://github.com/poliva/smartcube-web-bluetooth): smart cube protocol reference
 - [qiyi_smartcube_protocol](https://codeberg.org/Flying-Toast/qiyi_smartcube_protocol): smart cube protocol reference
-- [CubicTimer](https://github.com/hato-ya/CubicTimer): QiYi Smart Timer integration reference
+- [CubicTimer](https://github.com/hato-ya/CubicTimer): QiYi Smart Timer protocol reference
 - [Miaoyan](https://miaoyan.app): official website design reference
 - [Codex](https://github.com/codex): development partner
 
----
-
 - [Soda](https://space.bilibili.com/400839068): provided QiYi and Tornado smart cube test hardware
 - [Visionary](https://space.bilibili.com/674586122): GAN smart cube testing
+---
 
-If this project is helpful to you, I hope you can give it a star, which will be the motivation for my future maintenance ~
+If this project is helpful to you, I hope you can give it a Star. It will motivate me to keep maintaining it ~
+
+**Thanks to the following sponsors for supporting this project:**
+- 9247
+- [锤子](https://space.bilibili.com/3493132083661706)
+
+<details>
+  <summary>Sponsor support</summary>
+
+  <p>
+    <img src=".github/assets/sponsor-wechat.png" alt="WeChat Pay sponsor QR code" width="260" />
+    <img src=".github/assets/sponsor-alipay.jpg" alt="Alipay sponsor QR code" width="260" />
+  </p>
+</details>
 
 ## License
 
