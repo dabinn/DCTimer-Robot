@@ -342,9 +342,10 @@ public class SmartCube3DView extends GLSurfaceView {
     private static class CubeRenderer implements Renderer {
         private static final float FACE_DISTANCE = 1.5f;
         private static final float CELL_HALF = 0.505f;
-        private static final float STICKER_HALF = 0.415f;
+        private static final float STICKER_HALF = 0.435f;
         private static final float CELL_CORNER_RADIUS = 0.045f;
-        private static final float STICKER_CORNER_RADIUS = 0.075f;
+        private static final float STICKER_CORNER_RADIUS_SMALL = 0.045f;
+        private static final float STICKER_CORNER_RADIUS_LARGE = 0.255f;
         private static final float STICKER_Z_OFFSET = 0.032f;
         private static final int CORNER_SEGMENTS = 5;
         private static final float MAX_VIEW_PITCH = 115f;
@@ -607,7 +608,7 @@ public class SmartCube3DView extends GLSurfaceView {
                 GLES20.glEnable(GLES20.GL_POLYGON_OFFSET_FILL);
                 GLES20.glPolygonOffset(-1f, -1f);
                 drawRoundedQuad(transform.center.add(transform.normal.scale(STICKER_Z_OFFSET)), transform.u, transform.v,
-                        transform.normal, STICKER_HALF, STICKER_CORNER_RADIUS, stickerColor);
+                        transform.normal, STICKER_HALF, facelet.stickerCornerRadii, stickerColor);
                 GLES20.glDisable(GLES20.GL_POLYGON_OFFSET_FILL);
             }
         }
@@ -629,7 +630,8 @@ public class SmartCube3DView extends GLSurfaceView {
 
         private void drawRoundedQuad(Vec3 center, Vec3 u, Vec3 v, Vec3 normal,
                                      float halfSize, float cornerRadius, int color) {
-            int vertexCount = putRoundedQuad(center, u, v, halfSize, cornerRadius);
+            int vertexCount = putRoundedQuad(center, u, v, halfSize,
+                    cornerRadius, cornerRadius, cornerRadius, cornerRadius);
             roundedQuadBuffer.clear();
             roundedQuadBuffer.put(roundedQuad, 0, vertexCount * 3);
             roundedQuadBuffer.position(0);
@@ -640,23 +642,40 @@ public class SmartCube3DView extends GLSurfaceView {
             GLES20.glDisableVertexAttribArray(positionHandle);
         }
 
-        private int putRoundedQuad(Vec3 center, Vec3 u, Vec3 v, float halfSize, float cornerRadius) {
+        private void drawRoundedQuad(Vec3 center, Vec3 u, Vec3 v, Vec3 normal,
+                                     float halfSize, float[] cornerRadii, int color) {
+            int vertexCount = putRoundedQuad(center, u, v, halfSize,
+                    cornerRadii[0], cornerRadii[1], cornerRadii[2], cornerRadii[3]);
+            roundedQuadBuffer.clear();
+            roundedQuadBuffer.put(roundedQuad, 0, vertexCount * 3);
+            roundedQuadBuffer.position(0);
+            GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, roundedQuadBuffer);
+            GLES20.glEnableVertexAttribArray(positionHandle);
+            setColorUniform(color, normal);
+            GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, vertexCount);
+            GLES20.glDisableVertexAttribArray(positionHandle);
+        }
+
+        private int putRoundedQuad(Vec3 center, Vec3 u, Vec3 v, float halfSize,
+                                   float radiusRightBottom, float radiusRightTop,
+                                   float radiusLeftTop, float radiusLeftBottom) {
             putPoint(center, 0);
             int vertexIndex = 1;
-            float radius = Math.max(0f, Math.min(cornerRadius, halfSize));
-            float inner = halfSize - radius;
-            vertexIndex = putCorner(center, u, v, inner, -inner, radius, -90f, 0f, vertexIndex);
-            vertexIndex = putCorner(center, u, v, inner, inner, radius, 0f, 90f, vertexIndex);
-            vertexIndex = putCorner(center, u, v, -inner, inner, radius, 90f, 180f, vertexIndex);
-            vertexIndex = putCorner(center, u, v, -inner, -inner, radius, 180f, 270f, vertexIndex);
+            vertexIndex = putCorner(center, u, v, halfSize, radiusRightBottom, 1f, -1f, -90f, 0f, vertexIndex);
+            vertexIndex = putCorner(center, u, v, halfSize, radiusRightTop, 1f, 1f, 0f, 90f, vertexIndex);
+            vertexIndex = putCorner(center, u, v, halfSize, radiusLeftTop, -1f, 1f, 90f, 180f, vertexIndex);
+            vertexIndex = putCorner(center, u, v, halfSize, radiusLeftBottom, -1f, -1f, 180f, 270f, vertexIndex);
             roundedQuad[vertexIndex * 3] = roundedQuad[3];
             roundedQuad[vertexIndex * 3 + 1] = roundedQuad[4];
             roundedQuad[vertexIndex * 3 + 2] = roundedQuad[5];
             return vertexIndex + 1;
         }
 
-        private int putCorner(Vec3 center, Vec3 u, Vec3 v, float cornerX, float cornerY,
-                              float radius, float startDegrees, float endDegrees, int vertexIndex) {
+        private int putCorner(Vec3 center, Vec3 u, Vec3 v, float halfSize, float cornerRadius,
+                              float xSign, float ySign, float startDegrees, float endDegrees, int vertexIndex) {
+            float radius = Math.max(0f, Math.min(cornerRadius, halfSize));
+            float cornerX = xSign * (halfSize - radius);
+            float cornerY = ySign * (halfSize - radius);
             for (int i = 0; i < CORNER_SEGMENTS; i++) {
                 float t = CORNER_SEGMENTS == 1 ? 0f : (float) i / (float) (CORNER_SEGMENTS - 1);
                 float angle = (float) Math.toRadians(startDegrees + (endDegrees - startDegrees) * t);
@@ -745,7 +764,39 @@ public class SmartCube3DView extends GLSurfaceView {
                     float uOffset = col - 1f;
                     float vOffset = row - 1f;
                     Vec3 center = faceCenter.add(u.scale(uOffset)).add(v.scale(vOffset));
-                    facelets.add(new Facelet(center, normal, u, v));
+                    facelets.add(new Facelet(center, normal, u, v, createStickerCornerRadii(row, col)));
+                }
+            }
+        }
+
+        private static float[] createStickerCornerRadii(int row, int col) {
+            float[] radii = new float[4];
+            if (row == 1 && col == 1) {
+                radii[0] = STICKER_CORNER_RADIUS_LARGE;
+                radii[1] = STICKER_CORNER_RADIUS_LARGE;
+                radii[2] = STICKER_CORNER_RADIUS_LARGE;
+                radii[3] = STICKER_CORNER_RADIUS_LARGE;
+            } else if (row == 1) {
+                float innerXSign = col == 0 ? 1f : -1f;
+                setRadiiOnInnerSide(radii, innerXSign, 0f, STICKER_CORNER_RADIUS_LARGE);
+            } else if (col == 1) {
+                float innerYSign = row == 0 ? 1f : -1f;
+                setRadiiOnInnerSide(radii, 0f, innerYSign, STICKER_CORNER_RADIUS_LARGE);
+            } else {
+                float innerXSign = col == 0 ? 1f : -1f;
+                float innerYSign = row == 0 ? 1f : -1f;
+                setRadiiOnInnerSide(radii, innerXSign, innerYSign, STICKER_CORNER_RADIUS_SMALL);
+            }
+            return radii;
+        }
+
+        private static void setRadiiOnInnerSide(float[] radii, float innerXSign, float innerYSign, float radius) {
+            for (int i = 0; i < radii.length; i++) {
+                float cornerXSign = i < 2 ? 1f : -1f;
+                float cornerYSign = i == 1 || i == 2 ? 1f : -1f;
+                if ((innerXSign == 0f || cornerXSign == innerXSign)
+                        && (innerYSign == 0f || cornerYSign == innerYSign)) {
+                    radii[i] = radius;
                 }
             }
         }
@@ -773,12 +824,14 @@ public class SmartCube3DView extends GLSurfaceView {
         final Vec3 normal;
         final Vec3 u;
         final Vec3 v;
+        final float[] stickerCornerRadii;
 
-        Facelet(Vec3 center, Vec3 normal, Vec3 u, Vec3 v) {
+        Facelet(Vec3 center, Vec3 normal, Vec3 u, Vec3 v, float[] stickerCornerRadii) {
             this.center = center;
             this.normal = normal;
             this.u = u;
             this.v = v;
+            this.stickerCornerRadii = stickerCornerRadii;
         }
     }
 
