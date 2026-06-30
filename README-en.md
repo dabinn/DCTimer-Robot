@@ -77,6 +77,7 @@ If this project is helpful to you, I hope you can give it a Star. It will motiva
 **Thanks to the following sponsors for supporting this project:**
 - 9247
 - [锤子](https://space.bilibili.com/3493132083661706)
+- [贾梦](https://github.com/nmb1337)
 
 <details>
   <summary>Sponsor support</summary>

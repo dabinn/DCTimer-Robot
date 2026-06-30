@@ -75,6 +75,7 @@
 **感谢以下对该项目的赞助支持:**
 - 9247
 - [锤子](https://space.bilibili.com/3493132083661706)
+- [贾梦](https://github.com/nmb1337)
 
 <details>
   <summary>赞助支持</summary>
