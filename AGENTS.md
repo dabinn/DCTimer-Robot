@@ -17,6 +17,30 @@
 - 文件导入导出、打乱导入导出、背景图选择已迁移到 `SAF / Uri`
 - 蓝牙硬件入口已拆分为 `智能魔方` / `蓝牙计时器`
 
+## 关键目录索引
+
+- `docs/`：项目状态、架构边界和路线图；开始功能开发或排查前，优先阅读 `project.md`、`architecture.md`、`roadmap.md`。
+- `app/`：Android 应用主模块；构建脚本、源码、资源和 Manifest 都在该模块内。
+- `app/src/main/AndroidManifest.xml`：应用权限、Activity、组件声明和 Android 入口配置。
+- `app/src/main/java/com/dctimer/`：DCTimer 主业务代码包，优先从这里定位应用逻辑。
+- `app/src/main/java/com/dctimer/activity/`：主要页面与流程入口；`MainActivity.java` 是计时主界面，也是蓝牙设备状态、智能魔方预览和计时链路的重要汇合点。
+- `app/src/main/java/com/dctimer/util/`：通用工具与蓝牙协议核心；`BluetoothTools.java` 负责扫描、连接、基础分发，`SmartCubeProtocol.java` / `SmartTimerProtocol.java` 是智能魔方和蓝牙计时器协议入口，具体设备协议类也在这里。
+- `app/src/main/java/com/dctimer/model/`：计时、成绩、设备、魔方状态等模型对象。
+- `app/src/main/java/com/dctimer/database/`：本地数据库、成绩和配置持久化相关逻辑。
+- `app/src/main/java/com/dctimer/dialog/`：设置、选择、设备连接等弹窗交互。
+- `app/src/main/java/com/dctimer/adapter/`：列表、会话、成绩等 Recycler/List 适配器。
+- `app/src/main/java/com/dctimer/view/`：自定义视图；`SmartCube3DView.java` 是智能魔方 3D 预览，`SmartCubeImageView.java` 是普通打乱图绘制入口。
+- `app/src/main/java/com/dctimer/widget/`：复用 UI 控件与较小的界面组件。
+- `app/src/main/java/com/dctimer/aes/`：兼容旧蓝牙链路的 AES/解密辅助代码。
+- `app/src/main/java/cs/`、`app/src/main/java/scrambler/`、`app/src/main/java/solver/`：打乱生成、求解和魔方算法相关代码，通常只在改动打乱、状态校验或求解逻辑时进入。
+- `app/src/main/java/com/dingmouren/`、`app/src/main/java/uz/`：第三方/移植的颜色选择器相关代码，除非处理对应 UI，不建议顺手改动。
+- `app/src/main/res/`：Android 资源目录；布局在 `layout/`，菜单在 `menu/`，图片和形状在 `drawable*/`，文案和数组在 `values*`。
+- `app/src/main/assets/`：内置字体与检测音等静态资源。
+- `gradle/`、`gradlew`、`gradlew.bat`、`settings.gradle`、根目录 `build.gradle`：Gradle Wrapper 与项目构建入口；升级构建链路或依赖时再改。
+- `ref/`：参考实现和协议资料辅助目录；只作对照，不作为当前真实实现。
+- `.github/`：README 展示素材、ISSUE 模板
+- `website/`：项目官网及部分素材，原生web三件套
+
 ## 开发约束
 
 - 开始功能开发、修复或较大改动前，先阅读 `docs/` 下相关文档：
