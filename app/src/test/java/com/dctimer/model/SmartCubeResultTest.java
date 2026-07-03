@@ -52,4 +52,19 @@ public class SmartCubeResultTest {
 
         assertTrue(scrambled[0]);
     }
+
+    @Test
+    public void resetSolveTrackingKeepsCurrentStageState() {
+        SmartCube cube = new SmartCube();
+        cube.setCubeState(SOLVED);
+        cube.applyMove(0, 0, null);
+        String stageState = cube.getCubeState();
+
+        cube.resetSolveTracking();
+
+        assertEquals(stageState, cube.getCubeState());
+        cube.applyMove(3, 500, null);
+        cube.calcResult();
+        assertEquals(0, cube.getResult());
+    }
 }

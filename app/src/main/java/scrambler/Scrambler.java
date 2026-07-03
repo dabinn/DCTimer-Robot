@@ -16,6 +16,7 @@ import android.util.Log;
 
 import com.dctimer.APP;
 import com.dctimer.R;
+import com.dctimer.model.SmartCubeTraining;
 import com.dctimer.util.StringUtils;
 
 import static scrambler.MegaScramble.*;
@@ -77,6 +78,7 @@ public class Scrambler {
             {30, 25},   //bandage
             {30, 20},   //mega subsets
             {5, 0, 0, 0, 0, 0, 0},  //relay
+            {0, 0, 0, 0},  //3x3 CFOP
             {0, 0, -60, 0, 0, 0, 0, 0, -70, 0, 0, 0, 0, -80, -100, 0, -60, 5, 25},  //wca
     };
     private static String[] rotate5 = {"", "3Fw", "3Fw'", "3Fw 3Uw", "3Fw 3Uw2", "3Fw 3Uw'", "3Fw' 3Uw", "3Fw' 3Uw2", "3Fw' 3Uw'", "3Rw", "3Rw2", "3Rw'",
@@ -190,6 +192,21 @@ public class Scrambler {
         cubeState = "";
     }
 
+    public void setScrambleState(String cubeState) {
+        this.cubeState = cubeState;
+    }
+
+    public void setSingleScramble(int category, String scramble, String cubeState, int imageType) {
+        this.category = category;
+        this.scramble = scramble;
+        this.cubeState = cubeState;
+        this.imageType = imageType;
+        this.hint = "";
+        this.scrambleIdx = 0;
+        this.scrambleList = new ArrayList<>();
+        this.scrambleList.add(scramble);
+    }
+
     public int getCategory() {
         return category;
     }
@@ -207,7 +224,7 @@ public class Scrambler {
     }
 
     public String getCubeState() {
-        if (TextUtils.isEmpty(cubeState) && is333Scramble() && !TextUtils.isEmpty(scramble)) {
+        if ((cubeState == null || cubeState.length() == 0) && is333Scramble() && scramble != null && scramble.length() > 0) {
             return Tools.fromScramble(scramble);
         }
         return cubeState;
@@ -335,7 +352,7 @@ public class Scrambler {
         cubeState = "";
         scrambleIdx = 0;
         if (resetLength) {
-            if (category < 0) scrambleLen = defaultLength[21][category & 31];
+            if (category < 0) scrambleLen = defaultLength[22][category & 31];
             else scrambleLen = defaultLength[category >> 5][category & 31];
         }
         switch (category) {
@@ -680,6 +697,28 @@ public class Scrambler {
                 }
                 else scr = megascramble(new String[][] {{"turn the top face ", "turn the bottom face "}, {"turn the right face ", "turn the left face "}, {"turn the front face ", "turn the back face "}}, new String[] {"clockwise by 90 degrees", "by 180 degrees", "counterclockwise by 90 degrees"}, scrambleLen, ", ");
                 if (scr.charAt(0) == 't') scr = "T" + scr.substring(1);
+                imageType = 3;
+                scrambleList.add(scr);
+                break;
+            case SmartCubeTraining.CATEGORY_333_CFOP_BASE:
+                scr = cube3.solution(cubeState = Tools.randomLastLayer());
+                imageType = 3;
+                scrambleList.add(scr);
+                break;
+            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + 1:
+                do {
+                    scr = cube3.solution(cubeState = Tools.randomPLL());
+                } while (scr.length() < 6);
+                imageType = 3;
+                scrambleList.add(scr);
+                break;
+            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + 2:
+                scr = cube3.solution(cubeState = Tools.randomLastLayer());
+                imageType = 3;
+                scrambleList.add(scr);
+                break;
+            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + 3:
+                scr = cube3.solution(cubeState = Tools.randomCrossSolved());
                 imageType = 3;
                 scrambleList.add(scr);
                 break;
@@ -1252,6 +1291,17 @@ public class Scrambler {
         return scramble;
     }
 
+    public static String buildScrambleBetweenStates(String startState, String targetState) {
+        if (startState == null || startState.length() == 0) {
+            return new cs.min2phase.Search().solution(targetState);
+        }
+        String scrambleState = Tools.getScrambleFacelet(startState, targetState);
+        if (scrambleState == null || scrambleState.length() == 0) {
+            return null;
+        }
+        return new cs.min2phase.Search().solution(scrambleState);
+    }
+
     private String scramble444() {
         return megascramble(new String[][] {{"U", "D", "Uw"}, {"R", "L", "Rw"}, {"F", "B", "Fw"}}, cubesuff, 40);
     }
@@ -1272,7 +1322,12 @@ public class Scrambler {
         int idx = category >> 5;
         int sub = category & 0x1f;
         return (idx == -1 && (sub == 0 || sub == 5 || sub == 7)) ||
-                (idx == 1 && (sub == 0 || sub == 1 || sub == 19));
+                (idx == 1 && (sub == 0 || sub == 1 || sub == 19)) ||
+                is333CfopScramble();
+    }
+
+    public boolean is333CfopScramble() {
+        return SmartCubeTraining.is333Cfop(category);
     }
 
     public boolean isSqScramble() {

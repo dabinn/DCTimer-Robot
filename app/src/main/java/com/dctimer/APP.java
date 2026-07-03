@@ -12,6 +12,7 @@ import com.dctimer.database.DBHelper;
 import com.dctimer.database.SessionManager;
 import com.dctimer.model.BLEDevice;
 import com.dctimer.model.Result;
+import com.dctimer.model.SmartCubeTraining;
 
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.os.LocaleListCompat;
@@ -102,6 +103,7 @@ public class APP extends Application {
     public static int uiMode = -1;
     public static int bleDeviceType;
     public static int smartCubeSolveOrientation;
+    public static int smartCubeTrainingOrientation = SmartCubeTraining.DEFAULT_TRAINING_ORIENTATION;
     public static int smartCubeSolveMethod;
     public static int smartCubeScrambleProgressStyle;
     public static int smartCubeSize;
@@ -141,7 +143,7 @@ public class APP extends Application {
 
     public void readPref(SharedPreferences sp) {	//读取配置 TODO
         int idx = sp.getInt("sel", 1);
-        if (idx > 19 || idx < -1) idx = 1;
+        if (idx > 21 || idx < -1) idx = 1;
         int idx2 = sp.getInt("sel2", -1);
         if (idx2 < 0 || idx2 > 31) {
             if (idx == 1) idx2 = 1;
@@ -239,6 +241,8 @@ public class APP extends Application {
         applyAppLanguage(appLanguage);
         smartCubeSolveOrientation = sp.getInt("scori", 0);
         if (smartCubeSolveOrientation < 0 || smartCubeSolveOrientation >= 24) smartCubeSolveOrientation = 0;
+        smartCubeTrainingOrientation = sp.getInt("sctori", SmartCubeTraining.DEFAULT_TRAINING_ORIENTATION);
+        if (smartCubeTrainingOrientation < 0 || smartCubeTrainingOrientation >= 24) smartCubeTrainingOrientation = SmartCubeTraining.DEFAULT_TRAINING_ORIENTATION;
         smartCubeSolveMethod = sp.getInt("scmethod", 0);
         if (smartCubeSolveMethod < 0 || smartCubeSolveMethod > 1) smartCubeSolveMethod = 0;
         smartCubeScrambleProgressStyle = sp.getInt("scadv", 0);
@@ -271,7 +275,7 @@ public class APP extends Application {
         for (int i = 0; i < 3; i++) swipeType[i] = i + 1;
         swipeType[3] = 5;
         samplingRate = 44100; dataFormat = AudioFormat.ENCODING_PCM_8BIT;
-        smartCubeSolveOrientation = 0; smartCubeSolveMethod = 0; smartCubeScrambleProgressStyle = 0;
+        smartCubeSolveOrientation = 0; smartCubeTrainingOrientation = SmartCubeTraining.DEFAULT_TRAINING_ORIENTATION; smartCubeSolveMethod = 0; smartCubeScrambleProgressStyle = 0;
         smartCubeSize = 220; smartCubeGyroFollow = true; smartCubeLayoutMode = 0;
         appLanguage = 0; applyAppLanguage(appLanguage);
     }

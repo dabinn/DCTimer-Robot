@@ -1,0 +1,106 @@
+package com.dctimer.model;
+
+import com.dctimer.util.Utils;
+
+public final class SmartCubeTraining {
+    public static final int GROUP_333_CFOP = 21;
+    public static final int SUB_OLL = 0;
+    public static final int SUB_PLL = 1;
+    public static final int SUB_LAST_LAYER = 2;
+    public static final int SUB_F2L = 3;
+    public static final int CATEGORY_333_CFOP_BASE = GROUP_333_CFOP << 5;
+    public static final int DEFAULT_TRAINING_ORIENTATION = 13;
+
+    private static final String SOLVED_FACELET = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
+    private static final int[][] F2L_MASK = toEqus("----U-------RRRRRR---FFFFFFDDDDDDDDD---LLLLLL---BBBBBB");
+    private static final int[][] OLL_MASK = toEqus("UUUUUUUUU---RRRRRR---FFFFFFDDDDDDDDD---LLLLLL---BBBBBB");
+    private static final int[][] SOLVED_MASK = toEqus(SOLVED_FACELET);
+
+    private SmartCubeTraining() {
+    }
+
+    public static boolean is333Cfop(int scrambleIdx) {
+        return (scrambleIdx >> 5) == GROUP_333_CFOP;
+    }
+
+    public static boolean is333CfopSub(int scrambleIdx, int sub) {
+        return is333Cfop(scrambleIdx) && (scrambleIdx & 0x1f) == sub;
+    }
+
+    public static boolean isStageCompleteMode(int scrambleIdx) {
+        int sub = scrambleIdx & 0x1f;
+        return is333Cfop(scrambleIdx) && (sub == SUB_OLL || sub == SUB_F2L);
+    }
+
+    public static boolean isComplete(int scrambleIdx, String facelets, int orientationIndex) {
+        if (!is333Cfop(scrambleIdx) || facelets == null || facelets.length() == 0) {
+            return false;
+        }
+        String oriented = Utils.orientFacelets(facelets, orientationIndex);
+        switch (scrambleIdx & 0x1f) {
+            case SUB_OLL:
+                return matchesMask(oriented, OLL_MASK);
+            case SUB_PLL:
+            case SUB_LAST_LAYER:
+                return matchesMask(oriented, SOLVED_MASK);
+            case SUB_F2L:
+                return matchesMask(oriented, F2L_MASK);
+            default:
+                return false;
+        }
+    }
+
+    static boolean hasF2L(String facelets) {
+        return matchesMask(facelets, F2L_MASK);
+    }
+
+    static boolean hasOLL(String facelets) {
+        return matchesMask(facelets, OLL_MASK);
+    }
+
+    private static boolean matchesMask(String facelets, int[][] mask) {
+        if (facelets == null || facelets.length() < 54) {
+            return false;
+        }
+        for (int[] equ : mask) {
+            char color = facelets.charAt(equ[0]);
+            for (int i = 1; i < equ.length; i++) {
+                if (facelets.charAt(equ[i]) != color) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private static int[][] toEqus(String mask) {
+        int[][] buckets = new int[128][];
+        int[] counts = new int[128];
+        for (int i = 0; i < mask.length(); i++) {
+            char color = mask.charAt(i);
+            if (color == '-') {
+                continue;
+            }
+            if (buckets[color] == null) {
+                buckets[color] = new int[54];
+            }
+            buckets[color][counts[color]++] = i;
+        }
+        int groupCount = 0;
+        for (int count : counts) {
+            if (count > 1) {
+                groupCount++;
+            }
+        }
+        int[][] equs = new int[groupCount][];
+        int out = 0;
+        for (int color = 0; color < counts.length; color++) {
+            if (counts[color] > 1) {
+                equs[out] = new int[counts[color]];
+                System.arraycopy(buckets[color], 0, equs[out], 0, counts[color]);
+                out++;
+            }
+        }
+        return equs;
+    }
+}
