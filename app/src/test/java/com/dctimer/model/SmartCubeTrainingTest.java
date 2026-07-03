@@ -133,11 +133,15 @@ public class SmartCubeTrainingTest {
     @Test
     public void eocpCompletesWhenEdgesAreOrientedAndCornersArePermuted() {
         String eocpState = randomIncompleteEocpCompleteState();
+        String aufShiftedEocpState = randomIncompleteAufShiftedEocpCompleteState();
         String randomLastLayerState = randomIncompleteEocpState();
 
         assertTrue(SmartCubeTraining.hasEOCP(eocpState));
+        assertTrue(SmartCubeTraining.hasEOCP(aufShiftedEocpState));
         assertFalse(SmartCubeTraining.isComplete(OLL, eocpState, 0));
+        assertFalse(SmartCubeTraining.isComplete(OLL, aufShiftedEocpState, 0));
         assertTrue(SmartCubeTraining.isComplete(EOCP, eocpState, 0));
+        assertTrue(SmartCubeTraining.isComplete(EOCP, aufShiftedEocpState, 0));
         assertFalse(SmartCubeTraining.isComplete(EOCP, randomLastLayerState, 0));
     }
 
@@ -253,6 +257,18 @@ public class SmartCubeTrainingTest {
         do {
             state = Tools.randomState(
                     Tools.STATE_SOLVED,
+                    new int[]{-1, -1, -1, -1, 0, 0, 0, 0},
+                    new int[]{-1, -1, -1, -1, 4, 5, 6, 7, 8, 9, 10, 11},
+                    Tools.STATE_SOLVED);
+        } while (SmartCubeTraining.isComplete(OLL, state, 0));
+        return state;
+    }
+
+    private static String randomIncompleteAufShiftedEocpCompleteState() {
+        String state;
+        do {
+            state = Tools.randomState(
+                    new int[]{1, 2, 3, 0, 4, 5, 6, 7},
                     new int[]{-1, -1, -1, -1, 0, 0, 0, 0},
                     new int[]{-1, -1, -1, -1, 4, 5, 6, 7, 8, 9, 10, 11},
                     Tools.STATE_SOLVED);

@@ -33,6 +33,9 @@ public final class SmartCubeTraining {
     private static final int[][] CPLL_MASK = toEqus("UUUUUUUUUr-rRRRRRRf-fFFFFFFDDDDDDDDDl-lLLLLLLb-bBBBBBB");
     private static final int[][] ROUX_CMLL_MASK = toEqus("U-U---U-Ur-rRRRRRRf-fF-FF-FD-DD-DD-Dl-lLLLLLLb-bB-BB-B");
     private static final int[][] SOLVED_MASK = toEqus(SOLVED_FACELET);
+    private static final int[][] U_CORNER_FACELETS = {
+            {8, 9, 20}, {6, 18, 38}, {0, 36, 47}, {2, 45, 11}
+    };
 
     private SmartCubeTraining() {
     }
@@ -132,10 +135,27 @@ public final class SmartCubeTraining {
             return false;
         }
         char u = facelets.charAt(4);
-        return hasCornerColors(facelets, 8, 9, 20, u, facelets.charAt(13), facelets.charAt(22))
-                && hasCornerColors(facelets, 6, 18, 38, u, facelets.charAt(22), facelets.charAt(40))
-                && hasCornerColors(facelets, 0, 36, 47, u, facelets.charAt(40), facelets.charAt(49))
-                && hasCornerColors(facelets, 2, 45, 11, u, facelets.charAt(49), facelets.charAt(13));
+        char[][] cornerColors = {
+                {u, facelets.charAt(13), facelets.charAt(22)},
+                {u, facelets.charAt(22), facelets.charAt(40)},
+                {u, facelets.charAt(40), facelets.charAt(49)},
+                {u, facelets.charAt(49), facelets.charAt(13)}
+        };
+        for (int auf = 0; auf < 4; auf++) {
+            boolean matches = true;
+            for (int i = 0; i < U_CORNER_FACELETS.length; i++) {
+                int[] facelet = U_CORNER_FACELETS[i];
+                char[] colors = cornerColors[(i + auf) % cornerColors.length];
+                if (!hasCornerColors(facelets, facelet[0], facelet[1], facelet[2], colors[0], colors[1], colors[2])) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean hasCornerColors(String facelets, int a, int b, int c, char x, char y, char z) {
