@@ -78,7 +78,7 @@ public class Scrambler {
             {30, 25},   //bandage
             {30, 20},   //mega subsets
             {5, 0, 0, 0, 0, 0, 0},  //relay
-            {0, 0, 0, 0},  //3x3 CFOP
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},  //3x3 CFOP
             {0, 0, -60, 0, 0, 0, 0, 0, -70, 0, 0, 0, 0, -80, -100, 0, -60, 5, 25},  //wca
     };
     private static String[] rotate5 = {"", "3Fw", "3Fw'", "3Fw 3Uw", "3Fw 3Uw2", "3Fw 3Uw'", "3Fw' 3Uw", "3Fw' 3Uw2", "3Fw' 3Uw'", "3Rw", "3Rw2", "3Rw'",
@@ -663,7 +663,7 @@ public class Scrambler {
                 hint = solve333(scr);
                 break;
             case 52:    //2gll
-                scr = cube3.solution(cubeState = Tools.randomState(Tools.STATE_SOLVED, new int[]{-1, -1, -1, -1, 0, 0, 0, 0}, new int[]{-1, -1, -1, -1, 4, 5, 6, 7, 8, 9, 10, 11}, Tools.STATE_SOLVED));
+                scr = cube3.solution(cubeState = random2GLLState());
                 imageType = scr.startsWith("Error") ? 0 : 3;
                 scrambleList.add(scr);
                 break;
@@ -700,26 +700,60 @@ public class Scrambler {
                 imageType = 3;
                 scrambleList.add(scr);
                 break;
-            case SmartCubeTraining.CATEGORY_333_CFOP_BASE:
+            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_OLL:
                 scr = cube3.solution(cubeState = Tools.randomLastLayer());
                 imageType = 3;
                 scrambleList.add(scr);
                 break;
-            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + 1:
+            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_PLL:
                 do {
                     scr = cube3.solution(cubeState = Tools.randomPLL());
                 } while (scr.length() < 6);
                 imageType = 3;
                 scrambleList.add(scr);
                 break;
-            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + 2:
+            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_LAST_LAYER:
                 scr = cube3.solution(cubeState = Tools.randomLastLayer());
                 imageType = 3;
                 scrambleList.add(scr);
                 break;
-            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + 3:
+            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_F2L:
                 scr = cube3.solution(cubeState = Tools.randomCrossSolved());
                 imageType = 3;
+                scrambleList.add(scr);
+                break;
+            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_ZBLL:
+                scr = cube3.solution(cubeState = Tools.randomZBLastLayer());
+                imageType = 3;
+                scrambleList.add(scr);
+                break;
+            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_ZZLL:
+                scr = cube3.solution(cubeState = Tools.randomZZLastLayer());
+                imageType = 3;
+                scrambleList.add(scr);
+                break;
+            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_2GLL:
+                scr = cube3.solution(cubeState = random2GLLState());
+                imageType = scr.startsWith("Error") ? 0 : 3;
+                scrambleList.add(scr);
+                break;
+            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_ELL:
+                scr = cube3.solution(cubeState = Tools.randomEdgeOfLastLayer());
+                imageType = 3;
+                scrambleList.add(scr);
+                break;
+            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_ZBLS:
+                do {
+                    scr = cube3.solution(cubeState = Tools.randomZBLastSlot());
+                } while (SmartCubeTraining.isComplete(category, cubeState, 0));
+                imageType = scr.startsWith("Error") ? 0 : 3;
+                scrambleList.add(scr);
+                break;
+            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_COLL:
+                do {
+                    scr = cube3.solution(cubeState = randomCOLLState());
+                } while (SmartCubeTraining.isComplete(category, cubeState, 0));
+                imageType = scr.startsWith("Error") ? 0 : 3;
                 scrambleList.add(scr);
                 break;
             case 64: //4阶
@@ -1300,6 +1334,22 @@ public class Scrambler {
             return null;
         }
         return new cs.min2phase.Search().solution(scrambleState);
+    }
+
+    static String random2GLLState() {
+        return Tools.randomState(
+                Tools.STATE_SOLVED,
+                new int[]{-1, -1, -1, -1, 0, 0, 0, 0},
+                new int[]{-1, -1, -1, -1, 4, 5, 6, 7, 8, 9, 10, 11},
+                Tools.STATE_SOLVED);
+    }
+
+    static String randomCOLLState() {
+        return Tools.randomState(
+                new int[]{-1, -1, -1, -1, 4, 5, 6, 7},
+                new int[]{-1, -1, -1, -1, 0, 0, 0, 0},
+                new int[]{-1, -1, -1, -1, 4, 5, 6, 7, 8, 9, 10, 11},
+                Tools.STATE_SOLVED);
     }
 
     private String scramble444() {

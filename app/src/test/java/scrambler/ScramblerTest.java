@@ -55,7 +55,7 @@ public class ScramblerTest {
     public void smart333CfopScramblesGenerate3x3States() {
         Scrambler scrambler = new Scrambler(null);
 
-        for (int sub = 0; sub < 4; sub++) {
+        for (int sub = 0; sub < SmartCubeTraining.SUB_COUNT; sub++) {
             scrambler.generateScramble(SmartCubeTraining.CATEGORY_333_CFOP_BASE + sub, true);
 
             assertTrue(scrambler.is333Scramble());
@@ -63,6 +63,28 @@ public class ScramblerTest {
             assertFalse(scrambler.getScramble().isEmpty());
             assertFalse(scrambler.getCubeState().isEmpty());
         }
+    }
+
+    @Test
+    public void expandedSmart333CfopScramblesMatchTrainingSemantics() {
+        Scrambler scrambler = new Scrambler(null);
+
+        assertFullSolveTrainingMode(SmartCubeTraining.SUB_ZBLL);
+        assertFullSolveTrainingMode(SmartCubeTraining.SUB_ZZLL);
+        assertFullSolveTrainingMode(SmartCubeTraining.SUB_2GLL);
+        assertFullSolveTrainingMode(SmartCubeTraining.SUB_ELL);
+
+        scrambler.generateScramble(SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_ZBLS, true);
+        String zblsState = scrambler.getCubeState();
+        assertFalse(SmartCubeTraining.isComplete(
+                SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_ZBLS, zblsState, 0));
+
+        scrambler.generateScramble(SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_COLL, true);
+        String collState = scrambler.getCubeState();
+        assertTrue(SmartCubeTraining.isComplete(
+                SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_ZBLS, collState, 0));
+        assertFalse(SmartCubeTraining.isComplete(
+                SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_COLL, collState, 0));
     }
 
     @Test
@@ -144,5 +166,12 @@ public class ScramblerTest {
             }
         }
         return face * 3 + suffix;
+    }
+
+    private static void assertFullSolveTrainingMode(int sub) {
+        int scrambleIdx = SmartCubeTraining.CATEGORY_333_CFOP_BASE + sub;
+
+        assertFalse(SmartCubeTraining.isStageCompleteMode(scrambleIdx));
+        assertTrue(SmartCubeTraining.isComplete(scrambleIdx, SOLVED, 0));
     }
 }

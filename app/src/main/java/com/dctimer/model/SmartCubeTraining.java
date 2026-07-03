@@ -8,12 +8,21 @@ public final class SmartCubeTraining {
     public static final int SUB_PLL = 1;
     public static final int SUB_LAST_LAYER = 2;
     public static final int SUB_F2L = 3;
+    public static final int SUB_ZBLL = 4;
+    public static final int SUB_ZZLL = 5;
+    public static final int SUB_2GLL = 6;
+    public static final int SUB_ELL = 7;
+    public static final int SUB_ZBLS = 8;
+    public static final int SUB_COLL = 9;
+    public static final int SUB_COUNT = 10;
     public static final int CATEGORY_333_CFOP_BASE = GROUP_333_CFOP << 5;
     public static final int DEFAULT_TRAINING_ORIENTATION = 13;
 
     private static final String SOLVED_FACELET = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
     private static final int[][] F2L_MASK = toEqus("----U-------RRRRRR---FFFFFFDDDDDDDDD---LLLLLL---BBBBBB");
     private static final int[][] OLL_MASK = toEqus("UUUUUUUUU---RRRRRR---FFFFFFDDDDDDDDD---LLLLLL---BBBBBB");
+    private static final int[][] EOLL_MASK = toEqus("-U-UUU-U----RRRRRR---FFFFFFDDDDDDDDD---LLLLLL---BBBBBB");
+    private static final int[][] CPLL_MASK = toEqus("UUUUUUUUUr-rRRRRRRf-fFFFFFFDDDDDDDDDl-lLLLLLLb-bBBBBBB");
     private static final int[][] SOLVED_MASK = toEqus(SOLVED_FACELET);
 
     private SmartCubeTraining() {
@@ -29,7 +38,7 @@ public final class SmartCubeTraining {
 
     public static boolean isStageCompleteMode(int scrambleIdx) {
         int sub = scrambleIdx & 0x1f;
-        return is333Cfop(scrambleIdx) && (sub == SUB_OLL || sub == SUB_F2L);
+        return is333Cfop(scrambleIdx) && (sub == SUB_OLL || sub == SUB_F2L || sub == SUB_ZBLS || sub == SUB_COLL);
     }
 
     public static boolean isComplete(int scrambleIdx, String facelets, int orientationIndex) {
@@ -42,9 +51,17 @@ public final class SmartCubeTraining {
                 return matchesMask(oriented, OLL_MASK);
             case SUB_PLL:
             case SUB_LAST_LAYER:
+            case SUB_ZBLL:
+            case SUB_ZZLL:
+            case SUB_2GLL:
+            case SUB_ELL:
                 return matchesMask(oriented, SOLVED_MASK);
             case SUB_F2L:
                 return matchesMask(oriented, F2L_MASK);
+            case SUB_ZBLS:
+                return matchesMask(oriented, EOLL_MASK);
+            case SUB_COLL:
+                return matchesMask(oriented, CPLL_MASK);
             default:
                 return false;
         }
@@ -56,6 +73,14 @@ public final class SmartCubeTraining {
 
     static boolean hasOLL(String facelets) {
         return matchesMask(facelets, OLL_MASK);
+    }
+
+    static boolean hasEOLL(String facelets) {
+        return matchesMask(facelets, EOLL_MASK);
+    }
+
+    static boolean hasCPLL(String facelets) {
+        return matchesMask(facelets, CPLL_MASK);
     }
 
     private static boolean matchesMask(String facelets, int[][] mask) {

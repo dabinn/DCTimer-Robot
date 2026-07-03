@@ -231,6 +231,12 @@
         <item>PLL訓練</item>
         <item>頂層訓練</item>
         <item>F2L訓練</item>
+        <item>ZBLL訓練</item>
+        <item>ZZLL訓練</item>
+        <item>2GLL訓練</item>
+        <item>ELL訓練</item>
+        <item>ZBLS訓練</item>
+        <item>COLL訓練</item>
     </array>
 
     <array name="opt_penalty">

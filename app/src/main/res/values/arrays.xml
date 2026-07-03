@@ -231,6 +231,12 @@
         <item>PLL training</item>
         <item>Last layer training</item>
         <item>F2L training</item>
+        <item>ZBLL training</item>
+        <item>ZZLL training</item>
+        <item>2GLL training</item>
+        <item>ELL training</item>
+        <item>ZBLS training</item>
+        <item>COLL training</item>
     </array>
 
     <array name="opt_penalty">
