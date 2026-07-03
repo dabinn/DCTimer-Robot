@@ -16,7 +16,8 @@ public final class SmartCubeTraining {
     public static final int SUB_ZBLS = 8;
     public static final int SUB_COLL = 9;
     public static final int SUB_OLLCP = 10;
-    public static final int SUB_COUNT = 11;
+    public static final int SUB_EOCP = 11;
+    public static final int SUB_COUNT = 12;
     public static final int SUB_ROUX_CMLL = 0;
     public static final int SUB_ROUX_LSE = 1;
     public static final int SUB_ROUX_L10P = 2;
@@ -58,7 +59,7 @@ public final class SmartCubeTraining {
 
     public static boolean isStageCompleteMode(int scrambleIdx) {
         int sub = scrambleIdx & 0x1f;
-        return (is333Cfop(scrambleIdx) && (sub == SUB_OLL || sub == SUB_F2L || sub == SUB_ZBLS || sub == SUB_COLL || sub == SUB_OLLCP))
+        return (is333Cfop(scrambleIdx) && (sub == SUB_OLL || sub == SUB_F2L || sub == SUB_ZBLS || sub == SUB_COLL || sub == SUB_OLLCP || sub == SUB_EOCP))
                 || (is333Roux(scrambleIdx) && sub == SUB_ROUX_CMLL);
     }
 
@@ -95,6 +96,8 @@ public final class SmartCubeTraining {
             case SUB_COLL:
             case SUB_OLLCP:
                 return matchesMask(oriented, CPLL_MASK);
+            case SUB_EOCP:
+                return matchesEOCP(oriented);
             default:
                 return false;
         }
@@ -116,8 +119,35 @@ public final class SmartCubeTraining {
         return matchesMask(facelets, CPLL_MASK);
     }
 
+    static boolean hasEOCP(String facelets) {
+        return matchesEOCP(facelets);
+    }
+
     static boolean hasRouxCMLL(String facelets) {
         return matchesMask(facelets, ROUX_CMLL_MASK);
+    }
+
+    private static boolean matchesEOCP(String facelets) {
+        if (!matchesMask(facelets, EOLL_MASK)) {
+            return false;
+        }
+        char u = facelets.charAt(4);
+        return hasCornerColors(facelets, 8, 9, 20, u, facelets.charAt(13), facelets.charAt(22))
+                && hasCornerColors(facelets, 6, 18, 38, u, facelets.charAt(22), facelets.charAt(40))
+                && hasCornerColors(facelets, 0, 36, 47, u, facelets.charAt(40), facelets.charAt(49))
+                && hasCornerColors(facelets, 2, 45, 11, u, facelets.charAt(49), facelets.charAt(13));
+    }
+
+    private static boolean hasCornerColors(String facelets, int a, int b, int c, char x, char y, char z) {
+        return containsAll(facelets.charAt(a), facelets.charAt(b), facelets.charAt(c), x, y, z);
+    }
+
+    private static boolean containsAll(char a, char b, char c, char x, char y, char z) {
+        return contains(a, b, c, x) && contains(a, b, c, y) && contains(a, b, c, z);
+    }
+
+    private static boolean contains(char a, char b, char c, char x) {
+        return a == x || b == x || c == x;
     }
 
     private static boolean matchesMask(String facelets, int[][] mask) {

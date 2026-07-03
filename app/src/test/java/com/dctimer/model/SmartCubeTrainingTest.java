@@ -23,6 +23,7 @@ public class SmartCubeTrainingTest {
     private static final int ZBLS = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_ZBLS;
     private static final int COLL = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_COLL;
     private static final int OLLCP = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_OLLCP;
+    private static final int EOCP = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_EOCP;
     private static final int CMLL = SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_CMLL;
     private static final int LSE = SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_LSE;
     private static final int L10P = SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_L10P;
@@ -42,6 +43,7 @@ public class SmartCubeTrainingTest {
         assertTrue(SmartCubeTraining.isStageCompleteMode(ZBLS));
         assertTrue(SmartCubeTraining.isStageCompleteMode(COLL));
         assertTrue(SmartCubeTraining.isStageCompleteMode(OLLCP));
+        assertTrue(SmartCubeTraining.isStageCompleteMode(EOCP));
         assertTrue(SmartCubeTraining.isStageCompleteMode(CMLL));
         assertFalse(SmartCubeTraining.isStageCompleteMode(PLL));
         assertFalse(SmartCubeTraining.isStageCompleteMode(ZBLL));
@@ -126,6 +128,17 @@ public class SmartCubeTrainingTest {
         assertTrue(SmartCubeTraining.isComplete(OLLCP, cpllState, 0));
         assertFalse(SmartCubeTraining.isComplete(OLL, ollState, 0));
         assertFalse(SmartCubeTraining.isComplete(OLLCP, ollState, 0));
+    }
+
+    @Test
+    public void eocpCompletesWhenEdgesAreOrientedAndCornersArePermuted() {
+        String eocpState = randomIncompleteEocpCompleteState();
+        String randomLastLayerState = randomIncompleteEocpState();
+
+        assertTrue(SmartCubeTraining.hasEOCP(eocpState));
+        assertFalse(SmartCubeTraining.isComplete(OLL, eocpState, 0));
+        assertTrue(SmartCubeTraining.isComplete(EOCP, eocpState, 0));
+        assertFalse(SmartCubeTraining.isComplete(EOCP, randomLastLayerState, 0));
     }
 
     @Test
@@ -232,6 +245,27 @@ public class SmartCubeTrainingTest {
         do {
             state = Tools.randomLastLayer();
         } while (SmartCubeTraining.isComplete(OLL, state, 0));
+        return state;
+    }
+
+    private static String randomIncompleteEocpCompleteState() {
+        String state;
+        do {
+            state = Tools.randomState(
+                    Tools.STATE_SOLVED,
+                    new int[]{-1, -1, -1, -1, 0, 0, 0, 0},
+                    new int[]{-1, -1, -1, -1, 4, 5, 6, 7, 8, 9, 10, 11},
+                    Tools.STATE_SOLVED);
+        } while (SmartCubeTraining.isComplete(OLL, state, 0));
+        return state;
+    }
+
+    private static String randomIncompleteEocpState() {
+        String state;
+        do {
+            state = Tools.randomLastLayer();
+        } while (SmartCubeTraining.isComplete(OLL, state, 0)
+                || SmartCubeTraining.isComplete(EOCP, state, 0));
         return state;
     }
 
