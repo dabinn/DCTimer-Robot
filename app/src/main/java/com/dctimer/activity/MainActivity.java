@@ -1478,6 +1478,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             clearSmartCubeCorrectionSuggestion();
             return;
         }
+        if (handleSmartCubeTrainingSolvedRestore(cubeState, startFacelet)) {
+            return;
+        }
         if (TextUtils.equals(cubeState, startFacelet) || (!isSmartCubeTrainingScramble() && Utils.isSolvedIgnoringRotation(cubeState))) {
             smartCubeScrambleProgress = 0;
             smartCubeScrambleHiddenPrefix = 0;
@@ -1496,6 +1499,20 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             appendSmartCubeDeviationMove(latestMove);
         }
         smartCubeScrambleProgress = -1;
+    }
+
+    private boolean handleSmartCubeTrainingSolvedRestore(String cubeState, String startFacelet) {
+        if (!isSmartCubeTrainingScramble() || !Utils.isSolvedIgnoringRotation(cubeState)) {
+            return false;
+        }
+        smartCubeScrambleProgress = 0;
+        smartCubeScrambleHiddenPrefix = 0;
+        smartCubeScramblePendingMove = null;
+        clearSmartCubeCorrectionSuggestion();
+        if (!Utils.isSolvedIgnoringRotation(startFacelet)) {
+            refreshSmartCubeTrainingScrambleNow();
+        }
+        return true;
     }
 
     private CharSequence buildSmartCubeScrambleText() {
