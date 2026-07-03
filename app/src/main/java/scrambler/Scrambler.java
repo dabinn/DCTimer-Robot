@@ -767,7 +767,8 @@ public class Scrambler {
             case SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_EOCP:
                 do {
                     scr = cube3.solution(cubeState = Tools.randomLastLayer());
-                } while (SmartCubeTraining.isComplete(SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_OLL, cubeState, 0));
+                } while (SmartCubeTraining.isComplete(SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_OLL, cubeState, 0)
+                        || SmartCubeTraining.isComplete(SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_ZBLS, cubeState, 0));
                 imageType = scr.startsWith("Error") ? 0 : 3;
                 scrambleList.add(scr);
                 break;

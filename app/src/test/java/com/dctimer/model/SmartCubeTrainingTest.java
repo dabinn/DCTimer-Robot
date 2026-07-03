@@ -138,6 +138,7 @@ public class SmartCubeTrainingTest {
 
         assertTrue(SmartCubeTraining.hasEOCP(eocpState));
         assertTrue(SmartCubeTraining.hasEOCP(aufShiftedEocpState));
+        assertFalse(SmartCubeTraining.hasEOLL(randomLastLayerState));
         assertFalse(SmartCubeTraining.isComplete(OLL, eocpState, 0));
         assertFalse(SmartCubeTraining.isComplete(OLL, aufShiftedEocpState, 0));
         assertTrue(SmartCubeTraining.isComplete(EOCP, eocpState, 0));
@@ -281,6 +282,7 @@ public class SmartCubeTrainingTest {
         do {
             state = Tools.randomLastLayer();
         } while (SmartCubeTraining.isComplete(OLL, state, 0)
+                || SmartCubeTraining.isComplete(ZBLS, state, 0)
                 || SmartCubeTraining.isComplete(EOCP, state, 0));
         return state;
     }
