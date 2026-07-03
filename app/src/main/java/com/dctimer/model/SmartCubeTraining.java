@@ -18,7 +18,8 @@ public final class SmartCubeTraining {
     public static final int SUB_COUNT = 10;
     public static final int SUB_ROUX_CMLL = 0;
     public static final int SUB_ROUX_LSE = 1;
-    public static final int ROUX_SUB_COUNT = 2;
+    public static final int SUB_ROUX_L10P = 2;
+    public static final int ROUX_SUB_COUNT = 3;
     public static final int CATEGORY_333_CFOP_BASE = GROUP_333_CFOP << 5;
     public static final int CATEGORY_333_ROUX_BASE = GROUP_333_ROUX << 5;
     public static final int DEFAULT_TRAINING_ORIENTATION = 13;
@@ -70,6 +71,7 @@ public final class SmartCubeTraining {
                 case SUB_ROUX_CMLL:
                     return matchesMask(oriented, ROUX_CMLL_MASK);
                 case SUB_ROUX_LSE:
+                case SUB_ROUX_L10P:
                     return matchesMask(oriented, SOLVED_MASK);
                 default:
                     return false;

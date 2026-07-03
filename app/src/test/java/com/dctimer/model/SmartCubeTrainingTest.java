@@ -24,6 +24,7 @@ public class SmartCubeTrainingTest {
     private static final int COLL = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_COLL;
     private static final int CMLL = SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_CMLL;
     private static final int LSE = SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_LSE;
+    private static final int L10P = SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_L10P;
 
     @Test
     public void identifies333CfopTrainingModes() {
@@ -34,6 +35,7 @@ public class SmartCubeTrainingTest {
         assertTrue(SmartCubeTraining.isSmart333Training(CMLL));
         assertTrue(SmartCubeTraining.is333CfopSub(PLL, SmartCubeTraining.SUB_PLL));
         assertTrue(SmartCubeTraining.is333RouxSub(LSE, SmartCubeTraining.SUB_ROUX_LSE));
+        assertTrue(SmartCubeTraining.is333RouxSub(L10P, SmartCubeTraining.SUB_ROUX_L10P));
         assertTrue(SmartCubeTraining.isStageCompleteMode(OLL));
         assertTrue(SmartCubeTraining.isStageCompleteMode(F2L));
         assertTrue(SmartCubeTraining.isStageCompleteMode(ZBLS));
@@ -42,6 +44,7 @@ public class SmartCubeTrainingTest {
         assertFalse(SmartCubeTraining.isStageCompleteMode(PLL));
         assertFalse(SmartCubeTraining.isStageCompleteMode(ZBLL));
         assertFalse(SmartCubeTraining.isStageCompleteMode(LSE));
+        assertFalse(SmartCubeTraining.isStageCompleteMode(L10P));
     }
 
     @Test
@@ -121,12 +124,14 @@ public class SmartCubeTrainingTest {
     }
 
     @Test
-    public void rouxLseRequiresFullSolvedState() {
+    public void rouxLseAndL10pRequireFullSolvedState() {
         assertFalse(SmartCubeTraining.isComplete(CMLL, randomIncompleteRouxCmllState(), 0));
         assertFalse(SmartCubeTraining.isComplete(LSE, randomIncompleteRouxLseState(), 0));
+        assertFalse(SmartCubeTraining.isComplete(L10P, randomIncompleteRouxCmllState(), 0));
 
         assertTrue(SmartCubeTraining.isComplete(CMLL, SOLVED, 0));
         assertTrue(SmartCubeTraining.isComplete(LSE, SOLVED, 0));
+        assertTrue(SmartCubeTraining.isComplete(L10P, SOLVED, 0));
     }
 
     @Test

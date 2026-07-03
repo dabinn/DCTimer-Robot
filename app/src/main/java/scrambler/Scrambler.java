@@ -79,7 +79,7 @@ public class Scrambler {
             {30, 20},   //mega subsets
             {5, 0, 0, 0, 0, 0, 0},  //relay
             {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},  //3x3 CFOP
-            {0, 0},  //3x3 Roux
+            {0, 0, 0},  //3x3 Roux
             {0, 0, -60, 0, 0, 0, 0, 0, -70, 0, 0, 0, 0, -80, -100, 0, -60, 5, 25},  //wca
     };
     private static String[] rotate5 = {"", "3Fw", "3Fw'", "3Fw 3Uw", "3Fw 3Uw2", "3Fw 3Uw'", "3Fw' 3Uw", "3Fw' 3Uw2", "3Fw' 3Uw'", "3Rw", "3Rw2", "3Rw'",
@@ -767,6 +767,13 @@ public class Scrambler {
             case SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_LSE:
                 do {
                     scr = cube3.solution(cubeState = randomRouxLSEState());
+                } while (SmartCubeTraining.isComplete(category, cubeState, 0));
+                imageType = scr.startsWith("Error") ? 0 : 3;
+                scrambleList.add(scr);
+                break;
+            case SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_L10P:
+                do {
+                    scr = cube3.solution(cubeState = randomRouxCMLLState());
                 } while (SmartCubeTraining.isComplete(category, cubeState, 0));
                 imageType = scr.startsWith("Error") ? 0 : 3;
                 scrambleList.add(scr);

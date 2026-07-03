@@ -117,6 +117,13 @@ public class ScramblerTest {
                 SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_CMLL, lseState, 0));
         assertFalse(SmartCubeTraining.isComplete(
                 SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_LSE, lseState, 0));
+
+        scrambler.generateScramble(SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_L10P, true);
+        String l10pState = scrambler.getCubeState();
+        assertFalse(SmartCubeTraining.isStageCompleteMode(
+                SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_L10P));
+        assertFalse(SmartCubeTraining.isComplete(
+                SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_L10P, l10pState, 0));
     }
 
     @Test

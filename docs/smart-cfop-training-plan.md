@@ -39,6 +39,7 @@
 | --- | --- | --- | --- |
 | `0` | `CMLL` | 参考 `cstimer` 的 `cmll` mask，生成 FB/SB 保持、CMLL 未完成、LSE 可乱的状态 | Roux CMLL 完成 |
 | `1` | `LSE` | 参考 `cstimer` 的 `lse` mask，生成 CMLL 完成、LSE 未完成的状态 | 完整复原 |
+| `2` | `L10P` | 复用 `CMLL` 的 FB/SB 保持、后十块可乱状态 | 完整复原 |
 
 ## 关键边界
 
@@ -48,7 +49,7 @@
 - `ZBLS` 使用 `EOLL_MASK`，表示 F2L 已完成且顶层棱朝向已好。
 - `COLL` 使用 `CPLL_MASK`，表示 F2L 已完成、顶面完成且顶层角块关系已正确，允许剩余 EPLL。
 - `CMLL` 使用 `ROUX_CMLL_MASK`，与 `cstimer` 的 `roux3Mask` 保持一致，允许剩余 LSE。
-- `LSE` 使用完整复原作为完成态。
+- `LSE` 与 `L10P` 使用完整复原作为完成态。
 - 新增或调整专项文案时，需要同步 `values`、`values-zh`、`values-zh-rTW` 三套资源数组。
 
 ## 验证记录
