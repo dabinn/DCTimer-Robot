@@ -139,11 +139,11 @@ public class CubeStateDialog extends DialogFragment {
                 if (imageView != null) {
                     imageView.setVisibility(View.GONE);
                 }
-                cube3DView.showCubeState(currentCube.getCubeState());
+                cube3DView.showCubeState(getDisplayCubeState(currentCube.getCubeState()));
                 applyLatestGyro();
             } else if (imageView != null) {
                 imageView.setVisibility(View.VISIBLE);
-                imageView.showCubeState(currentCube.getCubeState());
+                imageView.showCubeState(getDisplayCubeState(currentCube.getCubeState()));
             }
         }
     }
@@ -161,9 +161,6 @@ public class CubeStateDialog extends DialogFragment {
     }
 
     public void playMove(String fromState, String toState, int move) {
-        if (cube != null) {
-            cube.setCubeState(toState);
-        }
         if (cube3DView != null) {
             cube3DView.animateMove(fromState, toState, move);
             applyLatestGyro();
@@ -219,4 +216,12 @@ public class CubeStateDialog extends DialogFragment {
         }
         return cube;
     }
+
+    private String getDisplayCubeState(String cubeState) {
+        if (getActivity() instanceof MainActivity) {
+            return ((MainActivity) getActivity()).getDisplaySmartCubeState(cubeState);
+        }
+        return cubeState;
+    }
+
 }

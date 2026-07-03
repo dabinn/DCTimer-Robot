@@ -448,6 +448,21 @@ public class Tools {
         return Util.toFaceCube(correction);
     }
 
+    public static String getScrambleFacelet(String currentFacelets, String targetFacelets) {
+        CubieCube current = new CubieCube();
+        CubieCube target = new CubieCube();
+        if (Util.toCubieCube(currentFacelets, current) != 0 || Util.toCubieCube(targetFacelets, target) != 0) {
+            return null;
+        }
+        CubieCube inverseCurrent = new CubieCube(current);
+        inverseCurrent.temps = new CubieCube();
+        inverseCurrent.invCubieCube();
+        CubieCube scramble = new CubieCube();
+        CubieCube.CornMult(inverseCurrent, target, scramble);
+        CubieCube.EdgeMult(inverseCurrent, target, scramble);
+        return Util.toFaceCube(scramble);
+    }
+
     /**
      * Check whether the cube definition string s represents a solvable cube.
      *

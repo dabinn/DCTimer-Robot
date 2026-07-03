@@ -23,6 +23,7 @@
         <item>綁帶方塊</item>
         <item>Megaminx子集</item>
         <item>連解</item>
+        <item>3階 CFOP</item>
     </array>
 
     <array name="item_wca">
@@ -225,6 +226,13 @@
         <item>Mini Guildford challenge</item>
     </array>
 
+    <array name="item_333_cfop">
+        <item>OLL訓練</item>
+        <item>PLL訓練</item>
+        <item>頂層訓練</item>
+        <item>F2L訓練</item>
+    </array>
+
     <array name="opt_penalty">
         <item>無懲罰</item>
         <item>"+2"</item>
@@ -366,6 +374,7 @@
     <array name="item_smart">
         <item>使用解法</item>
         <item>解法朝向基準</item>
+        <item>訓練朝向</item>
         <item>轉亂推進樣式</item>
         <item>虛擬方塊大小</item>
         <item>陀螺儀跟隨視角</item>

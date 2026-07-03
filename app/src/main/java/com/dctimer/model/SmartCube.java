@@ -28,6 +28,7 @@ public class SmartCube implements Serializable {
     private String solveStartState;
     private SmartCubeSolveReconstruction reconstruction;
     private StateChangedCallback callback;
+    private CompletionChecker completionChecker;
     private String targetState;
     private boolean scrambledNotified;
 
@@ -63,6 +64,9 @@ public class SmartCube implements Serializable {
             scrambledNotified = true;
             callback.onScrambled(this);
         }
+        if (check == 0 && callback != null && completionChecker != null && isSolveComplete()) {
+            callback.onSolved(this);
+        }
         return check;
     }
 
@@ -90,6 +94,10 @@ public class SmartCube implements Serializable {
         this.callback = callback;
     }
 
+    public void setCompletionChecker(CompletionChecker completionChecker) {
+        this.completionChecker = completionChecker;
+    }
+
     public int getMovesCount() {
         return moves;
     }
@@ -114,8 +122,15 @@ public class SmartCube implements Serializable {
             scrambledNotified = true;
             callback.onScrambled(this);
         }
-        if (callback != null && Utils.isSolvedIgnoringRotation(cubeState))
+        if (callback != null && isSolveComplete())
             callback.onSolved(this);
+    }
+
+    private boolean isSolveComplete() {
+        if (completionChecker != null) {
+            return completionChecker.isComplete(this);
+        }
+        return Utils.isSolvedIgnoringRotation(cubeState);
     }
 
     private boolean isTargetScrambleState(String state) {
@@ -147,6 +162,14 @@ public class SmartCube implements Serializable {
         rawData = new ArrayList<>();
         preIdx = 0;
         solveStartState = null;
+        targetState = null;
+        scrambledNotified = false;
+    }
+
+    public void resetSolveTracking() {
+        rawData = new ArrayList<>();
+        preIdx = 0;
+        solveStartState = cubeState;
         targetState = null;
         scrambledNotified = false;
     }
@@ -222,5 +245,9 @@ public class SmartCube implements Serializable {
     public interface StateChangedCallback {
         void onScrambled(SmartCube cube);
         void onSolved(SmartCube cube);
+    }
+
+    public interface CompletionChecker {
+        boolean isComplete(SmartCube cube);
     }
 }

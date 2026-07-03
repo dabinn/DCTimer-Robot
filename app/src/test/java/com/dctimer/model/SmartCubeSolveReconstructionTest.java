@@ -99,15 +99,21 @@ public class SmartCubeSolveReconstructionTest {
 
     @Test
     public void prettySolveOmitsPhaseMoveCountsAndAppendsSolveStats() {
-        List<SmartCubeSolveReconstruction.MoveEvent> raw = new ArrayList<>();
-        raw.add(new SmartCubeSolveReconstruction.MoveEvent(3, 0, 0));
+        int originalMethod = APP.smartCubeSolveMethod;
+        try {
+            APP.smartCubeSolveMethod = 0;
+            List<SmartCubeSolveReconstruction.MoveEvent> raw = new ArrayList<>();
+            raw.add(new SmartCubeSolveReconstruction.MoveEvent(3, 0, 0));
 
-        SmartCubeSolveReconstruction reconstruction = SmartCubeSolveReconstruction.fromRawMoves(SOLVED, raw);
-        String prettySolve = reconstruction.getPrettySolve(1000);
+            SmartCubeSolveReconstruction reconstruction = SmartCubeSolveReconstruction.fromRawMoves(SOLVED, raw);
+            String prettySolve = reconstruction.getPrettySolve(1000);
 
-        assertTrue(prettySolve.contains("Total: 1 moves"));
-        assertTrue(prettySolve.contains("TPS: 1.0 tps"));
-        assertTrue(!prettySolve.contains("move(s)"));
+            assertTrue(prettySolve.contains("STM: 1 moves"));
+            assertTrue(prettySolve.contains("TPS: 1.0"));
+            assertTrue(!prettySolve.contains("move(s)"));
+        } finally {
+            APP.smartCubeSolveMethod = originalMethod;
+        }
     }
 
     @Test
