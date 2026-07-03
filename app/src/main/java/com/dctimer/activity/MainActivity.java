@@ -1998,6 +1998,33 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     }
 
+    private boolean refreshSmartCubeTrainingScrambleNow() {
+        if (!isSmartCubeMode() || !isSmartCubeTrainingScramble()
+                || currentScramble == null || TextUtils.isEmpty(currentScramble.getScramble())
+                || timer.getTimerState() != DCTTimer.READY || canStart) {
+            return false;
+        }
+        smartCubeTrainingScrambleRefreshPending = false;
+        Runnable refresh = new Runnable() {
+            @Override
+            public void run() {
+                if (!isSmartCubeMode() || !isSmartCubeTrainingScramble()
+                        || timer.getTimerState() != DCTTimer.READY || canStart) {
+                    return;
+                }
+                clearSmartCubeScrambleCache();
+                smartCubeSkipStartForCurrentMove = false;
+                newScramble();
+            }
+        };
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            refresh.run();
+        } else {
+            runOnUiThread(refresh);
+        }
+        return true;
+    }
+
     private boolean refreshSmartCubeTrainingScrambleAfterConnect(final SmartCube cube) {
         if (!smartCubeTrainingScrambleRefreshPending) {
             return false;
@@ -2014,26 +2041,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             smartCubeTrainingScrambleRefreshPending = false;
             return false;
         }
-        smartCubeTrainingScrambleRefreshPending = false;
-        Runnable refresh = new Runnable() {
-            @Override
-            public void run() {
-                SmartCube activeCube = getActiveSmartCube();
-                if (!isSmartCubeTrainingScramble() || activeCube == null || TextUtils.isEmpty(activeCube.getCubeState())
-                        || timer.getTimerState() != DCTTimer.READY || canStart) {
-                    return;
-                }
-                clearSmartCubeScrambleCache();
-                smartCubeSkipStartForCurrentMove = false;
-                newScramble();
-            }
-        };
-        if (Looper.myLooper() == Looper.getMainLooper()) {
-            refresh.run();
-        } else {
-            runOnUiThread(refresh);
-        }
-        return true;
+        return refreshSmartCubeTrainingScrambleNow();
     }
 
     public void onSmartCubeGyroChanged(float x, float y, float z, float w) {
@@ -3039,8 +3047,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         stAdapter.setText(position, getSmartCubeOrientationLabel(i));
                         setPref("sctori", i);
                         clearSmartCubeScrambleCache();
-                        updateScrambleTextView();
-                        refreshTimerPageSmartCubeUi();
+                        if (!refreshSmartCubeTrainingScrambleNow()) {
+                            updateScrambleTextView();
+                            refreshTimerPageSmartCubeUi();
+                        }
                         dialogInterface.dismiss();
                     }
                 }).setNegativeButton(R.string.btn_cancel, null).show();
