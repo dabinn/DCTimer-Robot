@@ -66,6 +66,21 @@ public class ScramblerTest {
     }
 
     @Test
+    public void smart333RouxScramblesGenerate3x3States() {
+        Scrambler scrambler = new Scrambler(null);
+
+        for (int sub = 0; sub < SmartCubeTraining.ROUX_SUB_COUNT; sub++) {
+            scrambler.generateScramble(SmartCubeTraining.CATEGORY_333_ROUX_BASE + sub, true);
+
+            assertTrue(scrambler.is333Scramble());
+            assertTrue(scrambler.isSmart333TrainingScramble());
+            assertEquals(3, scrambler.getImageType());
+            assertFalse(scrambler.getScramble().isEmpty());
+            assertFalse(scrambler.getCubeState().isEmpty());
+        }
+    }
+
+    @Test
     public void expandedSmart333CfopScramblesMatchTrainingSemantics() {
         Scrambler scrambler = new Scrambler(null);
 
@@ -88,11 +103,39 @@ public class ScramblerTest {
     }
 
     @Test
+    public void smart333RouxScramblesMatchTrainingSemantics() {
+        Scrambler scrambler = new Scrambler(null);
+
+        scrambler.generateScramble(SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_CMLL, true);
+        String cmllState = scrambler.getCubeState();
+        assertFalse(SmartCubeTraining.isComplete(
+                SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_CMLL, cmllState, 0));
+
+        scrambler.generateScramble(SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_LSE, true);
+        String lseState = scrambler.getCubeState();
+        assertTrue(SmartCubeTraining.isComplete(
+                SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_CMLL, lseState, 0));
+        assertFalse(SmartCubeTraining.isComplete(
+                SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_LSE, lseState, 0));
+    }
+
+    @Test
     public void parsed333CfopScrambleKeeps3x3ImageType() {
         Scrambler scrambler = new Scrambler(null);
 
         scrambler.parseScramble(
                 SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_OLL,
+                "R U R' U'");
+
+        assertEquals(3, scrambler.getImageType());
+    }
+
+    @Test
+    public void parsed333RouxScrambleKeeps3x3ImageType() {
+        Scrambler scrambler = new Scrambler(null);
+
+        scrambler.parseScramble(
+                SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_CMLL,
                 "R U R' U'");
 
         assertEquals(3, scrambler.getImageType());

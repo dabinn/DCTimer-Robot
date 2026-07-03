@@ -79,6 +79,7 @@ public class Scrambler {
             {30, 20},   //mega subsets
             {5, 0, 0, 0, 0, 0, 0},  //relay
             {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},  //3x3 CFOP
+            {0, 0},  //3x3 Roux
             {0, 0, -60, 0, 0, 0, 0, 0, -70, 0, 0, 0, 0, -80, -100, 0, -60, 5, 25},  //wca
     };
     private static String[] rotate5 = {"", "3Fw", "3Fw'", "3Fw 3Uw", "3Fw 3Uw2", "3Fw 3Uw'", "3Fw' 3Uw", "3Fw' 3Uw2", "3Fw' 3Uw'", "3Rw", "3Rw2", "3Rw'",
@@ -311,7 +312,7 @@ public class Scrambler {
         this.scramble = scramble;
         if (category == -29 || (category >= 0 && category < 32)) {   //二阶
             imageType = StringUtils.getImageType(scramble, 1);
-        } else if (category == -32 || category == -27 || category == -25 || category == -28 || category == -26 || (category > 31 && category < 64) || (category > 543 && category < 576) || SmartCubeTraining.is333Cfop(category)) {
+        } else if (category == -32 || category == -27 || category == -25 || category == -28 || category == -26 || (category > 31 && category < 64) || (category > 543 && category < 576) || SmartCubeTraining.isSmart333Training(category)) {
             imageType = StringUtils.getImageType(scramble, 2);
         } else if (category == -31 || category == -17 || (category > 63 && category < 96)) {    //四阶
             imageType = StringUtils.getImageType(scramble, 3);
@@ -352,7 +353,7 @@ public class Scrambler {
         cubeState = "";
         scrambleIdx = 0;
         if (resetLength) {
-            if (category < 0) scrambleLen = defaultLength[22][category & 31];
+            if (category < 0) scrambleLen = defaultLength[23][category & 31];
             else scrambleLen = defaultLength[category >> 5][category & 31];
         }
         switch (category) {
@@ -752,6 +753,20 @@ public class Scrambler {
             case SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_COLL:
                 do {
                     scr = cube3.solution(cubeState = randomCOLLState());
+                } while (SmartCubeTraining.isComplete(category, cubeState, 0));
+                imageType = scr.startsWith("Error") ? 0 : 3;
+                scrambleList.add(scr);
+                break;
+            case SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_CMLL:
+                do {
+                    scr = cube3.solution(cubeState = randomRouxCMLLState());
+                } while (SmartCubeTraining.isComplete(category, cubeState, 0));
+                imageType = scr.startsWith("Error") ? 0 : 3;
+                scrambleList.add(scr);
+                break;
+            case SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_LSE:
+                do {
+                    scr = cube3.solution(cubeState = randomRouxLSEState());
                 } while (SmartCubeTraining.isComplete(category, cubeState, 0));
                 imageType = scr.startsWith("Error") ? 0 : 3;
                 scrambleList.add(scr);
@@ -1352,6 +1367,22 @@ public class Scrambler {
                 Tools.STATE_SOLVED);
     }
 
+    static String randomRouxCMLLState() {
+        return Tools.randomState(
+                new int[]{-1, -1, -1, -1, 4, 5, 6, 7},
+                new int[]{-1, -1, -1, -1, 0, 0, 0, 0},
+                new int[]{-1, -1, -1, -1, 4, -1, 6, -1, 8, 9, 10, 11},
+                new int[]{-1, -1, -1, -1, 0, -1, 0, -1, 0, 0, 0, 0});
+    }
+
+    static String randomRouxLSEState() {
+        return Tools.randomState(
+                Tools.STATE_SOLVED,
+                Tools.STATE_SOLVED,
+                new int[]{-1, -1, -1, -1, 4, -1, 6, -1, 8, 9, 10, 11},
+                new int[]{-1, -1, -1, -1, 0, -1, 0, -1, 0, 0, 0, 0});
+    }
+
     private String scramble444() {
         return megascramble(new String[][] {{"U", "D", "Uw"}, {"R", "L", "Rw"}, {"F", "B", "Fw"}}, cubesuff, 40);
     }
@@ -1373,11 +1404,15 @@ public class Scrambler {
         int sub = category & 0x1f;
         return (idx == -1 && (sub == 0 || sub == 5 || sub == 7)) ||
                 (idx == 1 && (sub == 0 || sub == 1 || sub == 19)) ||
-                is333CfopScramble();
+                isSmart333TrainingScramble();
     }
 
     public boolean is333CfopScramble() {
         return SmartCubeTraining.is333Cfop(category);
+    }
+
+    public boolean isSmart333TrainingScramble() {
+        return SmartCubeTraining.isSmart333Training(category);
     }
 
     public boolean isSqScramble() {

@@ -1,4 +1,4 @@
-# 智能魔方 3阶 CFOP 专项训练状态
+# 智能魔方 3阶 CFOP / Roux 专项训练状态
 
 日期：`2026-07-04`
 
@@ -6,15 +6,19 @@
 
 ## 当前范围
 
-`3阶 CFOP` 是智能魔方链路的独立专项训练分组，不包含 `WCA` 子项，也不复用普通 `3阶` 或 `3阶子集` 的子项语义。
+`3阶 CFOP` 与 `3阶 Roux` 是智能魔方链路的独立专项训练分组，不包含 `WCA` 子项，也不复用普通 `3阶` 或 `3阶子集` 的子项语义。
 
 真实分组索引保持追加在末尾：
 
-- 真实 group：`21`
+- `3阶 CFOP` 真实 group：`21`
+- `3阶 Roux` 真实 group：`22`
 - 真实 `scrambleIdx`：`group << 5 | sub`
-- 一级展示顺序：由 `ScrambleGroupDisplay` 单独映射，当前显示在普通 `3阶` 后面，不改变真实索引、偏好、分组或成绩数据。
+- 一级展示顺序：由 `ScrambleGroupDisplay` 单独映射，当前显示为普通 `3阶`、`3阶 CFOP`、`3阶 Roux`，不改变真实索引、偏好、分组或成绩数据。
+- 二级子项暂按资源数组顺序展示，没有单独映射层。
 
 ## 已支持专项
+
+### 3阶 CFOP
 
 | sub | 子项 | 打乱生成 | 完成判断 |
 | --- | --- | --- | --- |
@@ -29,6 +33,13 @@
 | `8` | `ZBLS训练` | `Tools.randomZBLastSlot()` | EOLL 完成 |
 | `9` | `COLL训练` | 独立 COLL 语义 `randomState(...)` | CPLL 完成 |
 
+### 3阶 Roux
+
+| sub | 子项 | 打乱生成 | 完成判断 |
+| --- | --- | --- | --- |
+| `0` | `CMLL` | 参考 `cstimer` 的 `cmll` mask，生成 FB/SB 保持、CMLL 未完成、LSE 可乱的状态 | Roux CMLL 完成 |
+| `1` | `LSE` | 参考 `cstimer` 的 `lse` mask，生成 CMLL 完成、LSE 未完成的状态 | 完整复原 |
+
 ## 关键边界
 
 - 专项训练统一使用独立训练朝向，默认 `黄顶绿前`；内部 `SmartCube` 仍保存物理状态和物理转动。
@@ -36,6 +47,8 @@
 - 阶段训练完成后只清理本次 solve tracking，保留当前物理 `cubeState`，不强制 `markSolved()`。
 - `ZBLS` 使用 `EOLL_MASK`，表示 F2L 已完成且顶层棱朝向已好。
 - `COLL` 使用 `CPLL_MASK`，表示 F2L 已完成、顶面完成且顶层角块关系已正确，允许剩余 EPLL。
+- `CMLL` 使用 `ROUX_CMLL_MASK`，与 `cstimer` 的 `roux3Mask` 保持一致，允许剩余 LSE。
+- `LSE` 使用完整复原作为完成态。
 - 新增或调整专项文案时，需要同步 `values`、`values-zh`、`values-zh-rTW` 三套资源数组。
 
 ## 验证记录

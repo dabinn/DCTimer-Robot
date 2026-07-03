@@ -1,6 +1,6 @@
 # DCTimer-Android 路线图与决策备忘
 
-日期：`2026-07-03`
+日期：`2026-07-04`
 
 ## 文档职责
 
@@ -10,7 +10,7 @@
 
 - 保持长期文档收口在 `docs/project.md`、`docs/architecture.md`、`docs/roadmap.md`。
 - 智能魔方 3D 预览已落地统一四元数姿态入口；MoYu32 陀螺仪视角跟随已完成真机验证，后续其他型号继续按该入口接入。
-- `3阶 CFOP` 智能魔方专项训练已完成代码落地和本地验证，后续重点做 MoYu32、QiYi / Tornado V4、GAN v2/v3/v4 真机验证。
+- `3阶 CFOP` 与 `3阶 Roux` 智能魔方专项训练已完成代码落地和本地验证，后续重点做 MoYu32、QiYi / Tornado V4、GAN v2/v3/v4 真机验证。
 
 ## 中期
 
@@ -46,9 +46,9 @@
 - BLE 扫描弹窗以扫描结果直列和连接阶段自动识别为准。
 - 智能魔方状态展示以自定义 3D 渲染控件为主。
 - 打乱流程以“打乱进度提示 + 偏离纠错 + READY 等待首转”为准，不回退到连接后直接起表。
-- `3阶 CFOP` 专项训练作为独立真实分组追加在末尾，打乱选择 UI 单独映射到普通 `3阶` 后展示；当前包含 `OLL训练 / PLL训练 / 顶层训练 / F2L训练 / ZBLL训练 / ZZLL训练 / 2GLL训练 / ELL训练 / ZBLS训练 / COLL训练`，不包含 WCA 子项。
+- `3阶 CFOP` 与 `3阶 Roux` 专项训练作为独立真实分组追加在末尾，打乱选择 UI 单独映射到普通 `3阶` 后展示；`3阶 CFOP` 当前包含 `OLL训练 / PLL训练 / 顶层训练 / F2L训练 / ZBLL训练 / ZZLL训练 / 2GLL训练 / ELL训练 / ZBLS训练 / COLL训练`，`3阶 Roux` 当前包含 `CMLL / LSE`，不包含 WCA 子项。
 - 专项训练使用独立训练朝向，默认 `黄顶绿前`，不复用解法重建朝向。
-- 专项训练完成判定按 `cstimer` 的 mask 思路收口：`OLL训练` 检查 OLL，`F2L训练` 检查 F2L，`ZBLS训练` 检查 EOLL，`COLL训练` 检查 CPLL，其余 CFOP 专项检查完整复原。
+- 专项训练完成判定按 `cstimer` 的 mask 思路收口：`OLL训练` 检查 OLL，`F2L训练` 检查 F2L，`ZBLS训练` 检查 EOLL，`COLL训练` 检查 CPLL，`CMLL` 检查 Roux CMLL，其他 CFOP 专项与 `LSE` 检查完整复原。
 - 阶段训练完成后保留当前物理魔方状态，仅重置本次解法追踪；下一条专项训练从当前物理状态接续生成打乱。
 - `GAN v4` MOVE 通知按 `72-bit` chunk 循环解析；`M / E / S` 快速双层转动不再依赖 `MOVE_HISTORY` 才补齐同包中的第二个转动。
 - `GAN v3 / v4` 的 `MOVE_HISTORY` 仅作为丢包兜底，尾部缺失时间戳按可用真实时间戳和本地触发时间估算。

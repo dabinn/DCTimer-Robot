@@ -273,7 +273,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         int[] subid = {R.array.item_wca, R.array.item_222, R.array.item_333, R.array.item_444, R.array.item_555, R.array.item_666,
                 R.array.item_666, R.array.item_mega, R.array.item_pyr, R.array.item_sq1, R.array.item_clk, R.array.item_skewb,
                 R.array.item_mnl, R.array.item_cmt, R.array.item_gear, R.array.item_smc, R.array.item_15p, R.array.item_other,
-                R.array.item_333_sub, R.array.item_bandage, R.array.item_minx_sub, R.array.item_relay, R.array.item_333_cfop};
+                R.array.item_333_sub, R.array.item_bandage, R.array.item_minx_sub, R.array.item_relay, R.array.item_333_cfop,
+                R.array.item_333_roux};
         for (int i = 0; i < subid.length; i++)
             StringUtils.scrambleSubitems[i] = getResources().getStringArray(subid[i]);
         for (int i = 0; i < itemStr.length; i++)
@@ -1872,7 +1873,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private boolean isSmartCubeTrainingScramble() {
-        return SmartCubeTraining.is333Cfop(scrambleIdx);
+        return SmartCubeTraining.isSmart333Training(scrambleIdx);
     }
 
     private String getDisplayCubeState(String cubeState) {
@@ -4739,7 +4740,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void adaptSmartCubeTrainingScramble(Scrambler scrambler) {
-        if (scrambler == null || !SmartCubeTraining.is333Cfop(scrambleIdx)) {
+        if (scrambler == null || !SmartCubeTraining.isSmart333Training(scrambleIdx)) {
             return;
         }
         SmartCube cube = getActiveSmartCube();

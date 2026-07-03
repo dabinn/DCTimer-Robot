@@ -22,18 +22,26 @@ public class SmartCubeTrainingTest {
     private static final int ELL = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_ELL;
     private static final int ZBLS = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_ZBLS;
     private static final int COLL = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_COLL;
+    private static final int CMLL = SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_CMLL;
+    private static final int LSE = SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_LSE;
 
     @Test
     public void identifies333CfopTrainingModes() {
         assertEquals(21, SmartCubeTraining.GROUP_333_CFOP);
+        assertEquals(22, SmartCubeTraining.GROUP_333_ROUX);
         assertTrue(SmartCubeTraining.is333Cfop(OLL));
+        assertTrue(SmartCubeTraining.is333Roux(CMLL));
+        assertTrue(SmartCubeTraining.isSmart333Training(CMLL));
         assertTrue(SmartCubeTraining.is333CfopSub(PLL, SmartCubeTraining.SUB_PLL));
+        assertTrue(SmartCubeTraining.is333RouxSub(LSE, SmartCubeTraining.SUB_ROUX_LSE));
         assertTrue(SmartCubeTraining.isStageCompleteMode(OLL));
         assertTrue(SmartCubeTraining.isStageCompleteMode(F2L));
         assertTrue(SmartCubeTraining.isStageCompleteMode(ZBLS));
         assertTrue(SmartCubeTraining.isStageCompleteMode(COLL));
+        assertTrue(SmartCubeTraining.isStageCompleteMode(CMLL));
         assertFalse(SmartCubeTraining.isStageCompleteMode(PLL));
         assertFalse(SmartCubeTraining.isStageCompleteMode(ZBLL));
+        assertFalse(SmartCubeTraining.isStageCompleteMode(LSE));
     }
 
     @Test
@@ -101,6 +109,24 @@ public class SmartCubeTrainingTest {
         assertTrue(SmartCubeTraining.hasCPLL(cpllState));
         assertFalse(SmartCubeTraining.isComplete(LAST_LAYER, cpllState, 0));
         assertTrue(SmartCubeTraining.isComplete(COLL, cpllState, 0));
+    }
+
+    @Test
+    public void rouxCmllCompletesWhenCmllIsDoneEvenIfLseIsNotSolved() {
+        String lseState = randomIncompleteRouxLseState();
+
+        assertTrue(SmartCubeTraining.hasRouxCMLL(lseState));
+        assertFalse(SmartCubeTraining.isComplete(LSE, lseState, 0));
+        assertTrue(SmartCubeTraining.isComplete(CMLL, lseState, 0));
+    }
+
+    @Test
+    public void rouxLseRequiresFullSolvedState() {
+        assertFalse(SmartCubeTraining.isComplete(CMLL, randomIncompleteRouxCmllState(), 0));
+        assertFalse(SmartCubeTraining.isComplete(LSE, randomIncompleteRouxLseState(), 0));
+
+        assertTrue(SmartCubeTraining.isComplete(CMLL, SOLVED, 0));
+        assertTrue(SmartCubeTraining.isComplete(LSE, SOLVED, 0));
     }
 
     @Test
@@ -179,6 +205,30 @@ public class SmartCubeTrainingTest {
                     new int[]{-1, -1, -1, -1, 4, 5, 6, 7, 8, 9, 10, 11},
                     Tools.STATE_SOLVED);
         } while (SmartCubeTraining.isComplete(LAST_LAYER, state, 0));
+        return state;
+    }
+
+    private static String randomIncompleteRouxCmllState() {
+        String state;
+        do {
+            state = Tools.randomState(
+                    new int[]{-1, -1, -1, -1, 4, 5, 6, 7},
+                    new int[]{-1, -1, -1, -1, 0, 0, 0, 0},
+                    new int[]{-1, -1, -1, -1, 4, -1, 6, -1, 8, 9, 10, 11},
+                    new int[]{-1, -1, -1, -1, 0, -1, 0, -1, 0, 0, 0, 0});
+        } while (SmartCubeTraining.isComplete(CMLL, state, 0));
+        return state;
+    }
+
+    private static String randomIncompleteRouxLseState() {
+        String state;
+        do {
+            state = Tools.randomState(
+                    Tools.STATE_SOLVED,
+                    Tools.STATE_SOLVED,
+                    new int[]{-1, -1, -1, -1, 4, -1, 6, -1, 8, 9, 10, 11},
+                    new int[]{-1, -1, -1, -1, 0, -1, 0, -1, 0, 0, 0, 0});
+        } while (SmartCubeTraining.isComplete(LSE, state, 0));
         return state;
     }
 }

@@ -5,6 +5,7 @@ public final class ScrambleGroupDisplay {
     public static final int GROUP_222 = 0;
     public static final int GROUP_333 = 1;
     public static final int GROUP_333_CFOP = 21;
+    public static final int GROUP_333_ROUX = 22;
 
     private ScrambleGroupDisplay() {
     }
@@ -18,13 +19,20 @@ public final class ScrambleGroupDisplay {
         groups[position++] = WCA_GROUP;
         int normalGroupCount = groupCount - 1;
         boolean hasCfopGroup = GROUP_333_CFOP < normalGroupCount;
+        boolean hasRouxGroup = GROUP_333_ROUX < normalGroupCount;
         for (int realGroup = 0; realGroup < normalGroupCount; realGroup++) {
-            if (hasCfopGroup && realGroup == GROUP_333_CFOP) {
+            if ((hasCfopGroup && realGroup == GROUP_333_CFOP)
+                    || (hasRouxGroup && realGroup == GROUP_333_ROUX)) {
                 continue;
             }
             groups[position++] = realGroup;
-            if (hasCfopGroup && realGroup == GROUP_333) {
-                groups[position++] = GROUP_333_CFOP;
+            if (realGroup == GROUP_333) {
+                if (hasCfopGroup) {
+                    groups[position++] = GROUP_333_CFOP;
+                }
+                if (hasRouxGroup) {
+                    groups[position++] = GROUP_333_ROUX;
+                }
             }
         }
         return groups;

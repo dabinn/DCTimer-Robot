@@ -24,6 +24,7 @@
         <item>五魔子集</item>
         <item>连拧</item>
         <item>3阶 CFOP</item>
+        <item>3阶 Roux</item>
     </array>
 
     <array name="item_wca">
@@ -237,6 +238,11 @@
         <item>ELL训练</item>
         <item>ZBLS训练</item>
         <item>COLL训练</item>
+    </array>
+
+    <array name="item_333_roux">
+        <item>CMLL</item>
+        <item>LSE</item>
     </array>
 
     <array name="opt_penalty">

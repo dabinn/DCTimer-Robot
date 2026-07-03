@@ -24,6 +24,7 @@
         <item>Megaminx subsets</item>
         <item>Relay</item>
         <item>3x3 CFOP</item>
+        <item>3x3 Roux</item>
     </array>
 
     <array name="item_wca">
@@ -237,6 +238,11 @@
         <item>ELL training</item>
         <item>ZBLS training</item>
         <item>COLL training</item>
+    </array>
+
+    <array name="item_333_roux">
+        <item>CMLL</item>
+        <item>LSE</item>
     </array>
 
     <array name="opt_penalty">

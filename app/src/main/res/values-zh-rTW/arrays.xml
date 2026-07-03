@@ -24,6 +24,7 @@
         <item>Megaminx子集</item>
         <item>連解</item>
         <item>3階 CFOP</item>
+        <item>3階 Roux</item>
     </array>
 
     <array name="item_wca">
@@ -237,6 +238,11 @@
         <item>ELL訓練</item>
         <item>ZBLS訓練</item>
         <item>COLL訓練</item>
+    </array>
+
+    <array name="item_333_roux">
+        <item>CMLL</item>
+        <item>LSE</item>
     </array>
 
     <array name="opt_penalty">
