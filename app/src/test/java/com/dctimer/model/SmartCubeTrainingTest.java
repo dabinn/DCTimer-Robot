@@ -37,7 +37,7 @@ public class SmartCubeTrainingTest {
 
     @Test
     public void ollCompletesWhenOrientationIsDoneEvenIfPllIsNotSolved() {
-        String pllState = Tools.randomPLL();
+        String pllState = randomIncompletePllState();
 
         assertTrue(SmartCubeTraining.hasOLL(pllState));
         assertFalse(SmartCubeTraining.isComplete(PLL, pllState, 0));
@@ -46,7 +46,7 @@ public class SmartCubeTrainingTest {
 
     @Test
     public void f2lCompletesWithoutSolvedLastLayer() {
-        String lastLayerState = Tools.randomLastLayer();
+        String lastLayerState = randomIncompleteLastLayerState();
 
         assertTrue(SmartCubeTraining.hasF2L(lastLayerState));
         assertFalse(SmartCubeTraining.isComplete(LAST_LAYER, lastLayerState, 0));
@@ -55,7 +55,7 @@ public class SmartCubeTrainingTest {
 
     @Test
     public void pllAndLastLayerRequireFullSolvedState() {
-        String pllState = Tools.randomPLL();
+        String pllState = randomIncompletePllState();
 
         assertFalse(SmartCubeTraining.isComplete(PLL, pllState, 0));
         assertFalse(SmartCubeTraining.isComplete(LAST_LAYER, pllState, 0));
@@ -68,5 +68,21 @@ public class SmartCubeTrainingTest {
         String orientedSolvedAsPhysical = Utils.unorientFacelets(SOLVED, SmartCubeTraining.DEFAULT_TRAINING_ORIENTATION);
 
         assertTrue(SmartCubeTraining.isComplete(PLL, orientedSolvedAsPhysical, SmartCubeTraining.DEFAULT_TRAINING_ORIENTATION));
+    }
+
+    private static String randomIncompletePllState() {
+        String state;
+        do {
+            state = Tools.randomPLL();
+        } while (SmartCubeTraining.isComplete(PLL, state, 0));
+        return state;
+    }
+
+    private static String randomIncompleteLastLayerState() {
+        String state;
+        do {
+            state = Tools.randomLastLayer();
+        } while (SmartCubeTraining.isComplete(LAST_LAYER, state, 0));
+        return state;
     }
 }

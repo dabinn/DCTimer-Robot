@@ -311,7 +311,7 @@ public class Scrambler {
         this.scramble = scramble;
         if (category == -29 || (category >= 0 && category < 32)) {   //二阶
             imageType = StringUtils.getImageType(scramble, 1);
-        } else if (category == -32 || category == -27 || category == -25 || category == -28 || category == -26 || (category > 31 && category < 64) || (category > 543 && category < 576)) {
+        } else if (category == -32 || category == -27 || category == -25 || category == -28 || category == -26 || (category > 31 && category < 64) || (category > 543 && category < 576) || SmartCubeTraining.is333Cfop(category)) {
             imageType = StringUtils.getImageType(scramble, 2);
         } else if (category == -31 || category == -17 || (category > 63 && category < 96)) {    //四阶
             imageType = StringUtils.getImageType(scramble, 3);

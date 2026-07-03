@@ -66,6 +66,17 @@ public class ScramblerTest {
     }
 
     @Test
+    public void parsed333CfopScrambleKeeps3x3ImageType() {
+        Scrambler scrambler = new Scrambler(null);
+
+        scrambler.parseScramble(
+                SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_OLL,
+                "R U R' U'");
+
+        assertEquals(3, scrambler.getImageType());
+    }
+
+    @Test
     public void scrambleBetweenStatesMovesStartToTarget() {
         String start = Tools.fromScramble("R U F");
         String target = Tools.randomPLL();

@@ -185,6 +185,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private boolean smartCubeCorrectionLocked;
     private long smartCubeLastRestoreHintTime;
     private boolean smartCubeSkipStartForCurrentMove;
+    private boolean smartCubeTrainingScrambleRefreshPending;
     private boolean pendingBleDialogAfterPermission;
     private boolean pendingBleScanAfterPermission;
 
@@ -1953,6 +1954,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         setTimerText(getIdleTimerText());
         tvMulPhase.setText("");
         smartCubeScrambleProgress = 0;
+        smartCubeScramblePendingMove = null;
+        clearSmartCubeCorrectionSuggestion();
         refreshTimerPageSmartCubeUi();
         Toast.makeText(context, R.string.smart_cube_reset_done, Toast.LENGTH_SHORT).show();
     }
@@ -1966,6 +1969,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     public void refreshSmartCubeStateUi() {
         SmartCube cube = getActiveSmartCube();
         updateSmartCubeCompletionChecker(cube);
+        if (refreshSmartCubeTrainingScrambleAfterConnect(cube)) {
+            return;
+        }
         if (isCurrentSmartCubeAtScrambleTarget(cube)) {
             completeSmartCubeScramble(cube);
         }
@@ -1984,6 +1990,50 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             return TextUtils.equals(cube.getCubeState(), currentScramble.getCubeState());
         }
         return Utils.isSameStateIgnoringRotation(cube.getCubeState(), currentScramble.getCubeState());
+    }
+
+    private void markSmartCubeTrainingScrambleRefreshPending() {
+        if (isSmartCubeMode() && isSmartCubeTrainingScramble()) {
+            smartCubeTrainingScrambleRefreshPending = true;
+        }
+    }
+
+    private boolean refreshSmartCubeTrainingScrambleAfterConnect(final SmartCube cube) {
+        if (!smartCubeTrainingScrambleRefreshPending) {
+            return false;
+        }
+        if (!isSmartCubeMode() || !isSmartCubeTrainingScramble()
+                || currentScramble == null || TextUtils.isEmpty(currentScramble.getScramble())) {
+            smartCubeTrainingScrambleRefreshPending = false;
+            return false;
+        }
+        if (cube == null || TextUtils.isEmpty(cube.getCubeState())) {
+            return false;
+        }
+        if (timer.getTimerState() != DCTTimer.READY || canStart) {
+            smartCubeTrainingScrambleRefreshPending = false;
+            return false;
+        }
+        smartCubeTrainingScrambleRefreshPending = false;
+        Runnable refresh = new Runnable() {
+            @Override
+            public void run() {
+                SmartCube activeCube = getActiveSmartCube();
+                if (!isSmartCubeTrainingScramble() || activeCube == null || TextUtils.isEmpty(activeCube.getCubeState())
+                        || timer.getTimerState() != DCTTimer.READY || canStart) {
+                    return;
+                }
+                clearSmartCubeScrambleCache();
+                smartCubeSkipStartForCurrentMove = false;
+                newScramble();
+            }
+        };
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            refresh.run();
+        } else {
+            runOnUiThread(refresh);
+        }
+        return true;
     }
 
     public void onSmartCubeGyroChanged(float x, float y, float z, float w) {
@@ -2173,6 +2223,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     public void connectBleDevice(int pos) {
+        markSmartCubeTrainingScrambleRefreshPending();
         bluetoothTools.connectDevice(pos);
     }
 
@@ -2221,12 +2272,17 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     public void moveCube(SmartCube cube, int move, int time, boolean trackScrambleDeviation) {
         String previousState = cube.getCubeState();
+        boolean wasRunning = timer.getTimerState() == DCTTimer.RUNNING;
+        boolean waitingForSolveStart = canStart
+                && (timer.getTimerState() == DCTTimer.READY || timer.getTimerState() == DCTTimer.INSPECTING);
         updateSmartCubeCompletionChecker(cube);
         cube.applyMove(move, time, isSmartCubeTrainingScramble() ? null : currentScramble.getCubeState());
-        updateSmartCubeScrambleProgress(cube, trackScrambleDeviation ? move : -1);
-        if (isSmartCubeTrainingScramble() && smartCubeScrambleProgress == smartCubeScrambleMoves.size()
-                && timer.getTimerState() != DCTTimer.RUNNING) {
-            completeSmartCubeScramble(cube);
+        if (!wasRunning && !waitingForSolveStart) {
+            updateSmartCubeScrambleProgress(cube, trackScrambleDeviation ? move : -1);
+            if (isSmartCubeTrainingScramble() && smartCubeScrambleProgress == smartCubeScrambleMoves.size()
+                    && timer.getTimerState() != DCTTimer.RUNNING) {
+                completeSmartCubeScramble(cube);
+            }
         }
         updateSmartCubeMoveUi(previousState, cube.getCubeState(), move);
         if (timer.getTimerState() == DCTTimer.READY || timer.getTimerState() == DCTTimer.INSPECTING) {
@@ -2236,6 +2292,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     return;
                 }
                 canStart = false;
+                clearSmartCubeCorrectionSuggestion();
                 cube.markSolveStarted(previousState);
                 startSmartCubeSolve();
             }
@@ -2250,6 +2307,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             return;
         }
         cube.markScrambled();
+        smartCubeScrambleProgress = smartCubeScrambleMoves.size();
+        smartCubeScramblePendingMove = null;
+        clearSmartCubeCorrectionSuggestion();
         timer.stopInspect();
         canStart = true;
         smartCubeSkipStartForCurrentMove = true;
@@ -2302,6 +2362,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     public void markScrambled() {
+        smartCubeScrambleProgress = smartCubeScrambleMoves.size();
+        smartCubeScramblePendingMove = null;
+        clearSmartCubeCorrectionSuggestion();
         showReadyTimerText();
         setTimerColor(0xff00ff00);
         tvMulPhase.setText("");
@@ -2315,6 +2378,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (isFinishing() || bluetoothTools == null || bluetoothTools.getCube() == null) {
             return;
         }
+        refreshSmartCubeTrainingScrambleAfterConnect(bluetoothTools.getCube());
         refreshTimerPageSmartCubeUi();
         CubeStateDialog dialog = CubeStateDialog.newInstance(bluetoothTools.getCube());
         dialog.show(getSupportFragmentManager(), "CubeState");
@@ -4653,6 +4717,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
         SmartCube cube = getActiveSmartCube();
         if (cube == null || TextUtils.isEmpty(cube.getCubeState()) || TextUtils.isEmpty(scrambler.getCubeState())) {
+            markSmartCubeTrainingScrambleRefreshPending();
             return;
         }
         String targetState = getPhysicalTrainingTargetState(scrambler);
@@ -4661,6 +4726,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             return;
         }
         scrambler.setSingleScramble(scrambleIdx, scramble.trim(), targetState, 3);
+        smartCubeTrainingScrambleRefreshPending = false;
     }
 
     private String getPhysicalTrainingTargetState(Scrambler scrambler) {
