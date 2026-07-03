@@ -285,7 +285,7 @@ public class Tools {
                 new int[] { -1, -1, -1, -1, -1, 5, 6, 7 },
                 new int[] { -1, -1, -1, -1, -1, 0, 0, 0 },
                 new int[] { -1, -1, -1, -1, 4, 5, 6, 7, -1, 9, 10, 11 },
-                STATE_SOLVED);
+                new int[] { -1, -1, -1, -1, 0, 0, 0, 0, -1, 0, 0, 0 });
     }
 
     public static String randomZZLastLayer() {

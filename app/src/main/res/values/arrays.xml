@@ -228,16 +228,16 @@
     </array>
 
     <array name="item_333_cfop">
-        <item>OLL training</item>
-        <item>PLL training</item>
-        <item>Last layer training</item>
-        <item>F2L training</item>
-        <item>ZBLL training</item>
-        <item>ZZLL training</item>
-        <item>2GLL training</item>
-        <item>ELL training</item>
-        <item>ZBLS training</item>
-        <item>COLL training</item>
+        <item>OLL</item>
+        <item>PLL</item>
+        <item>Last layer</item>
+        <item>F2L</item>
+        <item>ZBLL</item>
+        <item>ZZLL</item>
+        <item>2GLL</item>
+        <item>ELL</item>
+        <item>ZBLS</item>
+        <item>COLL</item>
     </array>
 
     <array name="item_333_roux">

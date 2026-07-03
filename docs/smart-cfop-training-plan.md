@@ -22,16 +22,16 @@
 
 | sub | 子项 | 打乱生成 | 完成判断 |
 | --- | --- | --- | --- |
-| `0` | `OLL训练` | `Tools.randomLastLayer()` | OLL 完成 |
-| `1` | `PLL训练` | `Tools.randomPLL()` | 完整复原 |
-| `2` | `顶层训练` | `Tools.randomLastLayer()` | 完整复原 |
-| `3` | `F2L训练` | `Tools.randomCrossSolved()` | F2L 完成 |
-| `4` | `ZBLL训练` | `Tools.randomZBLastLayer()` | 完整复原 |
-| `5` | `ZZLL训练` | `Tools.randomZZLastLayer()` | 完整复原 |
-| `6` | `2GLL训练` | 普通 `2GLL` 的 `randomState(...)` 约束 | 完整复原 |
-| `7` | `ELL训练` | `Tools.randomEdgeOfLastLayer()` | 完整复原 |
-| `8` | `ZBLS训练` | `Tools.randomZBLastSlot()` | EOLL 完成 |
-| `9` | `COLL训练` | 独立 COLL 语义 `randomState(...)` | CPLL 完成 |
+| `0` | `OLL` | `Tools.randomLastLayer()` | OLL 完成 |
+| `1` | `PLL` | `Tools.randomPLL()` | 完整复原 |
+| `2` | `顶层` | `Tools.randomLastLayer()` | 完整复原 |
+| `3` | `F2L` | `Tools.randomCrossSolved()` | F2L 完成 |
+| `4` | `ZBLL` | `Tools.randomZBLastLayer()` | 完整复原 |
+| `5` | `ZZLL` | `Tools.randomZZLastLayer()` | 完整复原 |
+| `6` | `2GLL` | 普通 `2GLL` 的 `randomState(...)` 约束 | 完整复原 |
+| `7` | `ELL` | `Tools.randomEdgeOfLastLayer()` | 完整复原 |
+| `8` | `ZBLS` | `Tools.randomZBLastSlot()`，参考 `cstimer` 的 `zbls / getLSLLScramble`，顶层棱和活动 LS 棱朝向可乱 | EOLL 完成 |
+| `9` | `COLL` | 独立 COLL 语义 `randomState(...)` | CPLL 完成 |
 
 ### 3阶 Roux
 
@@ -46,7 +46,7 @@
 - 专项训练统一使用独立训练朝向，默认 `黄顶绿前`；内部 `SmartCube` 仍保存物理状态和物理转动。
 - 阶段完成判定由 `SmartCubeTraining` 配置，`SmartCube` 设备模型不硬编码具体训练模式。
 - 阶段训练完成后只清理本次 solve tracking，保留当前物理 `cubeState`，不强制 `markSolved()`。
-- `ZBLS` 使用 `EOLL_MASK`，表示 F2L 已完成且顶层棱朝向已好。
+- `ZBLS` 生成只要求 Cross + 前三组 F2L 已完成，顶层棱和活动 LS 棱朝向不预先完成；完成判断使用 `EOLL_MASK`，表示 F2L 已完成且顶层棱朝向已好。
 - `COLL` 使用 `CPLL_MASK`，表示 F2L 已完成、顶面完成且顶层角块关系已正确，允许剩余 EPLL。
 - `CMLL` 使用 `ROUX_CMLL_MASK`，与 `cstimer` 的 `roux3Mask` 保持一致，允许剩余 LSE。
 - `LSE` 与 `L10P` 使用完整复原作为完成态。

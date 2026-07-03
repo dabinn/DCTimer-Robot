@@ -228,16 +228,16 @@
     </array>
 
     <array name="item_333_cfop">
-        <item>OLL訓練</item>
-        <item>PLL訓練</item>
-        <item>頂層訓練</item>
-        <item>F2L訓練</item>
-        <item>ZBLL訓練</item>
-        <item>ZZLL訓練</item>
-        <item>2GLL訓練</item>
-        <item>ELL訓練</item>
-        <item>ZBLS訓練</item>
-        <item>COLL訓練</item>
+        <item>OLL</item>
+        <item>PLL</item>
+        <item>頂層</item>
+        <item>F2L</item>
+        <item>ZBLL</item>
+        <item>ZZLL</item>
+        <item>2GLL</item>
+        <item>ELL</item>
+        <item>ZBLS</item>
+        <item>COLL</item>
     </array>
 
     <array name="item_333_roux">
