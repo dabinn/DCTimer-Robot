@@ -22,6 +22,7 @@ public class SmartCubeTrainingTest {
     private static final int ELL = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_ELL;
     private static final int ZBLS = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_ZBLS;
     private static final int COLL = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_COLL;
+    private static final int OLLCP = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_OLLCP;
     private static final int CMLL = SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_CMLL;
     private static final int LSE = SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_LSE;
     private static final int L10P = SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_L10P;
@@ -40,6 +41,7 @@ public class SmartCubeTrainingTest {
         assertTrue(SmartCubeTraining.isStageCompleteMode(F2L));
         assertTrue(SmartCubeTraining.isStageCompleteMode(ZBLS));
         assertTrue(SmartCubeTraining.isStageCompleteMode(COLL));
+        assertTrue(SmartCubeTraining.isStageCompleteMode(OLLCP));
         assertTrue(SmartCubeTraining.isStageCompleteMode(CMLL));
         assertFalse(SmartCubeTraining.isStageCompleteMode(PLL));
         assertFalse(SmartCubeTraining.isStageCompleteMode(ZBLL));
@@ -112,6 +114,18 @@ public class SmartCubeTrainingTest {
         assertTrue(SmartCubeTraining.hasCPLL(cpllState));
         assertFalse(SmartCubeTraining.isComplete(LAST_LAYER, cpllState, 0));
         assertTrue(SmartCubeTraining.isComplete(COLL, cpllState, 0));
+    }
+
+    @Test
+    public void ollcpCompletesWhenCpllIsDoneEvenIfEpllIsNotSolved() {
+        String cpllState = randomIncompleteCpllState();
+        String ollState = randomIncompleteOllcpState();
+
+        assertTrue(SmartCubeTraining.hasCPLL(cpllState));
+        assertFalse(SmartCubeTraining.isComplete(LAST_LAYER, cpllState, 0));
+        assertTrue(SmartCubeTraining.isComplete(OLLCP, cpllState, 0));
+        assertFalse(SmartCubeTraining.isComplete(OLL, ollState, 0));
+        assertFalse(SmartCubeTraining.isComplete(OLLCP, ollState, 0));
     }
 
     @Test
@@ -210,6 +224,14 @@ public class SmartCubeTrainingTest {
                     new int[]{-1, -1, -1, -1, 4, 5, 6, 7, 8, 9, 10, 11},
                     Tools.STATE_SOLVED);
         } while (SmartCubeTraining.isComplete(LAST_LAYER, state, 0));
+        return state;
+    }
+
+    private static String randomIncompleteOllcpState() {
+        String state;
+        do {
+            state = Tools.randomLastLayer();
+        } while (SmartCubeTraining.isComplete(OLL, state, 0));
         return state;
     }
 

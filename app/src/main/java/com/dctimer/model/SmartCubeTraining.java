@@ -15,7 +15,8 @@ public final class SmartCubeTraining {
     public static final int SUB_ELL = 7;
     public static final int SUB_ZBLS = 8;
     public static final int SUB_COLL = 9;
-    public static final int SUB_COUNT = 10;
+    public static final int SUB_OLLCP = 10;
+    public static final int SUB_COUNT = 11;
     public static final int SUB_ROUX_CMLL = 0;
     public static final int SUB_ROUX_LSE = 1;
     public static final int SUB_ROUX_L10P = 2;
@@ -57,7 +58,7 @@ public final class SmartCubeTraining {
 
     public static boolean isStageCompleteMode(int scrambleIdx) {
         int sub = scrambleIdx & 0x1f;
-        return (is333Cfop(scrambleIdx) && (sub == SUB_OLL || sub == SUB_F2L || sub == SUB_ZBLS || sub == SUB_COLL))
+        return (is333Cfop(scrambleIdx) && (sub == SUB_OLL || sub == SUB_F2L || sub == SUB_ZBLS || sub == SUB_COLL || sub == SUB_OLLCP))
                 || (is333Roux(scrambleIdx) && sub == SUB_ROUX_CMLL);
     }
 
@@ -92,6 +93,7 @@ public final class SmartCubeTraining {
             case SUB_ZBLS:
                 return matchesMask(oriented, EOLL_MASK);
             case SUB_COLL:
+            case SUB_OLLCP:
                 return matchesMask(oriented, CPLL_MASK);
             default:
                 return false;
