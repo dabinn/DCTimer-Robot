@@ -37,9 +37,12 @@
 ## Features
 
 - Compatible with mainstream smart cube brands
+- Supports CFOP/Roux solve reconstruction and dedicated training modes
+  - CFOP: OLL/PLL/Last Layer/F2L/ZBLL/ZZLL/2GLL/ELL/ZBLS/COLL/OLLCP/EOCP
+  - Roux: CMLL/LSE/L10P
 - Draggable real-time 3D smart cube rendering and gyroscope-following view (currently MoYu only)
 - Carefully optimized smart scramble guidance and correction flow
-- Fast connection, with no manual MAC address entry required. From app launch to connected, it usually takes only 4-6 seconds
+- Fast connection, with no manual MAC address entry required. From app launch to connected, it usually takes only 2-4 seconds
 
 ## Support
 
