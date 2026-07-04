@@ -26,6 +26,7 @@
     <string name="action_exit">Exit</string>
     <string name="action_stackmat">Stackmat timer</string>
     <string name="action_smartcube">Smart cube</string>
+    <string name="action_connect_smart_cube">Connect smart cube</string>
     <string name="action_scramble">Scramble detail</string>
 
     <string name="scrambling">scrambling…</string>

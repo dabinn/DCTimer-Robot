@@ -3,6 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/action_quick_smart_cube"
+        android:orderInCategory="99"
+        android:icon="@drawable/ic_bluetooth"
+        android:title="@string/action_connect_smart_cube"
+        app:showAsAction="always" />
+
+    <item
         android:id="@+id/action_scramble"
         android:orderInCategory="100"
         android:title="@string/action_scramble"

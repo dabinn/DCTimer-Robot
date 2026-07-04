@@ -643,11 +643,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     public boolean onPrepareOptionsMenu(Menu menu) {
         //System.out.println("onPrepareMenu "+curTab);
         if (curTab == 0) {
+            menu.findItem(R.id.action_quick_smart_cube).setVisible(true);
             menu.findItem(R.id.action_scramble).setVisible(true);
             menu.findItem(R.id.action_import_scramble).setVisible(true);
             menu.findItem(R.id.action_export_scramble).setVisible(true);
             menu.findItem(R.id.action_last).setVisible(true);
         } else {
+            menu.findItem(R.id.action_quick_smart_cube).setVisible(false);
             menu.findItem(R.id.action_scramble).setVisible(false);
             menu.findItem(R.id.action_import_scramble).setVisible(false);
             menu.findItem(R.id.action_export_scramble).setVisible(false);
@@ -677,6 +679,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         int id = item.getItemId();
         final LayoutInflater factory;
         switch (id) {
+            case R.id.action_quick_smart_cube:
+                quickConnectSmartCube();
+                break;
             case R.id.action_scramble:  //打乱详情
                 ScrambleDetailDialog scrambleDialog = ScrambleDetailDialog.newInstance(currentScramble.getScramble(), currentScramble.getScrambleLen(), currentScramble.is333Scramble() ? 3 : 0);
                 scrambleDialog.show(getSupportFragmentManager(), "ScrambleDetail");
@@ -1242,6 +1247,24 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         bluetoothTools.startScan();
         handler.removeCallbacks(stopBleScanRunnable);
         handler.postDelayed(stopBleScanRunnable, 20000);
+    }
+
+    private void quickConnectSmartCube() {
+        if (curTab != 0) {
+            curTab = 0;
+            tabHost.setCurrentTab(0);
+            rbTimer.setChecked(true);
+        }
+        enterTime = 3;
+        if (stAdapter != null) {
+            stAdapter.setText(ST_ENTER_TIME, itemStr[0][enterTime]);
+        }
+        if (stackmat != null) {
+            stackmat.stop();
+            stackmat = null;
+        }
+        setPref("tiway", enterTime);
+        startBleScanFlow();
     }
 
     private void startBleScanFlow() {

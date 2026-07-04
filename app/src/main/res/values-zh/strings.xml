@@ -24,6 +24,7 @@
     <string name="action_exit">退出</string>
     <string name="action_stackmat">Stackmat计时器</string>
     <string name="action_smartcube">智能魔方</string>
+    <string name="action_connect_smart_cube">连接智能魔方</string>
     <string name="action_scramble">打乱详情</string>
 
     <string name="scrambling">打乱中…</string>
