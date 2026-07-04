@@ -34,6 +34,7 @@
 | `9` | `COLL` | 独立 COLL 语义 `randomState(...)` | CPLL 完成 |
 | `10` | `OLLCP` | `Tools.randomLastLayer()`，过滤 OLL 已完成状态 | CPLL 完成 |
 | `11` | `EOCP` | `Tools.randomLastLayer()`，过滤 OLL 已完成和 EOLL 已完成状态 | EOLL + 顶层角块相对顺序完成 |
+| `12` | `CLL` | `Tools.randomLastLayer()`，过滤 OLL 已完成和 CLL 已完成状态 | F2L 保持，顶层角块完成，顶层棱块不作要求 |
 
 ### 3阶 Roux
 
@@ -52,6 +53,7 @@
 - `COLL` 使用 `CPLL_MASK`，表示 F2L 已完成、顶面完成且顶层角块关系已正确，允许剩余 EPLL。
 - `OLLCP` 生成复用随机 OLL 起点，即 F2L 完成、最后一层朝向未固定，并过滤 OLL 已完成状态；完成判断复用 `CPLL_MASK`，表示最终只允许剩余 EPLL。
 - `EOCP` 生成复用随机 OLL 起点，即 F2L 完成、最后一层朝向未固定，并过滤 OLL 已完成和 EOLL 已完成状态，减少与 COLL / OLLCP 起点重合；完成判断要求顶层棱朝向正常且四个顶层角块相对顺序正确，允许 U 层整体偏移、角朝向和顶层棱排列未完成，可作为 `2GLL` 起点。
+- `CLL` 生成复用随机 OLL 起点，即 F2L 完成、最后一层朝向未固定，并过滤 OLL 已完成和 CLL 已完成状态；完成判断使用 `CLL_MASK`，要求 F2L 保持、顶层角块状态与 COLL 完成态一致，只放开顶层棱块朝向和排列。
 - `CMLL` 使用 `ROUX_CMLL_MASK`，与 `cstimer` 的 `roux3Mask` 保持一致，允许剩余 LSE。
 - `LSE` 与 `L10P` 使用完整复原作为完成态。
 - 新增或调整专项文案时，需要同步 `values`、`values-zh`、`values-zh-rTW` 三套资源数组。

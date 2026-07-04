@@ -78,7 +78,7 @@ public class Scrambler {
             {30, 25},   //bandage
             {30, 20},   //mega subsets
             {5, 0, 0, 0, 0, 0, 0},  //relay
-            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},  //3x3 CFOP
+            {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},  //3x3 CFOP
             {0, 0, 0},  //3x3 Roux
             {0, 0, -60, 0, 0, 0, 0, 0, -70, 0, 0, 0, 0, -80, -100, 0, -60, 5, 25},  //wca
     };
@@ -769,6 +769,14 @@ public class Scrambler {
                     scr = cube3.solution(cubeState = Tools.randomLastLayer());
                 } while (SmartCubeTraining.isComplete(SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_OLL, cubeState, 0)
                         || SmartCubeTraining.isComplete(SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_ZBLS, cubeState, 0));
+                imageType = scr.startsWith("Error") ? 0 : 3;
+                scrambleList.add(scr);
+                break;
+            case SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_CLL:
+                do {
+                    scr = cube3.solution(cubeState = Tools.randomLastLayer());
+                } while (SmartCubeTraining.isComplete(SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_OLL, cubeState, 0)
+                        || SmartCubeTraining.isComplete(category, cubeState, 0));
                 imageType = scr.startsWith("Error") ? 0 : 3;
                 scrambleList.add(scr);
                 break;

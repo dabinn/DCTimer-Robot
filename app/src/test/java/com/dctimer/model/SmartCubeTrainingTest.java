@@ -24,6 +24,7 @@ public class SmartCubeTrainingTest {
     private static final int COLL = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_COLL;
     private static final int OLLCP = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_OLLCP;
     private static final int EOCP = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_EOCP;
+    private static final int CLL = SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_CLL;
     private static final int CMLL = SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_CMLL;
     private static final int LSE = SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_LSE;
     private static final int L10P = SmartCubeTraining.CATEGORY_333_ROUX_BASE + SmartCubeTraining.SUB_ROUX_L10P;
@@ -44,6 +45,7 @@ public class SmartCubeTrainingTest {
         assertTrue(SmartCubeTraining.isStageCompleteMode(COLL));
         assertTrue(SmartCubeTraining.isStageCompleteMode(OLLCP));
         assertTrue(SmartCubeTraining.isStageCompleteMode(EOCP));
+        assertTrue(SmartCubeTraining.isStageCompleteMode(CLL));
         assertTrue(SmartCubeTraining.isStageCompleteMode(CMLL));
         assertFalse(SmartCubeTraining.isStageCompleteMode(PLL));
         assertFalse(SmartCubeTraining.isStageCompleteMode(ZBLL));
@@ -144,6 +146,21 @@ public class SmartCubeTrainingTest {
         assertTrue(SmartCubeTraining.isComplete(EOCP, eocpState, 0));
         assertTrue(SmartCubeTraining.isComplete(EOCP, aufShiftedEocpState, 0));
         assertFalse(SmartCubeTraining.isComplete(EOCP, randomLastLayerState, 0));
+    }
+
+    @Test
+    public void cllCompletesWhenCornersAreSolvedEvenIfEdgesAreNot() {
+        String cllState = randomIncompleteCllCompleteState();
+        String brokenF2lEdgeState = randomCornerSolvedWithBrokenF2LEdges();
+        String randomLastLayerState = randomIncompleteCllState();
+
+        assertTrue(SmartCubeTraining.hasCLL(cllState));
+        assertFalse(SmartCubeTraining.isComplete(LAST_LAYER, cllState, 0));
+        assertTrue(SmartCubeTraining.isComplete(CLL, cllState, 0));
+        assertFalse(SmartCubeTraining.hasCLL(brokenF2lEdgeState));
+        assertFalse(SmartCubeTraining.isComplete(CLL, brokenF2lEdgeState, 0));
+        assertFalse(SmartCubeTraining.isComplete(OLL, randomLastLayerState, 0));
+        assertFalse(SmartCubeTraining.isComplete(CLL, randomLastLayerState, 0));
     }
 
     @Test
@@ -284,6 +301,31 @@ public class SmartCubeTrainingTest {
         } while (SmartCubeTraining.isComplete(OLL, state, 0)
                 || SmartCubeTraining.isComplete(ZBLS, state, 0)
                 || SmartCubeTraining.isComplete(EOCP, state, 0));
+        return state;
+    }
+
+    private static String randomIncompleteCllCompleteState() {
+        String state;
+        do {
+            state = Tools.randomEdgeOfLastLayer();
+        } while (SmartCubeTraining.isComplete(LAST_LAYER, state, 0));
+        return state;
+    }
+
+    private static String randomCornerSolvedWithBrokenF2LEdges() {
+        String state;
+        do {
+            state = Tools.randomCornerSolved();
+        } while (SmartCubeTraining.hasF2L(state));
+        return state;
+    }
+
+    private static String randomIncompleteCllState() {
+        String state;
+        do {
+            state = Tools.randomLastLayer();
+        } while (SmartCubeTraining.isComplete(OLL, state, 0)
+                || SmartCubeTraining.isComplete(CLL, state, 0));
         return state;
     }
 

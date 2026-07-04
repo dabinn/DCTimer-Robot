@@ -46,9 +46,9 @@
 - BLE 扫描弹窗以扫描结果直列和连接阶段自动识别为准。
 - 智能魔方状态展示以自定义 3D 渲染控件为主。
 - 打乱流程以“打乱进度提示 + 偏离纠错 + READY 等待首转”为准，不回退到连接后直接起表。
-- `3阶 CFOP` 与 `3阶 Roux` 专项训练作为独立真实分组追加在末尾，打乱选择 UI 单独映射到普通 `3阶` 后展示；`3阶 CFOP` 当前包含 `OLL / PLL / 顶层 / F2L / ZBLL / ZZLL / 2GLL / ELL / ZBLS / COLL / OLLCP / EOCP`，`3阶 Roux` 当前包含 `CMLL / LSE / L10P`，不包含 WCA 子项。
+- `3阶 CFOP` 与 `3阶 Roux` 专项训练作为独立真实分组追加在末尾，打乱选择 UI 单独映射到普通 `3阶` 后展示；`3阶 CFOP` 当前包含 `OLL / PLL / 顶层 / F2L / ZBLL / ZZLL / 2GLL / ELL / ZBLS / COLL / OLLCP / EOCP / CLL`，`3阶 Roux` 当前包含 `CMLL / LSE / L10P`，不包含 WCA 子项。
 - 专项训练使用独立训练朝向，默认 `黄顶绿前`，不复用解法重建朝向。
-- 专项训练完成判定按 `cstimer` 的 mask 思路收口：`OLL` 检查 OLL，`F2L` 检查 F2L，`ZBLS` 检查 EOLL，`COLL` 与 `OLLCP` 检查 CPLL，`EOCP` 检查 EOLL + 顶层角块相对顺序并允许 U 层整体偏移，`CMLL` 检查 Roux CMLL，其他 CFOP 专项、`LSE` 与 `L10P` 检查完整复原。
+- 专项训练完成判定按 `cstimer` 的 mask 思路收口：`OLL` 检查 OLL，`F2L` 检查 F2L，`ZBLS` 检查 EOLL，`COLL` 与 `OLLCP` 检查 CPLL，`EOCP` 检查 EOLL + 顶层角块相对顺序并允许 U 层整体偏移，`CLL` 检查 F2L 保持 + 顶层角块完成且只放开顶层棱块状态，`CMLL` 检查 Roux CMLL，其他 CFOP 专项、`LSE` 与 `L10P` 检查完整复原。
 - 阶段训练完成后保留当前物理魔方状态，仅重置本次解法追踪；下一条专项训练从当前物理状态接续生成打乱。
 - `GAN v4` MOVE 通知按 `72-bit` chunk 循环解析；`M / E / S` 快速双层转动不再依赖 `MOVE_HISTORY` 才补齐同包中的第二个转动。
 - `GAN v3 / v4` 的 `MOVE_HISTORY` 仅作为丢包兜底，尾部缺失时间戳按可用真实时间戳和本地触发时间估算。

@@ -17,7 +17,8 @@ public final class SmartCubeTraining {
     public static final int SUB_COLL = 9;
     public static final int SUB_OLLCP = 10;
     public static final int SUB_EOCP = 11;
-    public static final int SUB_COUNT = 12;
+    public static final int SUB_CLL = 12;
+    public static final int SUB_COUNT = 13;
     public static final int SUB_ROUX_CMLL = 0;
     public static final int SUB_ROUX_LSE = 1;
     public static final int SUB_ROUX_L10P = 2;
@@ -31,6 +32,7 @@ public final class SmartCubeTraining {
     private static final int[][] OLL_MASK = toEqus("UUUUUUUUU---RRRRRR---FFFFFFDDDDDDDDD---LLLLLL---BBBBBB");
     private static final int[][] EOLL_MASK = toEqus("-U-UUU-U----RRRRRR---FFFFFFDDDDDDDDD---LLLLLL---BBBBBB");
     private static final int[][] CPLL_MASK = toEqus("UUUUUUUUUr-rRRRRRRf-fFFFFFFDDDDDDDDDl-lLLLLLLb-bBBBBBB");
+    private static final int[][] CLL_MASK = toEqus("U-U-U-U-Ur-rRRRRRRf-fFFFFFFDDDDDDDDDl-lLLLLLLb-bBBBBBB");
     private static final int[][] ROUX_CMLL_MASK = toEqus("U-U---U-Ur-rRRRRRRf-fF-FF-FD-DD-DD-Dl-lLLLLLLb-bB-BB-B");
     private static final int[][] SOLVED_MASK = toEqus(SOLVED_FACELET);
     private static final int[][] U_CORNER_FACELETS = {
@@ -62,7 +64,7 @@ public final class SmartCubeTraining {
 
     public static boolean isStageCompleteMode(int scrambleIdx) {
         int sub = scrambleIdx & 0x1f;
-        return (is333Cfop(scrambleIdx) && (sub == SUB_OLL || sub == SUB_F2L || sub == SUB_ZBLS || sub == SUB_COLL || sub == SUB_OLLCP || sub == SUB_EOCP))
+        return (is333Cfop(scrambleIdx) && (sub == SUB_OLL || sub == SUB_F2L || sub == SUB_ZBLS || sub == SUB_COLL || sub == SUB_OLLCP || sub == SUB_EOCP || sub == SUB_CLL))
                 || (is333Roux(scrambleIdx) && sub == SUB_ROUX_CMLL);
     }
 
@@ -101,6 +103,8 @@ public final class SmartCubeTraining {
                 return matchesMask(oriented, CPLL_MASK);
             case SUB_EOCP:
                 return matchesEOCP(oriented);
+            case SUB_CLL:
+                return matchesMask(oriented, CLL_MASK);
             default:
                 return false;
         }
@@ -124,6 +128,10 @@ public final class SmartCubeTraining {
 
     static boolean hasEOCP(String facelets) {
         return matchesEOCP(facelets);
+    }
+
+    static boolean hasCLL(String facelets) {
+        return matchesMask(facelets, CLL_MASK);
     }
 
     static boolean hasRouxCMLL(String facelets) {

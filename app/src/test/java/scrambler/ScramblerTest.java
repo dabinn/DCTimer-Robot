@@ -100,6 +100,15 @@ public class ScramblerTest {
                 SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_ZBLS, collState, 0));
         assertFalse(SmartCubeTraining.isComplete(
                 SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_COLL, collState, 0));
+
+        scrambler.generateScramble(SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_CLL, true);
+        String cllState = scrambler.getCubeState();
+        assertTrue(SmartCubeTraining.isComplete(
+                SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_F2L, cllState, 0));
+        assertFalse(SmartCubeTraining.isComplete(
+                SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_OLL, cllState, 0));
+        assertFalse(SmartCubeTraining.isComplete(
+                SmartCubeTraining.CATEGORY_333_CFOP_BASE + SmartCubeTraining.SUB_CLL, cllState, 0));
     }
 
     @Test
