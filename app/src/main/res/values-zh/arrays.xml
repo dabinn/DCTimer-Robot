@@ -415,8 +415,8 @@
     </array>
 
     <array name="opt_smart_scramble_progress">
-        <item>已推进自动消失</item>
         <item>已推进变浅保留</item>
+        <item>已推进自动消失</item>
     </array>
 
     <array name="opt_smart_solve_method">

@@ -4,6 +4,9 @@ setlocal EnableDelayedExpansion
 call "%~dp0gradlew.bat" clean assembleRelease
 if errorlevel 1 exit /b %errorlevel%
 
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0website\sync-update-notes.ps1"
+if errorlevel 1 exit /b %errorlevel%
+
 set "RELEASE_DIR=%~dp0app\build\outputs\apk\release"
 set "WEBSITE_ASSETS_DIR=%~dp0website\assets"
 set "COPIED=0"

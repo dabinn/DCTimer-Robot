@@ -953,6 +953,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         String releaseUrl;
         String apkUrl;
         String notes;
+        String notesUrl;
         boolean error;
     }
 
@@ -965,38 +966,78 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         @Override
         protected UpdateInfo doInBackground(Void... voids) {
-            HttpURLConnection connection = null;
-            BufferedReader reader = null;
             try {
-                URL url = new URL(UPDATE_INFO_URL);
-                connection = (HttpURLConnection) url.openConnection();
-                connection.setConnectTimeout(10000);
-                connection.setReadTimeout(15000);
-                connection.setUseCaches(false);
-                connection.connect();
-                if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                    UpdateInfo info = new UpdateInfo();
-                    info.error = true;
-                    return info;
-                }
-                reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"));
-                StringBuilder builder = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    builder.append(line);
-                }
-                JSONObject json = new JSONObject(builder.toString());
+                URL updateUrl = new URL(UPDATE_INFO_URL);
+                String updateJson = fetchText(updateUrl);
+                JSONObject json = new JSONObject(updateJson);
                 UpdateInfo info = new UpdateInfo();
                 info.versionCode = json.optInt("versionCode", 0);
                 info.versionName = json.optString("versionName", "");
                 info.releaseUrl = json.optString("releaseUrl", "");
                 info.apkUrl = json.optString("apkUrl", "");
                 info.notes = json.optString("notes", "");
+                info.notesUrl = json.optString("notesUrl", "");
+                String changelogNotes = fetchChangelogNotes(updateUrl, info);
+                if (!TextUtils.isEmpty(changelogNotes)) info.notes = changelogNotes;
                 return info;
             } catch (Exception e) {
                 UpdateInfo info = new UpdateInfo();
                 info.error = true;
                 return info;
+            }
+        }
+
+        private String fetchChangelogNotes(URL updateUrl, UpdateInfo info) {
+            String notesUrl = info.notesUrl;
+            if (TextUtils.isEmpty(notesUrl) && !TextUtils.isEmpty(info.versionName)) {
+                notesUrl = "changelog/" + info.versionName + ".md";
+            }
+            if (TextUtils.isEmpty(notesUrl)) return "";
+            try {
+                String markdown = fetchText(new URL(updateUrl, notesUrl));
+                return parseChangelogMarkdown(markdown);
+            } catch (Exception e) {
+                return "";
+            }
+        }
+
+        private String parseChangelogMarkdown(String markdown) {
+            if (TextUtils.isEmpty(markdown)) return "";
+            String body = markdown.replaceFirst("(?s)^---\\s*(?:\\r?\\n).*?(?:\\r?\\n)---\\s*", "");
+            StringBuilder notes = new StringBuilder();
+            String[] lines = body.split("\\r?\\n");
+            for (String line : lines) {
+                String item = line.trim();
+                if (TextUtils.isEmpty(item)) continue;
+                if (item.matches("^([-*+]|\\d+\\.)\\s+.*")) {
+                    item = item.replaceFirst("^([-*+]|\\d+\\.)\\s+", "").trim();
+                    if (TextUtils.isEmpty(item)) continue;
+                    if (notes.length() > 0) notes.append('\n');
+                    notes.append("- ").append(item);
+                }
+            }
+            return notes.length() > 0 ? notes.toString() : body.trim();
+        }
+
+        private String fetchText(URL url) throws IOException {
+            HttpURLConnection connection = null;
+            BufferedReader reader = null;
+            try {
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setConnectTimeout(10000);
+                connection.setReadTimeout(15000);
+                connection.setUseCaches(false);
+                connection.connect();
+                if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                    throw new IOException("HTTP " + connection.getResponseCode());
+                }
+                reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"));
+                StringBuilder builder = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    builder.append(line).append('\n');
+                }
+                return builder.toString();
             } finally {
                 if (reader != null) {
                     try {
@@ -1585,7 +1626,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             return appendSmartCubeScrambleHint(correctionBuilder);
         }
         SpannableStringBuilder builder = new SpannableStringBuilder();
-        if (smartCubeScrambleProgressStyle == 1) {
+        if (smartCubeScrambleProgressStyle == 0) {
             int doneColor = 0xffaaaaaa;
             int displayStart = Math.max(0, Math.min(smartCubeScrambleHiddenPrefix, smartCubeScrambleMoves.size()));
             for (int i = displayStart; i < smartCubeScrambleMoves.size(); i++) {
@@ -1646,7 +1687,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (smartCubeCorrectionBaseProgress < 0) {
             smartCubeCorrectionBaseProgress = Math.max(0, smartCubeScrambleProgress);
             smartCubeCorrectionBasePendingMove = smartCubeScramblePendingMove;
-            if (smartCubeScrambleProgressStyle == 1) {
+            if (smartCubeScrambleProgressStyle == 0) {
                 smartCubeScrambleHiddenPrefix = Math.max(smartCubeScrambleHiddenPrefix, smartCubeCorrectionBaseProgress);
             }
         }

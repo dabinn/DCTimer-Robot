@@ -169,6 +169,34 @@ const renderFullChangelog = (entries) => {
   });
 };
 
+const loadUpdateNotes = async (data) => {
+  const changelogUrl =
+    data.notesUrl || (data.versionName ? `changelog/${data.versionName}.md` : "");
+  if (changelogUrl) {
+    try {
+      const response = await fetch(changelogUrl);
+      if (!response.ok) throw new Error("最新更新日志加载失败");
+
+      const markdown = await response.text();
+      const entry = parseChangelogMarkdown(`${data.versionName || ""}.md`, markdown);
+      if (entry.items.length > 0) return entry.items;
+    } catch (error) {
+      console.warn("无法加载当前版本 changelog，回退到 update.json notes:", error);
+    }
+  }
+
+  if (data.notes) {
+    return data.notes
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => line.replace(/^[-*•\d+\.\s]+/, ""))
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
 const loadFullChangelog = async () => {
   if (!fullChangelogContent) return;
 
@@ -308,18 +336,10 @@ const loadUpdateJson = async () => {
       versionBadge.textContent = `v${data.versionName}`;
     }
 
-    // 3. 解析 notes 动态生成更新日志列表
+    // 3. 从 update.json notes 或对应版本 changelog 动态生成更新日志列表
     const changelogContent = document.getElementById("changelog-content");
-    if (changelogContent && data.notes) {
-      const notesLines = data.notes
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0)
-        .map((line) => {
-          // 去除前导的“- ”、“* ”或“1. ”等符号
-          return line.replace(/^[-*•\d+\.\s]+/, "");
-        });
-
+    if (changelogContent) {
+      const notesLines = await loadUpdateNotes(data);
       if (notesLines.length > 0) {
         changelogContent.innerHTML = "";
         notesLines.forEach((note) => {

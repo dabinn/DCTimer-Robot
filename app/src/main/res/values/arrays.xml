@@ -422,8 +422,8 @@
     </array>
 
     <array name="opt_smart_scramble_progress">
-        <item>Hide completed moves</item>
         <item>Dim completed moves</item>
+        <item>Hide completed moves</item>
     </array>
 
     <array name="opt_smart_solve_method">

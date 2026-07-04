@@ -1,7 +1,7 @@
 {
-  "versionCode": 227,
-  "versionName": "2.2.7",
+  "versionCode": 230,
+  "versionName": "2.3.0",
   "releaseUrl": "https://dctimer.huizhi.ink/",
-  "apkUrl": "https://dctimer.huizhi.ink/assets/DCTimer-BLE-v2.2.7.apk",
-  "notes": "- 新增 FTO 打乱状态图绘制（WCA/其他分组）\n- 新增枫叶项目打乱（暂无状态图绘制）\n- 智能魔方分段统计加入停顿时间；F2L 分阶段\n- 设置-界面支持语言切换\n- 修复部分情况下打乱完成未进入计时状态问题\n- 修复 CTO 打乱状态图残留问题\n- 修复蓝牙计时器触摸抬手重复保存成绩问题"
+  "apkUrl": "https://dctimer.huizhi.ink/assets/DCTimer-BLE-v2.3.0.apk",
+  "notes": "- 新增智能魔方专项训练（CFOP/Roux）\n- 主计时页面新增智能魔方快速连接入口按钮\n- 非智能成绩详情支持编辑解法\n- 优化虚拟魔方样式"
 }
