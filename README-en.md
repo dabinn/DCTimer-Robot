@@ -38,7 +38,7 @@
 
 - Compatible with mainstream smart cube brands
 - Supports CFOP/Roux solve reconstruction and dedicated training modes
-  - CFOP: OLL/PLL/Last Layer/F2L/ZBLL/ZZLL/2GLL/ELL/ZBLS/COLL/OLLCP/EOCP
+  - CFOP: F2L/OLL/PLL/Last Layer/CLL/ELL/COLL/EOCP/2GLL/OLLCP/ZZLL/ZBLS/ZBLL
   - Roux: CMLL/LSE/L10P
 - Draggable real-time 3D smart cube rendering and gyroscope-following view (currently MoYu only)
 - Carefully optimized smart scramble guidance and correction flow

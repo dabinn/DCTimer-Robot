@@ -36,7 +36,7 @@
 
 - 兼容主流的智能魔方品牌
 - 支持 CFOP/Roux 解法分段及专项训练
-  - CFOP：OLL/PLL/顶层/F2L/ZBLL/ZZLL/2GLL/ELL/ZBLS/COLL/OLLCP/EOCP
+  - CFOP：F2L/OLL/PLL/顶层/CLL/ELL/COLL/EOCP/2GLL/OLLCP/ZZLL/ZBLS/ZBLL
   - Roux：CMLL/LSE/L10P
 - 自由的 3D 虚拟魔方同步以及陀螺仪跟随视角（当前仅 Moyu）
 - 精心优化的智能打乱推进/纠错体验

@@ -2619,8 +2619,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 case R.id.bt_scramble:	//选择打乱
                     selectIdx = scrambleIdx >> 5;
                     selectIdx2 = scrambleIdx & 0x1f;
-                    if (selectIdx == -1 && selectIdx2 > 7) selectIdx2--;
                     int selectDisplayPosition = ScrambleGroupDisplay.toDisplayPosition(selectIdx, StringUtils.scrambleItems.length);
+                    int selectSubDisplayPosition = getScrambleSubDisplayPosition(selectIdx, selectIdx2);
                     int resId = R.layout.popup_window;
                     view = LayoutInflater.from(context).inflate(resId, null);
                     ListView listView = view.findViewById(R.id.list1);
@@ -2629,9 +2629,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     listView.setSelection(selectDisplayPosition);
                     listView.setOnItemClickListener(mOnItemListener);
                     listView = view.findViewById(R.id.list2);
-                    s2Adapter = new TextAdapter(context, StringUtils.scrambleSubitems[selectIdx + 1], selectIdx2, 2);
+                    s2Adapter = new TextAdapter(context, getScrambleSubDisplayNames(selectIdx), selectSubDisplayPosition, 2);
                     listView.setAdapter(s2Adapter);
-                    if (selectIdx2 > 5) listView.setSelection(selectIdx2 - 5);
+                    if (selectSubDisplayPosition > 5) listView.setSelection(selectSubDisplayPosition - 5);
                     //listView.setSelection(0);
                     listView.setOnItemClickListener(mOnItemListener);
                     popupWindow = new PopupWindow(view, dip300, dip300, true);
@@ -2709,6 +2709,29 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
     };
 
+    private String[] getScrambleSubDisplayNames(int realGroup) {
+        String[] names = StringUtils.scrambleSubitems[realGroup + 1];
+        return ScrambleSubitemDisplay.toDisplayNames(realGroup, names);
+    }
+
+    private int getScrambleSubDisplayPosition(int realGroup, int realSub) {
+        String[] names = StringUtils.scrambleSubitems[realGroup + 1];
+        int displaySub = realSub;
+        if (realGroup == ScrambleGroupDisplay.WCA_GROUP && displaySub > 7) {
+            displaySub--;
+        }
+        return ScrambleSubitemDisplay.toDisplayPosition(realGroup, displaySub, names.length);
+    }
+
+    private int getScrambleSubRealIndex(int realGroup, int displayPosition) {
+        String[] names = StringUtils.scrambleSubitems[realGroup + 1];
+        int realSub = ScrambleSubitemDisplay.toRealSub(realGroup, displayPosition, names.length);
+        if (realGroup == ScrambleGroupDisplay.WCA_GROUP && realSub >= 7) {
+            realSub++;
+        }
+        return realSub;
+    }
+
     private AdapterView.OnItemClickListener mOnItemListener = new AdapterView.OnItemClickListener() {
         @Override
         public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
@@ -2720,19 +2743,17 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         selectIdx = realIdx;
                         s1Adapter.setSelectItem(arg2);
                         s1Adapter.notifyDataSetChanged();
-                        s2Adapter.setData(StringUtils.scrambleSubitems[selectIdx + 1]);
+                        s2Adapter.setData(getScrambleSubDisplayNames(selectIdx));
                         if (selectIdx == (scrambleIdx >> 5)) {
-                            int idx2 = scrambleIdx & 0x1f;
-                            if (selectIdx == -1 && idx2 > 7) idx2--;
-                            s2Adapter.setSelectItem(idx2);
+                            s2Adapter.setSelectItem(getScrambleSubDisplayPosition(selectIdx, scrambleIdx & 0x1f));
                         } else s2Adapter.setSelectItem(-1);
                         s2Adapter.notifyDataSetChanged();
                     }
                     break;
                 case R.id.list2:
-                    if (selectIdx != (scrambleIdx >> 5) || selectIdx2 != arg2) {
-                        selectIdx2 = arg2;
-                        if (selectIdx == -1 && selectIdx2 >= 7) selectIdx2++;
+                    int realSub = getScrambleSubRealIndex(selectIdx, arg2);
+                    if (selectIdx != (scrambleIdx >> 5) || selectIdx2 != realSub) {
+                        selectIdx2 = realSub;
                         scrambleIdx = selectIdx << 5 | selectIdx2;
                         setScramble();
                         if (selectSession) {    //自动选择分组

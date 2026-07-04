@@ -14,11 +14,13 @@
 - `3阶 Roux` 真实 group：`22`
 - 真实 `scrambleIdx`：`group << 5 | sub`
 - 一级展示顺序：由 `ScrambleGroupDisplay` 单独映射，当前显示为普通 `3阶`、`3阶 CFOP`、`3阶 Roux`，不改变真实索引、偏好、分组或成绩数据。
-- 二级子项暂按资源数组顺序展示，没有单独映射层。
+- `3阶 CFOP` 二级展示顺序：由 `ScrambleSubitemDisplay` 单独映射为 `F2L / OLL / PLL / 顶层 / CLL / ELL / COLL / EOCP / 2GLL / OLLCP / ZZLL / ZBLS / ZBLL`，不改变真实 sub 索引、偏好、分组或成绩数据；其他分组二级子项仍按资源数组顺序展示。
 
 ## 已支持专项
 
 ### 3阶 CFOP
+
+下表按真实 sub 索引记录，非 UI 展示顺序。
 
 | sub | 子项 | 打乱生成 | 完成判断 |
 | --- | --- | --- | --- |
