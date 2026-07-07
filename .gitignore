@@ -42,3 +42,4 @@ other/
 promo-video/
 !website/assets/*.apk
 .codex/
+scripts/
