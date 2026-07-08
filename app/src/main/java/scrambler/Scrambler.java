@@ -44,6 +44,7 @@ public class Scrambler {
     public static final int TYPE_REL = 30;
     public static final int TYPE_8PZ = 31;
     public static final int TYPE_FTO = 32;
+    public static final int TYPE_MAPLE = 33;
 
     public static final int SCRAMBLE_NONE = 0;
     public static final int SCRAMBLING = 1;
@@ -341,6 +342,8 @@ public class Scrambler {
             }
         } else if (category == -14 || category == 517) { //FTO
             imageType = TYPE_FTO;
+        } else if (category == 522) { //枫叶
+            imageType = TYPE_MAPLE;
         }
     }
 
@@ -1146,9 +1149,9 @@ public class Scrambler {
                 imageType = 0;
                 scrambleList.add(scr);
                 break;
-            case 522:   //Ivy Cube
-                scr = IvyCube.scramble();
-                imageType = 0;
+            case 522:   //枫叶
+                scr = Maple.scramble();
+                imageType = TYPE_MAPLE;
                 scrambleList.add(scr);
                 break;
             case 543:   //Gigaminx
@@ -1638,6 +1641,8 @@ public class Scrambler {
             int[] img = SkewbFCN.image(scramble);
             if (img == null) return;
             drawSkewb(img, width, p, c);
+        } else if (imageType == TYPE_MAPLE) { //枫叶
+            drawMaple(scramble, width, p, c);
         } else if (imageType == TYPE_FTO) { //FTO
             drawFto(scramble, width, p, c);
         } else if (imageType == TYPE_15P || imageType == TYPE_15PB) {   //15 puzzle
@@ -2217,6 +2222,97 @@ public class Scrambler {
         }
     }
 
+    private void drawMaple(String scramble, int width, Paint p, Canvas c) {
+        int[] img = Maple.image(scramble);
+        int[] colors = {pref.getInt("csw4", Color.WHITE), pref.getInt("csw6", 0xffff9900), pref.getInt("csw5", 0xff009900),
+                pref.getInt("csw3", Color.RED), pref.getInt("csw2", Color.BLUE), pref.getInt("csw1", Color.YELLOW)};
+        int b = width / 4;
+        int a = (int) (b * Math.sqrt(3) / 2);
+        int stx = (width - 4 * a) / 2;
+        int sty = (width * 3 / 4 - 3 * b) / 2;
+        int sp = width / 50;
+        float e = (float) (sp / Math.sqrt(3) / 2);
+        float f = (float) (sp * Math.sqrt(3) / 2);
+        float strip = Math.max(1f, sp / 3f);
+        float[] dx = {a * 2, a * 3 - sp, a + sp, a * 2, sp / 2f, a - sp / 2f, sp / 2f, a - sp / 2f, a + sp / 2f, a * 2 - sp / 2f, a + sp / 2f, a * 2 - sp / 2f,
+                a * 2 + sp / 2f, a * 3 - sp / 2f, a * 2 + sp / 2f, a * 3 - sp / 2f, a * 3 + sp / 2f, a * 4 - sp / 2f, a * 3 + sp / 2f, a * 4 - sp / 2f, a + sp / 2f, a * 2 - sp / 2f, a + sp / 2f, a * 2 - sp / 2f};
+        float[] dy = {e * 2, b / 2f, b / 2f, b - e * 2, f, b / 2f + e, b - e, b * 3 / 2f - f, b / 2f + f, b + e, b * 3 / 2f - e, b * 2 - f,
+                b + e, b / 2f + f, b * 2 - f, b * 3 / 2f - e, b / 2f + e, f, b * 3 / 2f - f, b - e, b * 3 / 2f + f, b * 2 + e, b * 5 / 2f - e, b * 3 - f};
+        int d = 0;
+        for (int i = 0; i < 6; i++) {
+            float x0 = stx + dx[i * 4];
+            float x1 = stx + dx[i * 4 + 1];
+            float x2 = stx + dx[i * 4 + 2];
+            float x3 = stx + dx[i * 4 + 3];
+            float y0 = sty + dy[i * 4];
+            float y1 = sty + dy[i * 4 + 1];
+            float y2 = sty + dy[i * 4 + 2];
+            float y3 = sty + dy[i * 4 + 3];
+            if (i == 0) {
+                double dist = distance(dx[3], dy[3], dx[2], dy[2]);
+                double dist3 = Math.sqrt(dist * dist + dist * dist);
+                double dist4 = Math.abs(dx[1] - dx[2]);
+                float height = (float) (dist * (dist / dist3));
+                float height2 = (float) (dist * (dist4 / dist3));
+                d++;
+                drawPolygon(p, c, colors[img[d++]], new float[] {x1, x0, x3}, new float[] {y1, y0, y3}, true);
+                int centerColor = d;
+                drawArc(p, c, colors[img[d++]], new float[] {x2 - height2, x2 + height2}, new float[] {y2 - height, y2 + height}, -45, 90, true);
+                drawPolygon(p, c, colors[img[d++]], new float[] {x2, x0, x3}, new float[] {y2, y0, y3}, true);
+                drawArc(p, c, colors[img[centerColor]], new float[] {x1 - height2, x1 + height2}, new float[] {y1 - height, y1 + height}, 135, 90, true);
+                drawPolygon(p, c, colors[img[centerColor]], new float[] {x0 - strip, x0 + strip, x3 + strip, x3 - strip}, new float[] {y0, y0, y3, y3}, false);
+                d++;
+            } else if (i == 1 || i == 3 || i == 5) {
+                double dist = distance(dx[3], dy[3], dx[2], dy[2]);
+                double dist3 = Math.sqrt(dist * dist + dist * dist);
+                double dist4 = distance(dx[i * 4 + 1], dy[i * 4 + 1], dx[i * 4 + 2], dy[i * 4 + 2]);
+                float height = (float) (dist * (distance(dx[i * 4 + 3], dy[i * 4 + 3], dx[i * 4], dy[i * 4]) / dist3));
+                float height2 = (float) (dist * (dist4 / dist3));
+                float firstRotation = i == 3 ? -60 : -30;
+                float secondRotation = i == 3 ? 120 : 150;
+                d++;
+                drawPolygon(p, c, colors[img[d++]], new float[] {x1, x0, x3}, new float[] {y1, y0, y3}, true);
+                int centerColor = d;
+                drawRotatedArc(p, c, colors[img[d++]], x2, y2, firstRotation, height2, height, -45, 90, true);
+                drawPolygon(p, c, colors[img[d++]], new float[] {x2, x0, x3}, new float[] {y2, y0, y3}, true);
+                drawRotatedArc(p, c, colors[img[centerColor]], x1, y1, secondRotation, height2, height, -45, 90, true);
+                drawPolygon(p, c, colors[img[centerColor]], new float[] {x0 - strip, x0 + strip, x3 + strip, x3 - strip}, new float[] {y0, y0, y3, y3}, false);
+                d++;
+            } else {
+                double dist = distance(dx[3], dy[3], dx[2], dy[2]);
+                double dist3 = Math.sqrt(dist * dist + dist * dist);
+                double dist4 = distance(dx[i * 4], dy[i * 4], dx[i * 4 + 3], dy[i * 4 + 3]);
+                float height = (float) (dist * (distance(dx[i * 4 + 2], dy[i * 4 + 2], dx[i * 4 + 1], dy[i * 4 + 1]) / dist3));
+                float height2 = (float) (dist * (dist4 / dist3));
+                float firstRotation = i == 2 ? -120 : -150;
+                float secondRotation = i == 2 ? 60 : 30;
+                drawPolygon(p, c, colors[img[d++]], new float[] {x0, x1, x2}, new float[] {y0, y1, y2}, true);
+                d++;
+                int centerColor = d;
+                drawRotatedArc(p, c, colors[img[d++]], x3, y3, firstRotation, height2, height, -45, 90, true);
+                d++;
+                drawPolygon(p, c, colors[img[d++]], new float[] {x3, x2, x1}, new float[] {y3, y2, y1}, true);
+                drawRotatedArc(p, c, colors[img[centerColor]], x0, y0, secondRotation, height2, height, -45, 90, true);
+                drawPolygon(p, c, colors[img[centerColor]], new float[] {x1 - strip, x1 + strip, x2 + strip, x2 - strip}, new float[] {y1, y1, y2, y2}, false);
+            }
+        }
+    }
+
+    private double distance(float x1, float y1, float x2, float y2) {
+        double dx = x1 - x2;
+        double dy = y1 - y2;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    private void drawRotatedArc(Paint p, Canvas c, int color, float cx, float cy, float rotation,
+                                float halfWidth, float halfHeight, float startAngle, float sweepAngle, boolean stroke) {
+        c.save();
+        c.translate(cx, cy);
+        c.rotate(rotation);
+        drawArc(p, c, color, new float[] {-halfWidth, halfWidth}, new float[] {-halfHeight, halfHeight}, startAngle, sweepAngle, stroke);
+        c.restore();
+    }
+
     private void drawFto(String scramble, int width, Paint p, Canvas c) {
         int[] rawColors = {
                 pref.getInt("csfto1", Color.WHITE), pref.getInt("csfto2", 0xff880088),
@@ -2458,6 +2554,19 @@ public class Scrambler {
             p.setStyle(Paint.Style.STROKE);
             p.setColor(Color.BLACK);
             c.drawPath(path, p);
+        }
+    }
+
+    private static void drawArc(Paint p, Canvas c, int cl, float[] arx, float[] ary,
+                                float startAngle, float sweepAngle, boolean stroke) {
+        RectF oval = new RectF(arx[0], ary[0], arx[1], ary[1]);
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(cl);
+        c.drawArc(oval, startAngle, sweepAngle, false, p);
+        if (stroke) {
+            p.setStyle(Paint.Style.STROKE);
+            p.setColor(Color.BLACK);
+            c.drawArc(oval, startAngle, sweepAngle, false, p);
         }
     }
 
