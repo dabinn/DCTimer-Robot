@@ -27,6 +27,7 @@
     <string name="action_stackmat">Stackmat timer</string>
     <string name="action_smartcube">Smart cube</string>
     <string name="action_connect_smart_cube">Connect smart cube</string>
+    <string name="action_gan_robot">GAN Robot</string>
     <string name="action_scramble">Scramble detail</string>
 
     <string name="scrambling">scrambling…</string>
@@ -166,6 +167,35 @@
     <string name="confirm_overwrite">File already exists. Overwrite?</string>
     <string name="smart_cube_reset_done">Cube reset to solved state</string>
     <string name="smart_cube_restore_first">Please restore the cube first</string>
+    <string name="smart_cube_wait_connect">Cube not connected</string>
+    <string name="gan_robot_wait_connect">Robot is not connected</string>
+    <string name="gan_robot_connect">Connect robot</string>
+    <string name="gan_robot_disconnect">Disconnect</string>
+    <string name="gan_robot_send">Send</string>
+    <string name="gan_robot_connected">Robot connected</string>
+    <string name="gan_robot_disconnected">Robot disconnected</string>
+    <string name="gan_robot_connecting">Connecting robot…</string>
+    <string name="gan_robot_disconnecting">Disconnecting…</string>
+    <string name="gan_robot_scan_title">Select GAN Robot</string>
+    <string name="gan_robot_scramble_label">Scramble</string>
+    <string name="gan_robot_input_hint">Enter scramble, e.g. R U R2 U2</string>
+    <string name="gan_robot_status_label">Robot status</string>
+    <string name="gan_robot_status_idle">Ready</string>
+    <string name="gan_robot_status_disconnected">Device disconnected</string>
+    <string name="gan_robot_status_bluetooth_disabled">Bluetooth is disabled</string>
+    <string name="gan_robot_status_timeout">Robot response timeout</string>
+    <string name="gan_robot_status_write_failed">Move write failed (code=%1$d)</string>
+    <string name="gan_robot_status_read_failed">Status read failed (code=%1$d)</string>
+    <string name="gan_robot_scanning">Scanning GAN devices…</string>
+    <string name="gan_robot_no_device">No GAN device found</string>
+    <string name="gan_robot_waiting_execution">Executing scramble (%1$d packet(s))</string>
+    <string name="gan_robot_execute_chunk">Packet %1$d/%2$d done, movesRemaining=%3$d</string>
+    <string name="gan_robot_send_success">Execution finished</string>
+    <string name="gan_robot_send_failed_short">Execution failed</string>
+    <string name="gan_robot_send_failed">Execution failed: %1$s</string>
+    <string name="gan_robot_send_in_progress">Executing, please wait</string>
+    <string name="gan_robot_invalid_scramble_short">Invalid scramble</string>
+    <string name="gan_robot_invalid_scramble">Invalid scramble: %1$s</string>
     <string name="delete_items">Delete selected items?</string>
     <string name="solve_none">None</string>
     <string name="cube2_face">Face</string>

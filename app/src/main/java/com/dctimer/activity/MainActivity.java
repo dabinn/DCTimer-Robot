@@ -833,6 +833,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 Intent intent = new Intent(context, TestActivity.class);
                 startActivity(intent);
                 break;
+            case R.id.nav_gan_robot:
+                intent = new Intent(context, GanRobotActivity.class);
+                startActivity(intent);
+                break;
             case R.id.nav_algorithm:    //公式库
                 intent = new Intent(context, WebActivity.class);
                 String web = "https://www.speedcubedb.com/";
