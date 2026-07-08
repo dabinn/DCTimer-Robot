@@ -12,6 +12,7 @@ import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.ScanRecord;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanResult;
 import android.content.Context;
@@ -19,6 +20,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.location.LocationManager;
+import android.os.ParcelUuid;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -49,19 +51,27 @@ import android.widget.Toast;
 import com.dctimer.APP;
 import com.dctimer.R;
 import com.dctimer.util.GanRobotCodec;
+import com.dctimer.util.BluetoothTools;
+import com.dctimer.util.RobotSessionState;
 import com.dctimer.util.Utils;
 import com.dctimer.widget.CustomToolbar;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+
+import cs.min2phase.CubieCube;
+import cs.min2phase.Tools;
+import cs.min2phase.Util;
 
 public class GanRobotActivity extends AppCompatActivity {
     private static final String TAG = "GanRobotActivity";
@@ -77,6 +87,9 @@ public class GanRobotActivity extends AppCompatActivity {
     private static final long SCAN_TIMEOUT_MS = 10000L;
     private static final long GATT_TIMEOUT_MS = 8000L;
     private static final int ROBOT_IDLE_ZERO_STREAK = 5;
+    private static final long SMART_CUBE_PROBE_TIMEOUT_MS = 2500L;
+    private static final String SOLVED_FACELET = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
+    public static final String EXTRA_PREFILL_SCRAMBLE = "extra_prefill_scramble";
 
     private static class RobotStatusSample {
         final int movesRemaining;
@@ -88,12 +101,31 @@ public class GanRobotActivity extends AppCompatActivity {
         }
     }
 
+    private static class OrientationPlan {
+        final String currentStateAfterProbe;
+        final Map<Character, Character> logicalToPhysicalFaceMap;
+
+        OrientationPlan(String currentStateAfterProbe, Map<Character, Character> logicalToPhysicalFaceMap) {
+            this.currentStateAfterProbe = currentStateAfterProbe;
+            this.logicalToPhysicalFaceMap = logicalToPhysicalFaceMap;
+        }
+    }
+
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
     private final Set<String> scannedAddresses = new HashSet<>();
     private final List<BluetoothDevice> scannedDevices = new ArrayList<>();
     private final List<String> scannedDeviceNames = new ArrayList<>();
-    private final Object gattIoLock = new Object();
+    private static final Object SHARED_GATT_IO_LOCK = new Object();
+    private static volatile int sharedConnectionState = STATE_DISCONNECTED;
+    private static volatile BluetoothGatt sharedBluetoothGatt;
+    private static volatile BluetoothGattCharacteristic sharedStatusCharacteristic;
+    private static volatile BluetoothGattCharacteristic sharedMoveCharacteristic;
+    private static CountDownLatch sharedWriteLatch;
+    private static int sharedWriteStatus = BluetoothGatt.GATT_FAILURE;
+    private static CountDownLatch sharedReadLatch;
+    private static int sharedReadStatus = BluetoothGatt.GATT_FAILURE;
+    private static byte[] sharedReadValue;
     private final Runnable stopScanRunnable = new Runnable() {
         @Override
         public void run() {
@@ -108,9 +140,10 @@ public class GanRobotActivity extends AppCompatActivity {
     private Button btnConnect;
     private Button btnDisconnect;
     private Button btnSend;
+    private Button btnClear;
+    private Button btnSolve;
     private ProgressBar progressConnecting;
     private int uiMode;
-    private int connectionState = STATE_DISCONNECTED;
     private boolean isSending;
 
     private BluetoothAdapter bluetoothAdapter;
@@ -118,14 +151,6 @@ public class GanRobotActivity extends AppCompatActivity {
     private AlertDialog scanDialog;
     private ProgressBar scanProgress;
     private ArrayAdapter<String> scanAdapter;
-    private BluetoothGatt bluetoothGatt;
-    private BluetoothGattCharacteristic statusCharacteristic;
-    private BluetoothGattCharacteristic moveCharacteristic;
-    private CountDownLatch writeLatch;
-    private int writeStatus = BluetoothGatt.GATT_FAILURE;
-    private CountDownLatch readLatch;
-    private int readStatus = BluetoothGatt.GATT_FAILURE;
-    private byte[] readValue;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -135,7 +160,19 @@ public class GanRobotActivity extends AppCompatActivity {
         setupToolbar();
         applyThemeColors();
         updateConnectionUi();
-        appendStatus(getString(R.string.gan_robot_disconnected));
+        if (getConnectionState() == STATE_CONNECTED) {
+            appendStatus(getString(R.string.gan_robot_connected));
+        } else {
+            appendStatus(getString(R.string.gan_robot_disconnected));
+        }
+        String prefillScramble = getIntent() == null ? "" : getIntent().getStringExtra(EXTRA_PREFILL_SCRAMBLE);
+        if (TextUtils.isEmpty(prefillScramble)) {
+            prefillScramble = RobotSessionState.getLatestMainScramble();
+        }
+        if (!TextUtils.isEmpty(prefillScramble)) {
+            etScramble.setText(prefillScramble.trim());
+            etScramble.setSelection(etScramble.length());
+        }
         uiMode = getResources().getConfiguration().uiMode;
         BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
         if (bluetoothManager != null) {
@@ -158,6 +195,8 @@ public class GanRobotActivity extends AppCompatActivity {
         btnConnect = findViewById(R.id.btn_connect_robot);
         btnDisconnect = findViewById(R.id.btn_disconnect_robot);
         btnSend = findViewById(R.id.btn_send_scramble);
+        btnClear = findViewById(R.id.btn_clear_scramble);
+        btnSolve = findViewById(R.id.btn_solve_cube);
         progressConnecting = findViewById(R.id.progress_connecting);
 
         btnConnect.setOnClickListener(new View.OnClickListener() {
@@ -176,6 +215,20 @@ public class GanRobotActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 submitScramble();
+            }
+        });
+        btnClear.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (etScramble != null) {
+                    etScramble.setText("");
+                }
+            }
+        });
+        btnSolve.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                solveFromSmartCubeState();
             }
         });
         etScramble.addTextChangedListener(new TextWatcher() {
@@ -238,7 +291,8 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private void beginConnectFlow() {
-        if (connectionState == STATE_CONNECTING || connectionState == STATE_CONNECTED || connectionState == STATE_DISCONNECTING) {
+        int state = getConnectionState();
+        if (state == STATE_CONNECTING || state == STATE_CONNECTED || state == STATE_DISCONNECTING) {
             return;
         }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR2) {
@@ -345,18 +399,18 @@ public class GanRobotActivity extends AppCompatActivity {
     private final BluetoothAdapter.LeScanCallback leScanCallback = new BluetoothAdapter.LeScanCallback() {
         @Override
         public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
-            onDeviceScanned(device);
+            onDeviceScanned(device, null);
         }
     };
 
     private final ScanCallback scanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
-            onDeviceScanned(result == null ? null : result.getDevice());
+            onDeviceScanned(result == null ? null : result.getDevice(), result == null ? null : result.getScanRecord());
         }
     };
 
-    private void onDeviceScanned(final BluetoothDevice device) {
+    private void onDeviceScanned(final BluetoothDevice device, final ScanRecord scanRecord) {
         if (device == null) {
             return;
         }
@@ -366,7 +420,7 @@ public class GanRobotActivity extends AppCompatActivity {
         } catch (SecurityException e) {
             return;
         }
-        if (!isGanRobotCandidate(name)) {
+        if (!isGanRobotCandidate(name, scanRecord)) {
             return;
         }
         String address = device.getAddress();
@@ -382,12 +436,38 @@ public class GanRobotActivity extends AppCompatActivity {
         });
     }
 
-    private boolean isGanRobotCandidate(String deviceName) {
+    private boolean isGanRobotCandidate(String deviceName, ScanRecord scanRecord) {
         if (deviceName == null) {
             return false;
         }
         String normalized = deviceName.trim().toUpperCase(Locale.US);
-        return normalized.startsWith("GAN");
+        if (!normalized.startsWith("GAN")) {
+            return false;
+        }
+        if (scanRecord != null) {
+            List<ParcelUuid> serviceUuids = scanRecord.getServiceUuids();
+            if (serviceUuids != null && !serviceUuids.isEmpty()) {
+                boolean hasRobotService = false;
+                for (ParcelUuid parcelUuid : serviceUuids) {
+                    UUID uuid = parcelUuid == null ? null : parcelUuid.getUuid();
+                    if (uuid == null) {
+                        continue;
+                    }
+                    if (SERVICE_UUID_GAN_ROBOT.equals(uuid)) {
+                        hasRobotService = true;
+                    }
+                    if (BluetoothTools.SERVICE_UUID_GAN_V2.equals(uuid)
+                            || BluetoothTools.SERVICE_UUID_GAN_V3.equals(uuid)
+                            || BluetoothTools.SERVICE_UUID_GAN_V4.equals(uuid)) {
+                        return false;
+                    }
+                }
+                if (hasRobotService) {
+                    return true;
+                }
+            }
+        }
+        return true;
     }
 
     private void connectRobot(BluetoothDevice device) {
@@ -399,9 +479,9 @@ public class GanRobotActivity extends AppCompatActivity {
         appendStatus(getString(R.string.gan_robot_connecting));
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                bluetoothGatt = device.connectGatt(this, false, gattCallback, BluetoothDevice.TRANSPORT_LE);
+                sharedBluetoothGatt = device.connectGatt(this, false, gattCallback, BluetoothDevice.TRANSPORT_LE);
             } else {
-                bluetoothGatt = device.connectGatt(this, false, gattCallback);
+                sharedBluetoothGatt = device.connectGatt(this, false, gattCallback);
             }
         } catch (SecurityException e) {
             setConnectionState(STATE_DISCONNECTED);
@@ -412,14 +492,14 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private void disconnectRobot() {
-        if (bluetoothGatt == null) {
+        if (sharedBluetoothGatt == null) {
             setConnectionState(STATE_DISCONNECTED);
             return;
         }
         setConnectionState(STATE_DISCONNECTING);
         appendStatus(getString(R.string.gan_robot_disconnecting));
         try {
-            bluetoothGatt.disconnect();
+            sharedBluetoothGatt.disconnect();
         } catch (SecurityException e) {
             Log.e(TAG, "disconnect failed", e);
             closeGatt();
@@ -428,13 +508,13 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private void closeGatt() {
-        statusCharacteristic = null;
-        moveCharacteristic = null;
-        if (bluetoothGatt != null) {
+        sharedStatusCharacteristic = null;
+        sharedMoveCharacteristic = null;
+        if (sharedBluetoothGatt != null) {
             try {
-                bluetoothGatt.close();
+                sharedBluetoothGatt.close();
             } catch (Exception ignored) { }
-            bluetoothGatt = null;
+            sharedBluetoothGatt = null;
         }
     }
 
@@ -477,9 +557,9 @@ public class GanRobotActivity extends AppCompatActivity {
                 });
                 return;
             }
-            statusCharacteristic = service.getCharacteristic(CHARACTER_UUID_STATUS);
-            moveCharacteristic = service.getCharacteristic(CHARACTER_UUID_MOVE);
-            if (statusCharacteristic == null || moveCharacteristic == null) {
+            sharedStatusCharacteristic = service.getCharacteristic(CHARACTER_UUID_STATUS);
+            sharedMoveCharacteristic = service.getCharacteristic(CHARACTER_UUID_MOVE);
+            if (sharedStatusCharacteristic == null || sharedMoveCharacteristic == null) {
                 runOnUiThread(() -> {
                     appendStatus(getString(R.string.ble_device_not_supported));
                     disconnectRobot();
@@ -494,30 +574,30 @@ public class GanRobotActivity extends AppCompatActivity {
 
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            synchronized (gattIoLock) {
-                if (writeLatch != null && moveCharacteristic != null && characteristic != null
-                        && moveCharacteristic.getUuid().equals(characteristic.getUuid())) {
-                    writeStatus = status;
-                    writeLatch.countDown();
+            synchronized (SHARED_GATT_IO_LOCK) {
+                if (sharedWriteLatch != null && sharedMoveCharacteristic != null && characteristic != null
+                        && sharedMoveCharacteristic.getUuid().equals(characteristic.getUuid())) {
+                    sharedWriteStatus = status;
+                    sharedWriteLatch.countDown();
                 }
             }
         }
 
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            synchronized (gattIoLock) {
-                if (readLatch != null && statusCharacteristic != null && characteristic != null
-                        && statusCharacteristic.getUuid().equals(characteristic.getUuid())) {
-                    readStatus = status;
-                    readValue = characteristic.getValue();
-                    readLatch.countDown();
+            synchronized (SHARED_GATT_IO_LOCK) {
+                if (sharedReadLatch != null && sharedStatusCharacteristic != null && characteristic != null
+                        && sharedStatusCharacteristic.getUuid().equals(characteristic.getUuid())) {
+                    sharedReadStatus = status;
+                    sharedReadValue = characteristic.getValue();
+                    sharedReadLatch.countDown();
                 }
             }
         }
     };
 
     private void submitScramble() {
-        if (connectionState != STATE_CONNECTED || bluetoothGatt == null || statusCharacteristic == null || moveCharacteristic == null) {
+        if (getConnectionState() != STATE_CONNECTED || sharedBluetoothGatt == null || sharedStatusCharacteristic == null || sharedMoveCharacteristic == null) {
             Toast.makeText(this, R.string.gan_robot_wait_connect, Toast.LENGTH_SHORT).show();
             return;
         }
@@ -529,15 +609,78 @@ public class GanRobotActivity extends AppCompatActivity {
         ioExecutor.execute(new Runnable() {
             @Override
             public void run() {
-                executeScramble(scramble);
+                String currentCubeState = RobotSessionState.getLatestSmartCubeState();
+                if (!TextUtils.isEmpty(currentCubeState)) {
+                    try {
+                        OrientationPlan orientationPlan = runOrientationProbePlan();
+                        String targetState = normalizeFacelet(Tools.fromScramble(scramble));
+                        String algorithmLogical = buildStateToStateAlgorithm(orientationPlan.currentStateAfterProbe, targetState);
+                        String algorithm = remapAlgorithmWithFaceMap(algorithmLogical, orientationPlan.logicalToPhysicalFaceMap);
+                        runOnUiThread(() -> appendStatus("Smart cube detected -> state-to-state mode"));
+                        runOnUiThread(() -> appendStatus("Orientation probe done (D/F)"));
+                        runOnUiThread(() -> appendStatus("State plan: " + algorithm));
+                        executeAlgorithm(algorithm);
+                        return;
+                    } catch (Exception e) {
+                        runOnUiThread(() -> {
+                            appendStatus(getString(R.string.gan_robot_send_failed, e.getMessage()));
+                            Toast.makeText(GanRobotActivity.this, R.string.gan_robot_send_failed_short, Toast.LENGTH_SHORT).show();
+                        });
+                        return;
+                    }
+                }
+                runOnUiThread(() -> appendStatus("No smart cube state -> direct execute mode"));
+                executeAlgorithm(scramble);
             }
         });
     }
 
-    private void executeScramble(String scramble) {
+    private void solveFromSmartCubeState() {
+        if (getConnectionState() != STATE_CONNECTED || sharedBluetoothGatt == null || sharedStatusCharacteristic == null || sharedMoveCharacteristic == null) {
+            Toast.makeText(this, R.string.gan_robot_wait_connect, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (isSending) {
+            Toast.makeText(this, R.string.gan_robot_send_in_progress, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final String currentCubeState = RobotSessionState.getLatestSmartCubeState();
+        if (TextUtils.isEmpty(currentCubeState)) {
+            appendStatus(getString(R.string.gan_robot_solve_requires_smart_cube));
+            Toast.makeText(this, R.string.gan_robot_solve_requires_smart_cube, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ioExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    OrientationPlan orientationPlan = runOrientationProbePlan();
+                    String algorithmLogical = buildStateToStateAlgorithm(orientationPlan.currentStateAfterProbe, SOLVED_FACELET);
+                    String algorithm = remapAlgorithmWithFaceMap(algorithmLogical, orientationPlan.logicalToPhysicalFaceMap);
+                    runOnUiThread(() -> appendStatus("Orientation probe done (D/F)"));
+                    runOnUiThread(() -> appendStatus("Solve plan: " + algorithm));
+                    executeAlgorithm(algorithm);
+                } catch (Exception e) {
+                    runOnUiThread(() -> {
+                        appendStatus(getString(R.string.gan_robot_send_failed, e.getMessage()));
+                        Toast.makeText(GanRobotActivity.this, R.string.gan_robot_send_failed_short, Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }
+        });
+    }
+
+    private void executeAlgorithm(String algorithm) {
+        if (TextUtils.isEmpty(algorithm) || TextUtils.isEmpty(algorithm.trim())) {
+            runOnUiThread(() -> {
+                appendStatus(getString(R.string.gan_robot_send_success));
+                Toast.makeText(GanRobotActivity.this, R.string.gan_robot_send_success, Toast.LENGTH_SHORT).show();
+            });
+            return;
+        }
         List<byte[]> packets;
         try {
-            packets = GanRobotCodec.encodeScramble(scramble);
+            packets = GanRobotCodec.encodeScramble(algorithm);
         } catch (IllegalArgumentException e) {
             runOnUiThread(() -> {
                 appendStatus(getString(R.string.gan_robot_invalid_scramble, e.getMessage()));
@@ -575,29 +718,261 @@ public class GanRobotActivity extends AppCompatActivity {
         }
     }
 
+    private String buildStateToStateAlgorithm(String startFacelet, String targetFacelet) {
+        String start = normalizeFacelet(startFacelet);
+        String target = normalizeFacelet(targetFacelet);
+        if (TextUtils.equals(start, target)) {
+            return "";
+        }
+        String[] result = Tools.computeGenScr(start, target);
+        if (result == null || result.length == 0) {
+            throw new IllegalStateException(getString(R.string.gan_robot_send_failed_short));
+        }
+        String algorithm = result[0] == null ? "" : result[0].trim();
+        if (algorithm.startsWith("Error")) {
+            throw new IllegalStateException(algorithm);
+        }
+        return algorithm;
+    }
+
+    private String normalizeFacelet(String facelet) {
+        if (TextUtils.isEmpty(facelet)) {
+            throw new IllegalStateException(getString(R.string.gan_robot_solve_need_cube_state));
+        }
+        String normalized = facelet.trim();
+        if (normalized.length() != 54) {
+            throw new IllegalStateException(getString(R.string.gan_robot_solve_invalid_cube_state));
+        }
+        if (!normalized.matches("^[URFDLB]{54}$")) {
+            throw new IllegalStateException(getString(R.string.gan_robot_solve_invalid_cube_state));
+        }
+        return normalized;
+    }
+
+    private OrientationPlan runOrientationProbePlan() throws Exception {
+        String stateBeforeProbe = normalizeFacelet(requireSmartCubeState());
+
+        writeProbeMove("D");
+        String stateAfterD = waitForSmartCubeStateChange(stateBeforeProbe, SMART_CUBE_PROBE_TIMEOUT_MS, "D");
+        char logicalFaceForPhysicalD = detectAppliedFaceClockwise(stateBeforeProbe, stateAfterD);
+        if (logicalFaceForPhysicalD == 0) {
+            throw new IllegalStateException("Cannot infer orientation from D probe");
+        }
+
+        writeProbeMove("F");
+        String stateAfterF = waitForSmartCubeStateChange(stateAfterD, SMART_CUBE_PROBE_TIMEOUT_MS, "F");
+        char logicalFaceForPhysicalF = detectAppliedFaceClockwise(stateAfterD, stateAfterF);
+        if (logicalFaceForPhysicalF == 0) {
+            throw new IllegalStateException("Cannot infer orientation from F probe");
+        }
+
+        Thread.sleep(200L);
+
+        Map<Character, Character> logicalToPhysical = buildLogicalToPhysicalFaceMap(logicalFaceForPhysicalD, logicalFaceForPhysicalF);
+        return new OrientationPlan(stateAfterF, logicalToPhysical);
+    }
+
+    private void writeProbeMove(String move) throws Exception {
+        List<byte[]> packets = GanRobotCodec.encodeScramble(move);
+        if (packets.isEmpty()) {
+            throw new IllegalStateException("Probe move is empty");
+        }
+        for (byte[] packet : packets) {
+            ensureGattConnected();
+            writeMovePacket(packet);
+            waitRobotIdle();
+        }
+    }
+
+    private String waitForSmartCubeStateChange(String previousState, long timeoutMs, String probeName) throws Exception {
+        long deadline = SystemClock.elapsedRealtime() + timeoutMs;
+        String prev = normalizeFacelet(previousState);
+        while (SystemClock.elapsedRealtime() < deadline) {
+            String now = RobotSessionState.getLatestSmartCubeState();
+            if (!TextUtils.isEmpty(now)) {
+                String normalizedNow = normalizeFacelet(now);
+                if (!TextUtils.equals(prev, normalizedNow)) {
+                    return normalizedNow;
+                }
+            }
+            Thread.sleep(20L);
+        }
+        throw new IllegalStateException("Smart cube probe timeout on " + probeName);
+    }
+
+    private String requireSmartCubeState() {
+        String state = RobotSessionState.getLatestSmartCubeState();
+        if (TextUtils.isEmpty(state)) {
+            throw new IllegalStateException(getString(R.string.gan_robot_solve_need_cube_state));
+        }
+        return state;
+    }
+
+    private char detectAppliedFaceClockwise(String beforeState, String afterState) {
+        char[] faces = new char[] {'U', 'R', 'F', 'D', 'L', 'B'};
+        for (char face : faces) {
+            String transformed = applyFaceClockwise(beforeState, face);
+            if (TextUtils.equals(transformed, afterState)) {
+                return face;
+            }
+        }
+        return 0;
+    }
+
+    private String applyFaceClockwise(String facelet, char face) {
+        CubieCube cube = new CubieCube();
+        if (Util.toCubieCube(facelet, cube) != 0) {
+            throw new IllegalStateException(getString(R.string.gan_robot_solve_invalid_cube_state));
+        }
+        int moveIndex = toClockwiseMoveIndex(face);
+        CubieCube moved = cube.move(moveIndex);
+        return Util.toFaceCube(moved);
+    }
+
+    private int toClockwiseMoveIndex(char face) {
+        switch (face) {
+            case 'U':
+                return 0;
+            case 'R':
+                return 3;
+            case 'F':
+                return 6;
+            case 'D':
+                return 9;
+            case 'L':
+                return 12;
+            case 'B':
+                return 15;
+            default:
+                throw new IllegalArgumentException("Unsupported face: " + face);
+        }
+    }
+
+    private Map<Character, Character> buildLogicalToPhysicalFaceMap(char logicalForPhysicalD, char logicalForPhysicalF) {
+        int[] physicalUp = negate(faceToVector(logicalForPhysicalD));
+        int[] physicalFront = faceToVector(logicalForPhysicalF);
+        if (dot(physicalUp, physicalFront) != 0) {
+            throw new IllegalStateException("Invalid orientation probe result");
+        }
+        // Right-hand rule: right = up x front
+        int[] physicalRight = cross(physicalUp, physicalFront);
+        if (norm1(physicalRight) != 1) {
+            throw new IllegalStateException("Invalid orientation probe basis");
+        }
+
+        Map<Character, Character> physicalToLogical = new HashMap<>();
+        physicalToLogical.put('U', vectorToFace(physicalUp));
+        physicalToLogical.put('D', vectorToFace(negate(physicalUp)));
+        physicalToLogical.put('F', vectorToFace(physicalFront));
+        physicalToLogical.put('B', vectorToFace(negate(physicalFront)));
+        physicalToLogical.put('R', vectorToFace(physicalRight));
+        physicalToLogical.put('L', vectorToFace(negate(physicalRight)));
+
+        Map<Character, Character> logicalToPhysical = new HashMap<>();
+        for (Map.Entry<Character, Character> entry : physicalToLogical.entrySet()) {
+            logicalToPhysical.put(entry.getValue(), entry.getKey());
+        }
+        return logicalToPhysical;
+    }
+
+    private String remapAlgorithmWithFaceMap(String algorithm, Map<Character, Character> logicalToPhysicalFaceMap) {
+        if (TextUtils.isEmpty(algorithm) || logicalToPhysicalFaceMap == null || logicalToPhysicalFaceMap.isEmpty()) {
+            return algorithm;
+        }
+        String[] tokens = algorithm.trim().split("\\s+");
+        StringBuilder builder = new StringBuilder(algorithm.length() + 8);
+        for (String token : tokens) {
+            if (TextUtils.isEmpty(token)) {
+                continue;
+            }
+            char logicalFace = token.charAt(0);
+            Character physicalFace = logicalToPhysicalFaceMap.get(logicalFace);
+            if (physicalFace == null) {
+                throw new IllegalStateException("Orientation remap missing face: " + logicalFace);
+            }
+            if (builder.length() > 0) {
+                builder.append(' ');
+            }
+            builder.append(physicalFace);
+            if (token.length() > 1) {
+                builder.append(token.substring(1));
+            }
+        }
+        return builder.toString();
+    }
+
+    private int[] faceToVector(char face) {
+        switch (face) {
+            case 'U':
+                return new int[] {0, 1, 0};
+            case 'D':
+                return new int[] {0, -1, 0};
+            case 'F':
+                return new int[] {0, 0, 1};
+            case 'B':
+                return new int[] {0, 0, -1};
+            case 'R':
+                return new int[] {1, 0, 0};
+            case 'L':
+                return new int[] {-1, 0, 0};
+            default:
+                throw new IllegalArgumentException("Unknown face " + face);
+        }
+    }
+
+    private char vectorToFace(int[] vector) {
+        if (vector[0] == 0 && vector[1] == 1 && vector[2] == 0) return 'U';
+        if (vector[0] == 0 && vector[1] == -1 && vector[2] == 0) return 'D';
+        if (vector[0] == 0 && vector[1] == 0 && vector[2] == 1) return 'F';
+        if (vector[0] == 0 && vector[1] == 0 && vector[2] == -1) return 'B';
+        if (vector[0] == 1 && vector[1] == 0 && vector[2] == 0) return 'R';
+        if (vector[0] == -1 && vector[1] == 0 && vector[2] == 0) return 'L';
+        throw new IllegalArgumentException("Invalid vector");
+    }
+
+    private int[] negate(int[] v) {
+        return new int[] {-v[0], -v[1], -v[2]};
+    }
+
+    private int dot(int[] a, int[] b) {
+        return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    }
+
+    private int[] cross(int[] a, int[] b) {
+        return new int[] {
+                a[1] * b[2] - a[2] * b[1],
+                a[2] * b[0] - a[0] * b[2],
+                a[0] * b[1] - a[1] * b[0]
+        };
+    }
+
+    private int norm1(int[] v) {
+        return Math.abs(v[0]) + Math.abs(v[1]) + Math.abs(v[2]);
+    }
+
     private void writeMovePacket(byte[] packet) throws Exception {
-        BluetoothGatt gatt = bluetoothGatt;
-        if (gatt == null || moveCharacteristic == null) {
+        BluetoothGatt gatt = sharedBluetoothGatt;
+        if (gatt == null || sharedMoveCharacteristic == null) {
             throw new IllegalStateException(getString(R.string.gan_robot_wait_connect));
         }
-        synchronized (gattIoLock) {
-            writeStatus = BluetoothGatt.GATT_FAILURE;
-            writeLatch = new CountDownLatch(1);
-            moveCharacteristic.setValue(packet);
-            boolean started = gatt.writeCharacteristic(moveCharacteristic);
+        synchronized (SHARED_GATT_IO_LOCK) {
+            sharedWriteStatus = BluetoothGatt.GATT_FAILURE;
+            sharedWriteLatch = new CountDownLatch(1);
+            sharedMoveCharacteristic.setValue(packet);
+            boolean started = gatt.writeCharacteristic(sharedMoveCharacteristic);
             if (!started) {
-                writeLatch = null;
+                sharedWriteLatch = null;
                 throw new IllegalStateException(getString(R.string.connect_fail));
             }
         }
-        if (writeLatch == null || !writeLatch.await(GATT_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+        if (sharedWriteLatch == null || !sharedWriteLatch.await(GATT_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
             throw new IllegalStateException(getString(R.string.gan_robot_status_timeout));
         }
-        if (writeStatus != BluetoothGatt.GATT_SUCCESS) {
-            throw new IllegalStateException(getString(R.string.gan_robot_status_write_failed, writeStatus));
+        if (sharedWriteStatus != BluetoothGatt.GATT_SUCCESS) {
+            throw new IllegalStateException(getString(R.string.gan_robot_status_write_failed, sharedWriteStatus));
         }
-        synchronized (gattIoLock) {
-            writeLatch = null;
+        synchronized (SHARED_GATT_IO_LOCK) {
+            sharedWriteLatch = null;
         }
         runOnUiThread(() -> appendStatus("TX fff3: " + toHex(packet)));
     }
@@ -632,35 +1007,35 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private RobotStatusSample readMovesRemaining() throws Exception {
-        BluetoothGatt gatt = bluetoothGatt;
-        if (gatt == null || statusCharacteristic == null) {
+        BluetoothGatt gatt = sharedBluetoothGatt;
+        if (gatt == null || sharedStatusCharacteristic == null) {
             throw new IllegalStateException(getString(R.string.gan_robot_wait_connect));
         }
-        synchronized (gattIoLock) {
-            readStatus = BluetoothGatt.GATT_FAILURE;
-            readValue = null;
-            readLatch = new CountDownLatch(1);
-            boolean started = gatt.readCharacteristic(statusCharacteristic);
+        synchronized (SHARED_GATT_IO_LOCK) {
+            sharedReadStatus = BluetoothGatt.GATT_FAILURE;
+            sharedReadValue = null;
+            sharedReadLatch = new CountDownLatch(1);
+            boolean started = gatt.readCharacteristic(sharedStatusCharacteristic);
             if (!started) {
-                readLatch = null;
+                sharedReadLatch = null;
                 throw new IllegalStateException(getString(R.string.connect_fail));
             }
         }
-        if (readLatch == null || !readLatch.await(GATT_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+        if (sharedReadLatch == null || !sharedReadLatch.await(GATT_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
             throw new IllegalStateException(getString(R.string.gan_robot_status_timeout));
         }
-        if (readStatus != BluetoothGatt.GATT_SUCCESS || readValue == null || readValue.length == 0) {
-            throw new IllegalStateException(getString(R.string.gan_robot_status_read_failed, readStatus));
+        if (sharedReadStatus != BluetoothGatt.GATT_SUCCESS || sharedReadValue == null || sharedReadValue.length == 0) {
+            throw new IllegalStateException(getString(R.string.gan_robot_status_read_failed, sharedReadStatus));
         }
-        synchronized (gattIoLock) {
-            readLatch = null;
+        synchronized (SHARED_GATT_IO_LOCK) {
+            sharedReadLatch = null;
         }
-        byte[] snapshot = readValue.clone();
+        byte[] snapshot = sharedReadValue.clone();
         return new RobotStatusSample(snapshot[0] & 0xff, snapshot);
     }
 
     private void ensureGattConnected() {
-        if (connectionState != STATE_CONNECTED || bluetoothGatt == null || statusCharacteristic == null || moveCharacteristic == null) {
+        if (getConnectionState() != STATE_CONNECTED || sharedBluetoothGatt == null || sharedStatusCharacteristic == null || sharedMoveCharacteristic == null) {
             throw new IllegalStateException(getString(R.string.gan_robot_wait_connect));
         }
     }
@@ -676,8 +1051,12 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private void setConnectionState(int state) {
-        connectionState = state;
+        sharedConnectionState = state;
         updateConnectionUi();
+    }
+
+    private int getConnectionState() {
+        return sharedConnectionState;
     }
 
     private void updateConnectionUi() {
@@ -685,7 +1064,8 @@ public class GanRobotActivity extends AppCompatActivity {
             return;
         }
         int stateText;
-        switch (connectionState) {
+        int state = getConnectionState();
+        switch (state) {
             case STATE_CONNECTING:
                 stateText = R.string.gan_robot_connecting;
                 break;
@@ -700,8 +1080,8 @@ public class GanRobotActivity extends AppCompatActivity {
                 break;
         }
         tvConnectionState.setText(stateText);
-        boolean connected = connectionState == STATE_CONNECTED;
-        boolean connecting = connectionState == STATE_CONNECTING || connectionState == STATE_DISCONNECTING;
+        boolean connected = state == STATE_CONNECTED;
+        boolean connecting = state == STATE_CONNECTING || state == STATE_DISCONNECTING;
         btnConnect.setVisibility(connected ? View.GONE : View.VISIBLE);
         btnDisconnect.setVisibility(connected ? View.VISIBLE : View.GONE);
         btnConnect.setEnabled(!connecting && !isSending);
@@ -710,6 +1090,12 @@ public class GanRobotActivity extends AppCompatActivity {
                 && etScramble.getText() != null
                 && !TextUtils.isEmpty(etScramble.getText().toString().trim());
         btnSend.setEnabled(!isSending && hasInput);
+        if (btnClear != null) {
+            btnClear.setEnabled(!isSending);
+        }
+        if (btnSolve != null) {
+            btnSolve.setEnabled(!isSending && connected);
+        }
         progressConnecting.setVisibility(connecting ? View.VISIBLE : View.GONE);
     }
 
@@ -822,7 +1208,6 @@ public class GanRobotActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         stopScan();
-        closeGatt();
         ioExecutor.shutdownNow();
         super.onDestroy();
     }

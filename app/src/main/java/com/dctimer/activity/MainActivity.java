@@ -835,6 +835,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 break;
             case R.id.nav_gan_robot:
                 intent = new Intent(context, GanRobotActivity.class);
+                String currentScrambleText = tvScramble == null || tvScramble.getText() == null
+                        ? ""
+                        : tvScramble.getText().toString();
+                RobotSessionState.setLatestMainScramble(currentScrambleText);
+                SmartCube activeCube = getActiveSmartCube();
+                RobotSessionState.setLatestSmartCubeState(activeCube == null ? "" : activeCube.getCubeState());
+                intent.putExtra(GanRobotActivity.EXTRA_PREFILL_SCRAMBLE, currentScrambleText);
                 startActivity(intent);
                 break;
             case R.id.nav_algorithm:    //公式库
@@ -1357,6 +1364,22 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private boolean isSmartCubeGyroSupportedDevice() {
         return bleDeviceType == BLEDevice.TYPE_MOYU32_CUBE;
+
+    private SmartCube getActiveSmartCube() {
+        if (!isSmartCubeMode() || bluetoothTools == null) {
+            return null;
+        }
+        SmartCube cube = bluetoothTools.getCube();
+        if (cube == null) {
+            return null;
+        }
+        if (isSmartCubeDeviceType(cube.getType())) {
+            if (!isSmartCubeDeviceType(bleDeviceType)) {
+                bleDeviceType = cube.getType();
+            }
+            return cube;
+        }
+        return isSmartCubeDeviceType(bleDeviceType) ? cube : null;
     }
 
     private boolean shouldFollowSmartCubeGyro() {
@@ -1966,6 +1989,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (currentScramble == null || TextUtils.isEmpty(currentScramble.getScramble())) {
             return;
         }
+        RobotSessionState.setLatestMainScramble(currentScramble.getScramble());
         CharSequence nextText;
         if (currentScramble.getScrambleListSize() > 1) {
             nextText = currentScramble.getScrambleWithIndicator(dm.heightPixels < dpi * 376);
@@ -2366,11 +2390,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     public void moveCube(SmartCube cube, int move, int time, boolean trackScrambleDeviation) {
         String previousState = cube.getCubeState();
+
         boolean wasRunning = timer.getTimerState() == DCTTimer.RUNNING;
         boolean waitingForSolveStart = canStart
                 && (timer.getTimerState() == DCTTimer.READY || timer.getTimerState() == DCTTimer.INSPECTING);
         updateSmartCubeCompletionChecker(cube);
         cube.applyMove(move, time, isSmartCubeTrainingScramble() ? null : currentScramble.getCubeState());
+        RobotSessionState.setLatestSmartCubeState(cube.getCubeState());
         if (!wasRunning && !waitingForSolveStart) {
             updateSmartCubeScrambleProgress(cube, trackScrambleDeviation ? move : -1);
             if (isSmartCubeTrainingScramble() && smartCubeScrambleProgress == smartCubeScrambleMoves.size()
@@ -2378,6 +2404,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 completeSmartCubeScramble(cube);
             }
         }
+
         updateSmartCubeMoveUi(previousState, cube.getCubeState(), move);
         if (timer.getTimerState() == DCTTimer.READY || timer.getTimerState() == DCTTimer.INSPECTING) {
             if (canStart) {

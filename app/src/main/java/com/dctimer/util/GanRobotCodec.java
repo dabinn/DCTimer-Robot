@@ -30,6 +30,10 @@ public final class GanRobotCodec {
         return packets;
     }
 
+    public static int estimateRobotCost(String algorithm) {
+        return parseMoves(algorithm).size();
+    }
+
     static List<String> parseMoves(String scramble) {
         if (scramble == null) {
             throw new IllegalArgumentException("scramble is empty");

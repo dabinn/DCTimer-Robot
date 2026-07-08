@@ -171,13 +171,14 @@
     <string name="gan_robot_wait_connect">Robot is not connected</string>
     <string name="gan_robot_connect">Connect robot</string>
     <string name="gan_robot_disconnect">Disconnect</string>
-    <string name="gan_robot_send">Send</string>
+    <string name="gan_robot_send">Scramble</string>
+    <string name="gan_robot_solve">Solve</string>
     <string name="gan_robot_connected">Robot connected</string>
     <string name="gan_robot_disconnected">Robot disconnected</string>
     <string name="gan_robot_connecting">Connecting robot…</string>
     <string name="gan_robot_disconnecting">Disconnecting…</string>
     <string name="gan_robot_scan_title">Select GAN Robot</string>
-    <string name="gan_robot_scramble_label">Scramble</string>
+    <string name="gan_robot_scramble_label">Scramble algorithm</string>
     <string name="gan_robot_input_hint">Enter scramble, e.g. R U R2 U2</string>
     <string name="gan_robot_status_label">Robot status</string>
     <string name="gan_robot_status_idle">Ready</string>
@@ -196,6 +197,9 @@
     <string name="gan_robot_send_in_progress">Executing, please wait</string>
     <string name="gan_robot_invalid_scramble_short">Invalid scramble</string>
     <string name="gan_robot_invalid_scramble">Invalid scramble: %1$s</string>
+    <string name="gan_robot_solve_need_cube_state">Smart cube state unavailable</string>
+    <string name="gan_robot_solve_invalid_cube_state">Invalid smart cube state</string>
+    <string name="gan_robot_solve_requires_smart_cube">Solve requires a connected smart cube</string>
     <string name="delete_items">Delete selected items?</string>
     <string name="solve_none">None</string>
     <string name="cube2_face">Face</string>

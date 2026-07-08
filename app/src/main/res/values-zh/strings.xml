@@ -232,13 +232,14 @@
     <string name="gan_robot_wait_connect">机器人未连接</string>
     <string name="gan_robot_connect">连接机器人</string>
     <string name="gan_robot_disconnect">中断</string>
-    <string name="gan_robot_send">送出</string>
+    <string name="gan_robot_send">打乱</string>
+    <string name="gan_robot_solve">还原</string>
     <string name="gan_robot_connected">机器人已连接</string>
     <string name="gan_robot_disconnected">机器人未连接</string>
     <string name="gan_robot_connecting">机器人连接中…</string>
     <string name="gan_robot_disconnecting">中断中…</string>
     <string name="gan_robot_scan_title">选择 GAN 机器人</string>
-    <string name="gan_robot_scramble_label">Scramble</string>
+    <string name="gan_robot_scramble_label">打乱公式</string>
     <string name="gan_robot_input_hint">输入 scramble，例如：R U R2 U2</string>
     <string name="gan_robot_status_label">机器人状态</string>
     <string name="gan_robot_status_idle">就绪</string>
@@ -257,4 +258,7 @@
     <string name="gan_robot_send_in_progress">执行中，请稍候</string>
     <string name="gan_robot_invalid_scramble_short">scramble 格式错误</string>
     <string name="gan_robot_invalid_scramble">scramble 格式错误：%1$s</string>
+    <string name="gan_robot_solve_need_cube_state">未取得智能魔方状态</string>
+    <string name="gan_robot_solve_invalid_cube_state">智能魔方状态格式错误</string>
+    <string name="gan_robot_solve_requires_smart_cube">还原功能需要先连接智能魔方</string>
 </resources>

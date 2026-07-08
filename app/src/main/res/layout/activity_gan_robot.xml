@@ -99,12 +99,35 @@
                 android:textColor="@color/colorText"
                 android:textColorHint="@color/colorGray4" />
 
-            <Button
-                android:id="@+id/btn_send_scramble"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:text="@string/gan_robot_send" />
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_clear_scramble"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/btn_clear" />
+
+                <Button
+                    android:id="@+id/btn_solve_cube"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="8dp"
+                    android:layout_weight="1"
+                    android:text="@string/gan_robot_solve" />
+
+                <Button
+                    android:id="@+id/btn_send_scramble"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="8dp"
+                    android:layout_weight="1"
+                    android:text="@string/gan_robot_send" />
+            </LinearLayout>
 
             <TextView
                 android:layout_width="match_parent"
