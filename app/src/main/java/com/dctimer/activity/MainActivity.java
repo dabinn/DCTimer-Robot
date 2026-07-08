@@ -1364,6 +1364,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private boolean isSmartCubeGyroSupportedDevice() {
         return bleDeviceType == BLEDevice.TYPE_MOYU32_CUBE;
+    }
 
     private SmartCube getActiveSmartCube() {
         if (!isSmartCubeMode() || bluetoothTools == null) {
@@ -1384,13 +1385,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private boolean shouldFollowSmartCubeGyro() {
         return smartCubeGyroFollow && isSmartCubeGyroSupportedDevice();
-    }
-
-    private SmartCube getActiveSmartCube() {
-        if (!isSmartCubeMode() || bluetoothTools == null || !isSmartCubeDeviceType(bleDeviceType)) {
-            return null;
-        }
-        return bluetoothTools.getCube();
     }
 
     public SmartCube getSmartCubeForUi() {

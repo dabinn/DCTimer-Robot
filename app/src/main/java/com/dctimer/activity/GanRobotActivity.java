@@ -724,15 +724,20 @@ public class GanRobotActivity extends AppCompatActivity {
         if (TextUtils.equals(start, target)) {
             return "";
         }
-        String[] result = Tools.computeGenScr(start, target);
-        if (result == null || result.length == 0) {
+        // Get the difference between start and target states
+        String scrambleFacelet = Tools.getScrambleFacelet(start, target);
+        if (scrambleFacelet == null) {
             throw new IllegalStateException(getString(R.string.gan_robot_send_failed_short));
         }
-        String algorithm = result[0] == null ? "" : result[0].trim();
+        // Solve the difference to get the algorithm
+        String algorithm = new cs.min2phase.Search().solution(scrambleFacelet);
+        if (algorithm == null || algorithm.trim().isEmpty()) {
+            throw new IllegalStateException(getString(R.string.gan_robot_send_failed_short));
+        }
         if (algorithm.startsWith("Error")) {
             throw new IllegalStateException(algorithm);
         }
-        return algorithm;
+        return algorithm.trim();
     }
 
     private String normalizeFacelet(String facelet) {
