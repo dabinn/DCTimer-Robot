@@ -2095,6 +2095,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     public void refreshSmartCubeStateUi() {
         SmartCube cube = getActiveSmartCube();
+        if (cube != null && !TextUtils.isEmpty(cube.getCubeState())) {
+            RobotSessionState.setLatestSmartCubeState(cube.getCubeState());
+        }
         updateSmartCubeCompletionChecker(cube);
         if (refreshSmartCubeTrainingScrambleAfterConnect(cube)) {
             return;
@@ -4945,6 +4948,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         //Log.w("dct", currentScramble.getCategory()+", "+currentScramble.getImageType());
         if (cube != null && !TextUtils.isEmpty(cube.getCubeState())) {
             final String cubeState = cube.getCubeState();
+            RobotSessionState.setLatestSmartCubeState(cubeState);
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {

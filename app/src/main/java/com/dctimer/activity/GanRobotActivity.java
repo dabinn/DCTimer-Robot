@@ -65,7 +65,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -87,8 +89,12 @@ public class GanRobotActivity extends AppCompatActivity {
     private static final int STATE_DISCONNECTING = 3;
     private static final long SCAN_TIMEOUT_MS = 10000L;
     private static final long GATT_TIMEOUT_MS = 8000L;
-    private static final int ROBOT_IDLE_ZERO_STREAK = 5;
+    private static final int ROBOT_IDLE_ZERO_STREAK_EXECUTE = 5;
+    private static final int ROBOT_IDLE_ZERO_STREAK_PROBE = 2;
+    private static final long ROBOT_IDLE_TIMEOUT_MS_EXECUTE = 20000L;
+    private static final long ROBOT_IDLE_TIMEOUT_MS_PROBE = 5000L;
     private static final long SMART_CUBE_PROBE_TIMEOUT_MS = 2500L;
+    private static final long SMART_CUBE_STATE_POLL_MS = 5L;
     private static final String SOLVED_FACELET = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
     public static final String EXTRA_PREFILL_SCRAMBLE = "extra_prefill_scramble";
     public static final String EXTRA_PREFILL_SCRAMBLE_DISPLAY = "extra_prefill_scramble_display";
@@ -118,6 +124,46 @@ public class GanRobotActivity extends AppCompatActivity {
 
         ScrambleResolutionResult(String standardScramble) {
             this.standardScramble = standardScramble;
+        }
+    }
+
+    private static class RobotSolvePlan {
+        final String algorithmLogical;
+        final String strategyLabel;
+        final int evaluatedCandidates;
+        final long searchTimeMs;
+
+        RobotSolvePlan(String algorithmLogical, String strategyLabel, int evaluatedCandidates, long searchTimeMs) {
+            this.algorithmLogical = algorithmLogical;
+            this.strategyLabel = strategyLabel;
+            this.evaluatedCandidates = evaluatedCandidates;
+            this.searchTimeMs = searchTimeMs;
+        }
+    }
+
+    private static class RobotExecutionResult {
+        final boolean success;
+        final long executionTimeMs;
+
+        RobotExecutionResult(boolean success, long executionTimeMs) {
+            this.success = success;
+            this.executionTimeMs = executionTimeMs;
+        }
+    }
+
+    private static class SolveCandidate {
+        final String algorithm;
+        final int cost;
+        final int length;
+        final int evaluatedCandidates;
+        final String profileName;
+
+        SolveCandidate(String algorithm, int cost, int length, int evaluatedCandidates, String profileName) {
+            this.algorithm = algorithm;
+            this.cost = cost;
+            this.length = length;
+            this.evaluatedCandidates = evaluatedCandidates;
+            this.profileName = profileName;
         }
     }
 
@@ -155,6 +201,7 @@ public class GanRobotActivity extends AppCompatActivity {
     private ProgressBar progressConnecting;
     private int uiMode;
     private boolean isSending;
+    private String latestRemainingStatusLine;
 
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothLeScanner bluetoothLeScanner;
@@ -665,18 +712,20 @@ public class GanRobotActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.gan_robot_send_in_progress, Toast.LENGTH_SHORT).show();
             return;
         }
-        final String currentCubeState = RobotSessionState.getLatestSmartCubeState();
-        if (TextUtils.isEmpty(currentCubeState)) {
-            appendStatus(getString(R.string.gan_robot_solve_requires_smart_cube));
-            Toast.makeText(this, R.string.gan_robot_solve_requires_smart_cube, Toast.LENGTH_SHORT).show();
-            return;
-        }
         ioExecutor.execute(new Runnable() {
             @Override
             public void run() {
                 // Set robot moving flag at the very start
                 RobotSessionState.setRobotMoving(true);
                 try {
+                    String currentCubeState = waitForRobotSmartCubeStateSnapshot(400L);
+                    if (TextUtils.isEmpty(currentCubeState)) {
+                        runOnUiThread(() -> {
+                            appendStatus(getString(R.string.gan_robot_solve_requires_smart_cube));
+                            Toast.makeText(GanRobotActivity.this, R.string.gan_robot_solve_requires_smart_cube, Toast.LENGTH_SHORT).show();
+                        });
+                        return;
+                    }
                     executeStateToStatePlan(currentCubeState, SOLVED_FACELET, "Solve plan");
                 } catch (Exception e) {
                     runOnUiThread(() -> {
@@ -690,22 +739,52 @@ public class GanRobotActivity extends AppCompatActivity {
         });
     }
 
-    private void executeStateToStatePlan(String currentCubeState, String targetFacelet, String planLabel) throws Exception {
-        OrientationPlan orientationPlan = runOrientationProbePlan(currentCubeState);
-        String algorithmLogical = buildStateToStateAlgorithm(orientationPlan.currentStateAfterProbe, targetFacelet);
-        String algorithm = remapAlgorithmWithFaceMap(algorithmLogical, orientationPlan.logicalToPhysicalFaceMap);
-        runOnUiThread(() -> appendStatus("Orientation probe done (D/F)"));
-        runOnUiThread(() -> appendStatus(planLabel + ": " + algorithm));
-        executeAlgorithm(algorithm);
+    private String waitForRobotSmartCubeStateSnapshot(long timeoutMs) throws Exception {
+        long deadline = SystemClock.elapsedRealtime() + timeoutMs;
+        while (SystemClock.elapsedRealtime() < deadline) {
+            String cubeState = RobotSessionState.getLatestSmartCubeState();
+            if (!TextUtils.isEmpty(cubeState)) {
+                return cubeState;
+            }
+            Thread.sleep(20L);
+        }
+        return RobotSessionState.getLatestSmartCubeState();
     }
 
-    private void executeAlgorithm(String algorithm) {
+    private void executeStateToStatePlan(String currentCubeState, String targetFacelet, String planLabel) throws Exception {
+        long totalStartMs = SystemClock.elapsedRealtime();
+        long probeStartMs = totalStartMs;
+        OrientationPlan orientationPlan = runOrientationProbePlan(currentCubeState);
+        long probeTimeMs = SystemClock.elapsedRealtime() - probeStartMs;
+
+        long pathStartMs = SystemClock.elapsedRealtime();
+        RobotSolvePlan solvePlan = buildStateToStateAlgorithm(orientationPlan.currentStateAfterProbe, targetFacelet);
+        long pathTimeMs = SystemClock.elapsedRealtime() - pathStartMs;
+
+        String algorithm = remapAlgorithmWithFaceMap(solvePlan.algorithmLogical, orientationPlan.logicalToPhysicalFaceMap);
+        int logicalMoveCount = countAlgorithmMoves(algorithm);
+        int robotMoveCount = TextUtils.isEmpty(algorithm) ? 0 : GanRobotCodec.estimateRobotCost(algorithm);
+        runOnUiThread(() -> appendStatus("Orientation probe done (D/F)"));
+        runOnUiThread(() -> appendStatus("Solve strategy: " + solvePlan.strategyLabel + " (" + solvePlan.evaluatedCandidates + " candidates/" + solvePlan.searchTimeMs + "ms)"));
+        runOnUiThread(() -> appendStatus("Robot convert: " + logicalMoveCount + " -> " + robotMoveCount + " moves"));
+        runOnUiThread(() -> appendStatus(planLabel + ": " + algorithm));
+        RobotExecutionResult executionResult = executeAlgorithm(algorithm);
+        if (executionResult.success) {
+            long totalTimeMs = SystemClock.elapsedRealtime() - totalStartMs;
+            runOnUiThread(() -> appendStatus("Timing(ms) probe=" + probeTimeMs
+                    + ", path=" + pathTimeMs
+                    + ", move=" + executionResult.executionTimeMs
+                    + ", total=" + totalTimeMs));
+        }
+    }
+
+    private RobotExecutionResult executeAlgorithm(String algorithm) {
         if (TextUtils.isEmpty(algorithm) || TextUtils.isEmpty(algorithm.trim())) {
             runOnUiThread(() -> {
                 appendStatus(getString(R.string.gan_robot_send_success));
                 Toast.makeText(GanRobotActivity.this, R.string.gan_robot_send_success, Toast.LENGTH_SHORT).show();
             });
-            return;
+            return new RobotExecutionResult(true, 0L);
         }
         List<byte[]> packets;
         try {
@@ -715,58 +794,211 @@ public class GanRobotActivity extends AppCompatActivity {
                 appendStatus(getString(R.string.gan_robot_invalid_scramble, e.getMessage()));
                 Toast.makeText(GanRobotActivity.this, R.string.gan_robot_invalid_scramble_short, Toast.LENGTH_SHORT).show();
             });
-            return;
+            return new RobotExecutionResult(false, 0L);
         }
         if (packets.isEmpty()) {
             runOnUiThread(() -> Toast.makeText(GanRobotActivity.this, R.string.gan_robot_invalid_scramble_short, Toast.LENGTH_SHORT).show());
-            return;
+            return new RobotExecutionResult(false, 0L);
         }
+        long executeStartMs = SystemClock.elapsedRealtime();
         setSending(true);
+        latestRemainingStatusLine = null;
         runOnUiThread(() -> appendStatus(getString(R.string.gan_robot_waiting_execution, packets.size())));
         try {
             for (int i = 0; i < packets.size(); i++) {
                 ensureGattConnected();
                 writeMovePacket(packets.get(i));
-                int remaining = waitRobotIdle();
+                waitRobotIdle();
                 final int chunk = i + 1;
-                final int left = remaining;
-                runOnUiThread(() -> appendStatus(getString(R.string.gan_robot_execute_chunk, chunk, packets.size(), left)));
+                runOnUiThread(() -> appendStatus("Chunk " + chunk + "/" + packets.size() + " done"));
             }
             runOnUiThread(() -> {
                 appendStatus(getString(R.string.gan_robot_send_success));
                 Toast.makeText(GanRobotActivity.this, R.string.gan_robot_send_success, Toast.LENGTH_SHORT).show();
             });
+            return new RobotExecutionResult(true, SystemClock.elapsedRealtime() - executeStartMs);
         } catch (Exception e) {
             Log.e(TAG, "execute scramble failed", e);
             runOnUiThread(() -> {
                 appendStatus(getString(R.string.gan_robot_send_failed, e.getMessage()));
                 Toast.makeText(GanRobotActivity.this, R.string.gan_robot_send_failed_short, Toast.LENGTH_SHORT).show();
             });
+            return new RobotExecutionResult(false, SystemClock.elapsedRealtime() - executeStartMs);
         } finally {
             setSending(false);
+            latestRemainingStatusLine = null;
         }
     }
 
-    private String buildStateToStateAlgorithm(String startFacelet, String targetFacelet) {
+    private RobotSolvePlan buildStateToStateAlgorithm(String startFacelet, String targetFacelet) {
         String start = normalizeFacelet(startFacelet);
         String target = normalizeFacelet(targetFacelet);
         if (TextUtils.equals(start, target)) {
-            return "";
+            return new RobotSolvePlan("", "already-at-target", 0, 0);
         }
         // Get the difference between start and target states
         String scrambleFacelet = Tools.getScrambleFacelet(start, target);
         if (scrambleFacelet == null) {
             throw new IllegalStateException(getString(R.string.gan_robot_send_failed_short));
         }
-        // Solve the difference to get the algorithm
-        String algorithm = new cs.min2phase.Search().solution(scrambleFacelet);
+        RobotSolvePlan solvePlan = buildRobotOptimizedStateSolution(scrambleFacelet);
+        String algorithm = solvePlan.algorithmLogical;
         if (algorithm == null || algorithm.trim().isEmpty()) {
             throw new IllegalStateException(getString(R.string.gan_robot_send_failed_short));
         }
         if (algorithm.startsWith("Error")) {
             throw new IllegalStateException(algorithm);
         }
-        return algorithm.trim();
+        return new RobotSolvePlan(algorithm.trim(), solvePlan.strategyLabel, solvePlan.evaluatedCandidates, solvePlan.searchTimeMs);
+    }
+
+    private RobotSolvePlan buildRobotOptimizedStateSolution(String scrambleFacelet) {
+        long searchStartMs = SystemClock.elapsedRealtime();
+        final long totalTimeBudgetMs = 460L;
+        ExecutorService solverPool = Executors.newFixedThreadPool(4);
+        SolveCandidate bestCandidate = null;
+        int evaluatedCandidates = 0;
+        try {
+            List<Callable<SolveCandidate>> tasks = new ArrayList<>();
+            tasks.add(() -> runFallbackSearchProfile(
+                    scrambleFacelet,
+                    "fast",
+                    26,
+                    15000L,
+                    0L,
+                    2,
+                    4,
+                    180L
+            ));
+            tasks.add(() -> runFallbackSearchProfile(
+                    scrambleFacelet,
+                    "balance",
+                    28,
+                    26000L,
+                    50L,
+                    2,
+                    5,
+                    220L
+            ));
+            tasks.add(() -> runFallbackSearchProfile(
+                    scrambleFacelet,
+                    "deepA",
+                    30,
+                    45000L,
+                    100L,
+                    2,
+                    6,
+                    260L
+            ));
+            tasks.add(() -> runFallbackSearchProfile(
+                    scrambleFacelet,
+                    "deepB",
+                    30,
+                    50000L,
+                    100L,
+                    2,
+                    8,
+                    300L
+            ));
+            List<Future<SolveCandidate>> futures = solverPool.invokeAll(tasks, totalTimeBudgetMs, TimeUnit.MILLISECONDS);
+            for (Future<SolveCandidate> future : futures) {
+                if (future == null || !future.isDone() || future.isCancelled()) {
+                    continue;
+                }
+                SolveCandidate candidate = future.get();
+                if (candidate == null || TextUtils.isEmpty(candidate.algorithm) || candidate.algorithm.startsWith("Error")) {
+                    continue;
+                }
+                evaluatedCandidates += candidate.evaluatedCandidates;
+                if (bestCandidate == null
+                        || candidate.cost < bestCandidate.cost
+                        || (candidate.cost == bestCandidate.cost && candidate.length < bestCandidate.length)) {
+                    bestCandidate = candidate;
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "parallel fallback search failed, fallback to single profile", e);
+        } finally {
+            solverPool.shutdownNow();
+        }
+
+        long searchTimeMs = SystemClock.elapsedRealtime() - searchStartMs;
+        if (bestCandidate != null) {
+            return new RobotSolvePlan(
+                    bestCandidate.algorithm,
+                    "fallback-parallel-" + bestCandidate.profileName,
+                    Math.max(evaluatedCandidates, bestCandidate.evaluatedCandidates),
+                    searchTimeMs
+            );
+        }
+
+        SolveCandidate single = runFallbackSearchProfile(
+                scrambleFacelet,
+                "single",
+                30,
+                50000L,
+                100L,
+                2,
+                12,
+                350L
+        );
+        searchTimeMs = SystemClock.elapsedRealtime() - searchStartMs;
+        return new RobotSolvePlan(single.algorithm, "fallback-cost-optimized", single.evaluatedCandidates, searchTimeMs);
+    }
+
+    private SolveCandidate runFallbackSearchProfile(
+            String scrambleFacelet,
+            String profileName,
+            int maxDepth,
+            long probeMax,
+            long probeMin,
+            int verbose,
+            int maxCandidateChecks,
+            long maxSearchTimeMs
+    ) {
+        long startMs = SystemClock.elapsedRealtime();
+        cs.min2phase.Search search = new cs.min2phase.Search();
+        String best = search.solution(scrambleFacelet, maxDepth, probeMax, probeMin, verbose);
+        int evaluated = 1;
+        if (TextUtils.isEmpty(best) || best.startsWith("Error")) {
+            return new SolveCandidate(best, Integer.MAX_VALUE, Integer.MAX_VALUE, evaluated, profileName);
+        }
+        best = best.trim();
+        int bestCost = GanRobotCodec.estimateRobotCost(best);
+        int bestLength = countAlgorithmMoves(best);
+        for (int i = 0; i < maxCandidateChecks; i++) {
+            if (SystemClock.elapsedRealtime() - startMs >= maxSearchTimeMs) {
+                break;
+            }
+            String candidate = search.next(probeMax, probeMin, verbose);
+            if (candidate == null || candidate.startsWith("Error")) {
+                break;
+            }
+            evaluated++;
+            candidate = candidate.trim();
+            if (candidate.isEmpty()) {
+                continue;
+            }
+            int candidateCost = GanRobotCodec.estimateRobotCost(candidate);
+            int candidateLength = countAlgorithmMoves(candidate);
+            if (candidateCost < bestCost || (candidateCost == bestCost && candidateLength < bestLength)) {
+                best = candidate;
+                bestCost = candidateCost;
+                bestLength = candidateLength;
+            }
+        }
+        return new SolveCandidate(best, bestCost, bestLength, evaluated, profileName);
+    }
+
+    private int countAlgorithmMoves(String algorithm) {
+        if (TextUtils.isEmpty(algorithm)) {
+            return 0;
+        }
+        String trimmed = algorithm.trim();
+        if (trimmed.isEmpty()) {
+            return 0;
+        }
+        return trimmed.split("\\s+").length;
     }
 
     private ScrambleResolutionResult resolveStandardScrambleForSubmit(String displayScramble) {
@@ -835,8 +1067,6 @@ public class GanRobotActivity extends AppCompatActivity {
             throw new IllegalStateException("Cannot infer orientation from F probe");
         }
 
-        Thread.sleep(200L);
-
         Map<Character, Character> logicalToPhysical = buildLogicalToPhysicalFaceMap(logicalFaceForPhysicalD, logicalFaceForPhysicalF);
         return new OrientationPlan(stateAfterF, logicalToPhysical);
     }
@@ -849,7 +1079,7 @@ public class GanRobotActivity extends AppCompatActivity {
         for (byte[] packet : packets) {
             ensureGattConnected();
             writeMovePacket(packet);
-            waitRobotIdle();
+            waitRobotIdleForProbe();
         }
     }
 
@@ -864,7 +1094,7 @@ public class GanRobotActivity extends AppCompatActivity {
                     return normalizedNow;
                 }
             }
-            Thread.sleep(20L);
+            Thread.sleep(SMART_CUBE_STATE_POLL_MS);
         }
         throw new IllegalStateException("Smart cube probe timeout on " + probeName);
     }
@@ -1039,18 +1269,25 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private int waitRobotIdle() throws Exception {
+        return waitRobotIdleInternal(ROBOT_IDLE_TIMEOUT_MS_EXECUTE, ROBOT_IDLE_ZERO_STREAK_EXECUTE, true);
+    }
+
+    private int waitRobotIdleForProbe() throws Exception {
+        return waitRobotIdleInternal(ROBOT_IDLE_TIMEOUT_MS_PROBE, ROBOT_IDLE_ZERO_STREAK_PROBE, false);
+    }
+
+    private int waitRobotIdleInternal(long timeoutMs, int zeroStreakTarget, boolean logStatus) throws Exception {
         boolean seenNonZero = false;
         int zeroStreak = 0;
-        long deadline = SystemClock.elapsedRealtime() + 20000L;
+        long deadline = SystemClock.elapsedRealtime() + timeoutMs;
         int lastValue = 0;
         int lastLoggedValue = -1;
         while (SystemClock.elapsedRealtime() < deadline) {
             RobotStatusSample sample = readMovesRemaining();
             lastValue = sample.movesRemaining;
-            if (lastValue != lastLoggedValue) {
+            if (logStatus && lastValue != lastLoggedValue) {
                 final int currentValue = lastValue;
-                final String rawHex = toHex(sample.raw);
-                runOnUiThread(() -> appendStatus("RX fff2: remaining=" + currentValue + " raw=" + rawHex));
+                runOnUiThread(() -> upsertRemainingStatus(currentValue));
                 lastLoggedValue = lastValue;
             }
             if (lastValue > 0) {
@@ -1058,11 +1295,10 @@ public class GanRobotActivity extends AppCompatActivity {
                 zeroStreak = 0;
             } else {
                 zeroStreak++;
-                if (seenNonZero || zeroStreak >= ROBOT_IDLE_ZERO_STREAK) {
+                if (seenNonZero || zeroStreak >= zeroStreakTarget) {
                     return lastValue;
                 }
             }
-            Thread.sleep(30L);
         }
         throw new IllegalStateException(getString(R.string.gan_robot_status_timeout));
     }
@@ -1168,6 +1404,28 @@ public class GanRobotActivity extends AppCompatActivity {
         String next = current.isEmpty()
                 ? message
                 : current + "\n" + message;
+        tvRobotStatus.setText(next);
+    }
+
+    private void upsertRemainingStatus(int remaining) {
+        String nextLine = "RX fff2: remaining=" + remaining;
+        String current = tvRobotStatus.getText() == null ? "" : tvRobotStatus.getText().toString();
+        if (!TextUtils.isEmpty(latestRemainingStatusLine) && !TextUtils.isEmpty(current)) {
+            String[] lines = current.split("\\n");
+            StringBuilder rebuilt = new StringBuilder(current.length());
+            for (String line : lines) {
+                if (TextUtils.equals(line, latestRemainingStatusLine)) {
+                    continue;
+                }
+                if (rebuilt.length() > 0) {
+                    rebuilt.append('\n');
+                }
+                rebuilt.append(line);
+            }
+            current = rebuilt.toString();
+        }
+        latestRemainingStatusLine = nextLine;
+        String next = TextUtils.isEmpty(current) ? nextLine : current + "\n" + nextLine;
         tvRobotStatus.setText(next);
     }
 

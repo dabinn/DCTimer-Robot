@@ -47,18 +47,32 @@ public final class GanRobotCodec {
             throw new IllegalArgumentException("scramble is empty");
         }
         String[] rawTokens = normalized.split(" ");
-        List<String> expanded = new ArrayList<>();
+        List<String> tokens = new ArrayList<>(rawTokens.length);
         for (String rawToken : rawTokens) {
-            String token = normalizeToken(rawToken);
+            tokens.add(normalizeToken(rawToken));
+        }
+
+        List<String> expanded = new ArrayList<>(tokens.size() * 2);
+        for (int i = 0; i < tokens.size(); i++) {
+            String token = tokens.get(i);
             if (token.charAt(0) == 'U') {
-                expanded.addAll(U_D_SWAP);
-                expanded.add("D" + token.substring(1));
-                expanded.addAll(U_D_UNSWAP);
+                int totalQuarterTurns = 0;
+                int j = i;
+                while (j < tokens.size() && tokens.get(j).charAt(0) == 'U') {
+                    totalQuarterTurns = (totalQuarterTurns + toQuarterTurns(tokens.get(j))) % 4;
+                    j++;
+                }
+                if (totalQuarterTurns != 0) {
+                    expanded.addAll(U_D_SWAP);
+                    expanded.add("D" + toSuffix(totalQuarterTurns));
+                    expanded.addAll(U_D_UNSWAP);
+                }
+                i = j - 1;
             } else {
                 expanded.add(token);
             }
         }
-        return expanded;
+        return simplifyAdjacentFaceTurns(expanded);
     }
 
     static List<Integer> movesToNibbles(List<String> moves) {
@@ -88,6 +102,49 @@ public final class GanRobotCodec {
             throw new IllegalArgumentException("Invalid move: " + token);
         }
         return normalized;
+    }
+
+    private static int toQuarterTurns(String move) {
+        if (move.endsWith("2")) {
+            return 2;
+        }
+        if (move.endsWith("'")) {
+            return 3;
+        }
+        return 1;
+    }
+
+    private static String toSuffix(int quarterTurns) {
+        if (quarterTurns == 2) {
+            return "2";
+        }
+        if (quarterTurns == 3) {
+            return "'";
+        }
+        return "";
+    }
+
+    private static List<String> simplifyAdjacentFaceTurns(List<String> moves) {
+        List<String> simplified = new ArrayList<>(moves.size());
+        for (String move : moves) {
+            if (simplified.isEmpty()) {
+                simplified.add(move);
+                continue;
+            }
+            int lastIdx = simplified.size() - 1;
+            String lastMove = simplified.get(lastIdx);
+            if (lastMove.charAt(0) != move.charAt(0)) {
+                simplified.add(move);
+                continue;
+            }
+            int combined = (toQuarterTurns(lastMove) + toQuarterTurns(move)) % 4;
+            if (combined == 0) {
+                simplified.remove(lastIdx);
+            } else {
+                simplified.set(lastIdx, lastMove.charAt(0) + toSuffix(combined));
+            }
+        }
+        return simplified;
     }
 
     private static byte[] packNibbles(List<Integer> nibbles) {

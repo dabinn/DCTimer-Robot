@@ -28,8 +28,28 @@ public class GanRobotCodecTest {
     @Test
     public void splitsLongScrambleIntoMultiplePackets() {
         List<byte[]> packets = GanRobotCodec.encodeScramble(
-                "R R R R R R R R R R R R R R R R R R R R R R R R R R R R R R R R R R R R R"
+                "R F D L B R F D L B R F D L B R F D L B R F D L B R F D L B R F D L B R F"
         );
         assertTrue(packets.size() > 1);
+    }
+
+    @Test
+    public void mergesConsecutiveUMovesBeforeExpansion() {
+        List<String> moves = GanRobotCodec.parseMoves("U U");
+        assertEquals(13, moves.size());
+        assertEquals("D2", moves.get(6));
+    }
+
+    @Test
+    public void cancelsConsecutiveInverseUMoves() {
+        List<String> moves = GanRobotCodec.parseMoves("U U'");
+        assertTrue(moves.isEmpty());
+    }
+
+    @Test
+    public void simplifiesAdjacentSameFaceTurnsAfterExpansion() {
+        List<String> moves = GanRobotCodec.parseMoves("R R");
+        assertEquals(1, moves.size());
+        assertEquals("R2", moves.get(0));
     }
 }
