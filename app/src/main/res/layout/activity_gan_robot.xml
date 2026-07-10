@@ -143,8 +143,10 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:background="@drawable/edittext_background"
+                android:longClickable="true"
                 android:minHeight="120dp"
                 android:padding="10dp"
+                android:textIsSelectable="true"
                 android:textColor="@color/colorText"
                 android:textSize="14sp"
                 tools:text="Idle" />

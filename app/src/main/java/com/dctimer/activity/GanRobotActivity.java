@@ -50,6 +50,7 @@ import android.widget.Toast;
 
 import com.dctimer.APP;
 import com.dctimer.R;
+import com.dctimer.model.SmartCubeTraining;
 import com.dctimer.util.GanRobotCodec;
 import com.dctimer.util.BluetoothTools;
 import com.dctimer.util.RobotSessionState;
@@ -90,6 +91,7 @@ public class GanRobotActivity extends AppCompatActivity {
     private static final long SMART_CUBE_PROBE_TIMEOUT_MS = 2500L;
     private static final String SOLVED_FACELET = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
     public static final String EXTRA_PREFILL_SCRAMBLE = "extra_prefill_scramble";
+    public static final String EXTRA_PREFILL_SCRAMBLE_DISPLAY = "extra_prefill_scramble_display";
 
     private static class RobotStatusSample {
         final int movesRemaining;
@@ -108,6 +110,14 @@ public class GanRobotActivity extends AppCompatActivity {
         OrientationPlan(String currentStateAfterProbe, Map<Character, Character> logicalToPhysicalFaceMap) {
             this.currentStateAfterProbe = currentStateAfterProbe;
             this.logicalToPhysicalFaceMap = logicalToPhysicalFaceMap;
+        }
+    }
+
+    private static class ScrambleResolutionResult {
+        final String standardScramble;
+
+        ScrambleResolutionResult(String standardScramble) {
+            this.standardScramble = standardScramble;
         }
     }
 
@@ -151,6 +161,8 @@ public class GanRobotActivity extends AppCompatActivity {
     private AlertDialog scanDialog;
     private ProgressBar scanProgress;
     private ArrayAdapter<String> scanAdapter;
+    private String prefillRawScramble = "";
+    private String prefillDisplayScramble = "";
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -166,11 +178,14 @@ public class GanRobotActivity extends AppCompatActivity {
             appendStatus(getString(R.string.gan_robot_disconnected));
         }
         String prefillScramble = getIntent() == null ? "" : getIntent().getStringExtra(EXTRA_PREFILL_SCRAMBLE);
-        if (TextUtils.isEmpty(prefillScramble)) {
-            prefillScramble = RobotSessionState.getLatestMainScramble();
-        }
-        if (!TextUtils.isEmpty(prefillScramble)) {
-            etScramble.setText(prefillScramble.trim());
+        prefillRawScramble = TextUtils.isEmpty(prefillScramble) ? "" : prefillScramble.trim();
+        String prefillDisplayScramble = getIntent() == null ? "" : getIntent().getStringExtra(EXTRA_PREFILL_SCRAMBLE_DISPLAY);
+        String initialScramble = !TextUtils.isEmpty(prefillDisplayScramble)
+                ? prefillDisplayScramble
+                : convertStandardScrambleToDisplay(prefillScramble);
+        this.prefillDisplayScramble = TextUtils.isEmpty(initialScramble) ? "" : initialScramble.trim();
+        if (!TextUtils.isEmpty(initialScramble)) {
+            etScramble.setText(initialScramble.trim());
             etScramble.setSelection(etScramble.length());
         }
         uiMode = getResources().getConfiguration().uiMode;
@@ -605,32 +620,38 @@ public class GanRobotActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.gan_robot_send_in_progress, Toast.LENGTH_SHORT).show();
             return;
         }
-        final String scramble = etScramble.getText() == null ? "" : etScramble.getText().toString();
+        final String displayScramble = etScramble.getText() == null ? "" : etScramble.getText().toString();
+        final String orientationLabel = getActiveScrambleOrientationLabel();
+        ScrambleResolutionResult scrambleResolution = resolveStandardScrambleForSubmit(displayScramble);
+        final String scramble = scrambleResolution.standardScramble;
+        runOnUiThread(() -> appendStatus("Scramble orientation: " + orientationLabel));
+        
         ioExecutor.execute(new Runnable() {
             @Override
             public void run() {
-                String currentCubeState = RobotSessionState.getLatestSmartCubeState();
-                if (!TextUtils.isEmpty(currentCubeState)) {
-                    try {
-                        OrientationPlan orientationPlan = runOrientationProbePlan();
-                        String targetState = normalizeFacelet(Tools.fromScramble(scramble));
-                        String algorithmLogical = buildStateToStateAlgorithm(orientationPlan.currentStateAfterProbe, targetState);
-                        String algorithm = remapAlgorithmWithFaceMap(algorithmLogical, orientationPlan.logicalToPhysicalFaceMap);
-                        runOnUiThread(() -> appendStatus("Smart cube detected -> state-to-state mode"));
-                        runOnUiThread(() -> appendStatus("Orientation probe done (D/F)"));
-                        runOnUiThread(() -> appendStatus("State plan: " + algorithm));
-                        executeAlgorithm(algorithm);
-                        return;
-                    } catch (Exception e) {
-                        runOnUiThread(() -> {
-                            appendStatus(getString(R.string.gan_robot_send_failed, e.getMessage()));
-                            Toast.makeText(GanRobotActivity.this, R.string.gan_robot_send_failed_short, Toast.LENGTH_SHORT).show();
-                        });
-                        return;
+                // Set robot moving flag at the very start
+                RobotSessionState.setRobotMoving(true);
+                try {
+                    String currentCubeState = RobotSessionState.getLatestSmartCubeState();
+                    if (!TextUtils.isEmpty(currentCubeState)) {
+                        try {
+                            String targetState = resolveTargetStateForSubmit(scramble, currentCubeState);
+                            runOnUiThread(() -> appendStatus("Smart cube detected -> state-to-state mode"));
+                            executeStateToStatePlan(currentCubeState, targetState, "State plan");
+                            return;
+                        } catch (Exception e) {
+                            runOnUiThread(() -> {
+                                appendStatus(getString(R.string.gan_robot_send_failed, e.getMessage()));
+                                Toast.makeText(GanRobotActivity.this, R.string.gan_robot_send_failed_short, Toast.LENGTH_SHORT).show();
+                            });
+                            return;
+                        }
                     }
+                    runOnUiThread(() -> appendStatus("No smart cube state -> direct execute mode"));
+                    executeAlgorithm(scramble);
+                } finally {
+                    RobotSessionState.setRobotMoving(false);
                 }
-                runOnUiThread(() -> appendStatus("No smart cube state -> direct execute mode"));
-                executeAlgorithm(scramble);
             }
         });
     }
@@ -653,21 +674,29 @@ public class GanRobotActivity extends AppCompatActivity {
         ioExecutor.execute(new Runnable() {
             @Override
             public void run() {
+                // Set robot moving flag at the very start
+                RobotSessionState.setRobotMoving(true);
                 try {
-                    OrientationPlan orientationPlan = runOrientationProbePlan();
-                    String algorithmLogical = buildStateToStateAlgorithm(orientationPlan.currentStateAfterProbe, SOLVED_FACELET);
-                    String algorithm = remapAlgorithmWithFaceMap(algorithmLogical, orientationPlan.logicalToPhysicalFaceMap);
-                    runOnUiThread(() -> appendStatus("Orientation probe done (D/F)"));
-                    runOnUiThread(() -> appendStatus("Solve plan: " + algorithm));
-                    executeAlgorithm(algorithm);
+                    executeStateToStatePlan(currentCubeState, SOLVED_FACELET, "Solve plan");
                 } catch (Exception e) {
                     runOnUiThread(() -> {
                         appendStatus(getString(R.string.gan_robot_send_failed, e.getMessage()));
                         Toast.makeText(GanRobotActivity.this, R.string.gan_robot_send_failed_short, Toast.LENGTH_SHORT).show();
                     });
+                } finally {
+                    RobotSessionState.setRobotMoving(false);
                 }
             }
         });
+    }
+
+    private void executeStateToStatePlan(String currentCubeState, String targetFacelet, String planLabel) throws Exception {
+        OrientationPlan orientationPlan = runOrientationProbePlan(currentCubeState);
+        String algorithmLogical = buildStateToStateAlgorithm(orientationPlan.currentStateAfterProbe, targetFacelet);
+        String algorithm = remapAlgorithmWithFaceMap(algorithmLogical, orientationPlan.logicalToPhysicalFaceMap);
+        runOnUiThread(() -> appendStatus("Orientation probe done (D/F)"));
+        runOnUiThread(() -> appendStatus(planLabel + ": " + algorithm));
+        executeAlgorithm(algorithm);
     }
 
     private void executeAlgorithm(String algorithm) {
@@ -740,6 +769,71 @@ public class GanRobotActivity extends AppCompatActivity {
         return algorithm.trim();
     }
 
+    private ScrambleResolutionResult resolveStandardScrambleForSubmit(String displayScramble) {
+        String normalizedInputDisplay = normalizeScrambleString(displayScramble);
+        String normalizedPrefillDisplay = normalizeScrambleString(prefillDisplayScramble);
+        if (!TextUtils.isEmpty(prefillRawScramble)
+                && !TextUtils.isEmpty(normalizedInputDisplay)
+                && !TextUtils.isEmpty(normalizedPrefillDisplay)
+                && TextUtils.equals(normalizedInputDisplay, normalizedPrefillDisplay)) {
+            return new ScrambleResolutionResult(prefillRawScramble);
+        }
+        return new ScrambleResolutionResult(convertDisplayScrambleToStandard(displayScramble));
+    }
+
+    private String resolveTargetStateForSubmit(String standardScramble, String currentCubeState) {
+        if (isTrainingScrambleMode()) {
+            return normalizeFacelet(deriveTargetStateFromScrambleAndStartState(standardScramble, currentCubeState));
+        }
+        return normalizeFacelet(deriveTargetStateFromScramble(standardScramble));
+    }
+
+    private String deriveTargetStateFromScramble(String standardScramble) {
+        CubieCube cube = new CubieCube();
+        return deriveTargetStateFromScrambleAndBaseCube(standardScramble, cube);
+    }
+
+    private String deriveTargetStateFromScrambleAndStartState(String standardScramble, String startState) {
+        CubieCube cube = new CubieCube();
+        if (Util.toCubieCube(normalizeFacelet(startState), cube) != 0) {
+            throw new IllegalStateException(getString(R.string.gan_robot_solve_invalid_cube_state));
+        }
+        return deriveTargetStateFromScrambleAndBaseCube(standardScramble, cube);
+    }
+
+    private String deriveTargetStateFromScrambleAndBaseCube(String standardScramble, CubieCube baseCube) {
+        CubieCube cube = baseCube;
+        String normalized = normalizeScrambleString(standardScramble);
+        if (TextUtils.isEmpty(normalized)) {
+            return Util.toFaceCube(cube);
+        }
+        String[] moves = normalized.split(" ");
+        for (String move : moves) {
+            if (TextUtils.isEmpty(move)) {
+                continue;
+            }
+            int moveIndex = parseScrambleMoveIndex(move);
+            if (moveIndex < 0) {
+                throw new IllegalArgumentException("Invalid move: " + move);
+            }
+            cube = cube.move(moveIndex);
+        }
+        return Util.toFaceCube(cube);
+    }
+
+    private String normalizeScrambleString(String scramble) {
+        if (TextUtils.isEmpty(scramble)) {
+            return "";
+        }
+        return scramble
+                .replace('\u2019', '\'')
+                .replace('\uFF07', '\'')
+                .replace('\n', ' ')
+                .trim()
+                .replaceAll("\\s+", " ")
+                .toUpperCase(Locale.US);
+    }
+
     private String normalizeFacelet(String facelet) {
         if (TextUtils.isEmpty(facelet)) {
             throw new IllegalStateException(getString(R.string.gan_robot_solve_need_cube_state));
@@ -754,8 +848,8 @@ public class GanRobotActivity extends AppCompatActivity {
         return normalized;
     }
 
-    private OrientationPlan runOrientationProbePlan() throws Exception {
-        String stateBeforeProbe = normalizeFacelet(requireSmartCubeState());
+    private OrientationPlan runOrientationProbePlan(String currentCubeState) throws Exception {
+        String stateBeforeProbe = normalizeFacelet(currentCubeState);
 
         writeProbeMove("D");
         String stateAfterD = waitForSmartCubeStateChange(stateBeforeProbe, SMART_CUBE_PROBE_TIMEOUT_MS, "D");
@@ -803,14 +897,6 @@ public class GanRobotActivity extends AppCompatActivity {
             Thread.sleep(20L);
         }
         throw new IllegalStateException("Smart cube probe timeout on " + probeName);
-    }
-
-    private String requireSmartCubeState() {
-        String state = RobotSessionState.getLatestSmartCubeState();
-        if (TextUtils.isEmpty(state)) {
-            throw new IllegalStateException(getString(R.string.gan_robot_solve_need_cube_state));
-        }
-        return state;
     }
 
     private char detectAppliedFaceClockwise(String beforeState, String afterState) {
@@ -1115,6 +1201,107 @@ public class GanRobotActivity extends AppCompatActivity {
         tvRobotStatus.setText(next);
     }
 
+    private boolean isTrainingScrambleMode() {
+        return SmartCubeTraining.isSmart333Training(APP.scrambleIdx);
+    }
+
+    private int getActiveScrambleOrientation() {
+        return isTrainingScrambleMode() ? APP.smartCubeTrainingOrientation : APP.smartCubeSolveOrientation;
+    }
+
+    private String getActiveScrambleOrientationLabel() {
+        int orientation = getActiveScrambleOrientation();
+        String[] faces = getResources().getStringArray(R.array.opt_smart_cube_faces);
+        int[] pair = Utils.getSmartCubeOrientationPair(orientation);
+        return getString(R.string.smart_cube_orientation_format, faces[pair[0]], faces[pair[1]]);
+    }
+
+    private String convertDisplayScrambleToStandard(String displayScramble) {
+        return convertScrambleOrientation(displayScramble, false);
+    }
+
+    private String convertStandardScrambleToDisplay(String standardScramble) {
+        return convertScrambleOrientation(standardScramble, true);
+    }
+
+    private String convertScrambleOrientation(String scramble, boolean standardToDisplay) {
+        if (TextUtils.isEmpty(scramble)) {
+            return scramble;
+        }
+        int orientation = getActiveScrambleOrientation();
+        if (orientation == 0) {
+            return scramble;
+        }
+        String[] moves = scramble.replace('\n', ' ').trim().split("\\s+");
+        StringBuilder converted = new StringBuilder(scramble.length() + 8);
+        for (String move : moves) {
+            if (TextUtils.isEmpty(move)) {
+                continue;
+            }
+            int moveIndex = parseScrambleMoveIndex(move);
+            if (moveIndex < 0) {
+                appendScrambleToken(converted, move);
+                continue;
+            }
+            int mappedMove = standardToDisplay
+                    ? Utils.orientSmartCubeMove(moveIndex, orientation)
+                    : Utils.unorientSmartCubeMove(moveIndex, orientation);
+            String mappedToken = formatScrambleMoveIndex(mappedMove);
+            appendScrambleToken(converted, TextUtils.isEmpty(mappedToken) ? move : mappedToken);
+        }
+        return converted.toString();
+    }
+
+    private void appendScrambleToken(StringBuilder builder, String token) {
+        if (TextUtils.isEmpty(token)) {
+            return;
+        }
+        if (builder.length() > 0) {
+            builder.append(' ');
+        }
+        builder.append(token);
+    }
+
+    private int parseScrambleMoveIndex(String move) {
+        if (TextUtils.isEmpty(move) || move.length() < 1) {
+            return -1;
+        }
+        int axis;
+        switch (move.charAt(0)) {
+            case 'U': axis = 0; break;
+            case 'R': axis = 3; break;
+            case 'F': axis = 6; break;
+            case 'D': axis = 9; break;
+            case 'L': axis = 12; break;
+            case 'B': axis = 15; break;
+            default: return -1;
+        }
+        if (move.length() >= 2) {
+            char suffix = move.charAt(1);
+            if (suffix == '2') {
+                axis += 1;
+            } else if (suffix == '\'') {
+                axis += 2;
+            }
+        }
+        return axis;
+    }
+
+    private String formatScrambleMoveIndex(int moveIdx) {
+        if (moveIdx < 0 || moveIdx >= 18) {
+            return "";
+        }
+        char face = "URFDLB".charAt(moveIdx / 3);
+        int power = moveIdx % 3;
+        if (power == 1) {
+            return face + "2";
+        }
+        if (power == 2) {
+            return face + "'";
+        }
+        return String.valueOf(face);
+    }
+
     private String toHex(byte[] value) {
         if (value == null || value.length == 0) {
             return "(empty)";
@@ -1213,7 +1400,10 @@ public class GanRobotActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         stopScan();
-        ioExecutor.shutdownNow();
+        // Only shutdown executor if no robot operations are in progress
+        if (!RobotSessionState.isRobotMoving()) {
+            ioExecutor.shutdownNow();
+        }
         super.onDestroy();
     }
 }

@@ -507,6 +507,31 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         bluetoothTools.setCubeStateChangedCallback(cubeStateChangeCallback);
         bluetoothTools.setTimerStateCallback(timerStateCallback);
         //getBluetoothAdapter();
+
+        // Register robot state change listener in onCreate so it's available from app start
+        RobotSessionState.setStateChangeListener(new RobotSessionState.OnRobotStateChangeListener() {
+            @Override
+            public void onRobotExecutionStart() {
+                // Must run on UI thread to safely modify UI state
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        clearSmartCubeScrambleCache();
+                    }
+                });
+            }
+
+            @Override
+            public void onRobotExecutionEnd() {
+                runOnUiThread(() -> {
+                    // Force a state check after robot execution completes
+                    refreshSmartCubeStateUi();
+                    // refreshSmartCubeStateUi() may call completeSmartCubeScramble() and set this flag to true again.
+                    // Robot-finished path is not a real "current move", so keep user's first manual turn effective.
+                    smartCubeSkipStartForCurrentMove = false;
+                });
+            }
+        });
     }
 
     @Override
@@ -835,13 +860,15 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 break;
             case R.id.nav_gan_robot:
                 intent = new Intent(context, GanRobotActivity.class);
-                String currentScrambleText = tvScramble == null || tvScramble.getText() == null
+                // Use the raw scramble formula from currentScramble, not the display text from tvScramble
+                // because tvScramble may contain manual move errors shown as red text
+                String rawScramble = currentScramble == null || TextUtils.isEmpty(currentScramble.getScramble())
                         ? ""
-                        : tvScramble.getText().toString();
-                RobotSessionState.setLatestMainScramble(currentScrambleText);
+                        : currentScramble.getScramble();
                 SmartCube activeCube = getActiveSmartCube();
-                RobotSessionState.setLatestSmartCubeState(activeCube == null ? "" : activeCube.getCubeState());
-                intent.putExtra(GanRobotActivity.EXTRA_PREFILL_SCRAMBLE, currentScrambleText);
+                String startState = activeCube == null ? "" : activeCube.getCubeState();
+                RobotSessionState.setLatestSmartCubeState(startState);
+                intent.putExtra(GanRobotActivity.EXTRA_PREFILL_SCRAMBLE, rawScramble);
                 startActivity(intent);
                 break;
             case R.id.nav_algorithm:    //公式库
@@ -1365,7 +1392,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private boolean isSmartCubeGyroSupportedDevice() {
         return bleDeviceType == BLEDevice.TYPE_MOYU32_CUBE;
     }
-    
+
     private boolean shouldFollowSmartCubeGyro() {
         return smartCubeGyroFollow && isSmartCubeGyroSupportedDevice();
     }
@@ -1973,7 +2000,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (currentScramble == null || TextUtils.isEmpty(currentScramble.getScramble())) {
             return;
         }
-        RobotSessionState.setLatestMainScramble(currentScramble.getScramble());
         CharSequence nextText;
         if (currentScramble.getScrambleListSize() > 1) {
             nextText = currentScramble.getScrambleWithIndicator(dm.heightPixels < dpi * 376);
@@ -2374,21 +2400,19 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     public void moveCube(SmartCube cube, int move, int time, boolean trackScrambleDeviation) {
         String previousState = cube.getCubeState();
-
         boolean wasRunning = timer.getTimerState() == DCTTimer.RUNNING;
         boolean waitingForSolveStart = canStart
                 && (timer.getTimerState() == DCTTimer.READY || timer.getTimerState() == DCTTimer.INSPECTING);
         updateSmartCubeCompletionChecker(cube);
         cube.applyMove(move, time, isSmartCubeTrainingScramble() ? null : currentScramble.getCubeState());
         RobotSessionState.setLatestSmartCubeState(cube.getCubeState());
-        if (!wasRunning && !waitingForSolveStart) {
+        if (!wasRunning && !waitingForSolveStart && !RobotSessionState.isRobotMoving()) {
             updateSmartCubeScrambleProgress(cube, trackScrambleDeviation ? move : -1);
             if (isSmartCubeTrainingScramble() && smartCubeScrambleProgress == smartCubeScrambleMoves.size()
                     && timer.getTimerState() != DCTTimer.RUNNING) {
                 completeSmartCubeScramble(cube);
             }
         }
-
         updateSmartCubeMoveUi(previousState, cube.getCubeState(), move);
         if (timer.getTimerState() == DCTTimer.READY || timer.getTimerState() == DCTTimer.INSPECTING) {
             if (canStart) {
