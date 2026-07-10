@@ -1365,26 +1365,16 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private boolean isSmartCubeGyroSupportedDevice() {
         return bleDeviceType == BLEDevice.TYPE_MOYU32_CUBE;
     }
-
-    private SmartCube getActiveSmartCube() {
-        if (!isSmartCubeMode() || bluetoothTools == null) {
-            return null;
-        }
-        SmartCube cube = bluetoothTools.getCube();
-        if (cube == null) {
-            return null;
-        }
-        if (isSmartCubeDeviceType(cube.getType())) {
-            if (!isSmartCubeDeviceType(bleDeviceType)) {
-                bleDeviceType = cube.getType();
-            }
-            return cube;
-        }
-        return isSmartCubeDeviceType(bleDeviceType) ? cube : null;
-    }
-
+    
     private boolean shouldFollowSmartCubeGyro() {
         return smartCubeGyroFollow && isSmartCubeGyroSupportedDevice();
+    }
+
+    private SmartCube getActiveSmartCube() {
+        if (!isSmartCubeMode() || bluetoothTools == null || !isSmartCubeDeviceType(bleDeviceType)) {
+            return null;
+        }
+        return bluetoothTools.getCube();
     }
 
     public SmartCube getSmartCubeForUi() {
