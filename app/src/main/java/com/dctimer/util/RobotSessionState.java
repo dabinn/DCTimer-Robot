@@ -4,6 +4,7 @@ import android.text.TextUtils;
 
 public final class RobotSessionState {
     private static String latestMainScramble = "";
+    private static String latestMainTargetState = "";
     private static String latestSmartCubeState = "";
     private static boolean isRobotMoving = false;
     private static OnRobotStateChangeListener stateChangeListener;
@@ -25,6 +26,22 @@ public final class RobotSessionState {
 
     public static synchronized void setLatestSmartCubeState(String cubeState) {
         latestSmartCubeState = cubeState == null ? "" : cubeState.trim();
+    }
+
+    public static synchronized void setLatestMainScramble(String scramble) {
+        latestMainScramble = scramble == null ? "" : scramble.trim();
+    }
+
+    public static synchronized String getLatestMainScramble() {
+        return latestMainScramble;
+    }
+
+    public static synchronized void setLatestMainTargetState(String targetState) {
+        latestMainTargetState = targetState == null ? "" : targetState.trim();
+    }
+
+    public static synchronized String getLatestMainTargetState() {
+        return latestMainTargetState;
     }
 
     public static synchronized String getLatestSmartCubeState() {

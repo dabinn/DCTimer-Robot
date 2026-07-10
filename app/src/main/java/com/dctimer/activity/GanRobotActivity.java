@@ -635,7 +635,7 @@ public class GanRobotActivity extends AppCompatActivity {
                     String currentCubeState = RobotSessionState.getLatestSmartCubeState();
                     if (!TextUtils.isEmpty(currentCubeState)) {
                         try {
-                            String targetState = resolveTargetStateForSubmit(scramble, currentCubeState);
+                            String targetState = resolveTargetStateForSubmit();
                             runOnUiThread(() -> appendStatus("Smart cube detected -> state-to-state mode"));
                             executeStateToStatePlan(currentCubeState, targetState, "State plan");
                             return;
@@ -781,44 +781,14 @@ public class GanRobotActivity extends AppCompatActivity {
         return new ScrambleResolutionResult(convertDisplayScrambleToStandard(displayScramble));
     }
 
-    private String resolveTargetStateForSubmit(String standardScramble, String currentCubeState) {
-        if (isTrainingScrambleMode()) {
-            return normalizeFacelet(deriveTargetStateFromScrambleAndStartState(standardScramble, currentCubeState));
+    private String resolveTargetStateForSubmit() {
+        // Unified for normal/training mode: robot target is always the main-page target snapshot
+        // captured when robot execution starts.
+        String targetState = normalizeFacelet(RobotSessionState.getLatestMainTargetState());
+        if (TextUtils.isEmpty(targetState)) {
+            throw new IllegalStateException(getString(R.string.gan_robot_send_failed_short));
         }
-        return normalizeFacelet(deriveTargetStateFromScramble(standardScramble));
-    }
-
-    private String deriveTargetStateFromScramble(String standardScramble) {
-        CubieCube cube = new CubieCube();
-        return deriveTargetStateFromScrambleAndBaseCube(standardScramble, cube);
-    }
-
-    private String deriveTargetStateFromScrambleAndStartState(String standardScramble, String startState) {
-        CubieCube cube = new CubieCube();
-        if (Util.toCubieCube(normalizeFacelet(startState), cube) != 0) {
-            throw new IllegalStateException(getString(R.string.gan_robot_solve_invalid_cube_state));
-        }
-        return deriveTargetStateFromScrambleAndBaseCube(standardScramble, cube);
-    }
-
-    private String deriveTargetStateFromScrambleAndBaseCube(String standardScramble, CubieCube baseCube) {
-        CubieCube cube = baseCube;
-        String normalized = normalizeScrambleString(standardScramble);
-        if (TextUtils.isEmpty(normalized)) {
-            return Util.toFaceCube(cube);
-        }
-        String[] moves = normalized.split(" ");
-        for (String move : moves) {
-            if (TextUtils.isEmpty(move)) {
-                continue;
-            }
-            int moveIndex = parseScrambleMoveIndex(move);
-            if (moveIndex < 0) {
-                throw new IllegalArgumentException("Invalid move: " + move);
-            }
-            cube = cube.move(moveIndex);
-        }
-        return Util.toFaceCube(cube);
+        return targetState;
     }
 
     private String normalizeScrambleString(String scramble) {

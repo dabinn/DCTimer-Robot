@@ -512,7 +512,17 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         RobotSessionState.setStateChangeListener(new RobotSessionState.OnRobotStateChangeListener() {
             @Override
             public void onRobotExecutionStart() {
-                // Must run on UI thread to safely modify UI state
+                String latestRawScramble = currentScramble == null || TextUtils.isEmpty(currentScramble.getScramble())
+                        ? ""
+                        : currentScramble.getScramble();
+                String latestTargetState = currentScramble == null || TextUtils.isEmpty(currentScramble.getCubeState())
+                        ? ""
+                        : currentScramble.getCubeState();
+                SmartCube activeCube = getActiveSmartCube();
+                String latestCubeState = activeCube == null ? "" : activeCube.getCubeState();
+                RobotSessionState.setLatestMainScramble(latestRawScramble);
+                RobotSessionState.setLatestMainTargetState(latestTargetState);
+                RobotSessionState.setLatestSmartCubeState(latestCubeState);
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -865,9 +875,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 String rawScramble = currentScramble == null || TextUtils.isEmpty(currentScramble.getScramble())
                         ? ""
                         : currentScramble.getScramble();
-                SmartCube activeCube = getActiveSmartCube();
-                String startState = activeCube == null ? "" : activeCube.getCubeState();
-                RobotSessionState.setLatestSmartCubeState(startState);
                 intent.putExtra(GanRobotActivity.EXTRA_PREFILL_SCRAMBLE, rawScramble);
                 startActivity(intent);
                 break;
