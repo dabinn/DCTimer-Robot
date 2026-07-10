@@ -95,6 +95,7 @@ public class GanRobotActivity extends AppCompatActivity {
     private static final long ROBOT_IDLE_TIMEOUT_MS_PROBE = 5000L;
     private static final long SMART_CUBE_PROBE_TIMEOUT_MS = 2500L;
     private static final long SMART_CUBE_STATE_POLL_MS = 5L;
+    private static final String ORIENTATION_PROBE_ROLLBACK = "F' D'";
     private static final String SOLVED_FACELET = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
     public static final String EXTRA_PREFILL_SCRAMBLE = "extra_prefill_scramble";
     public static final String EXTRA_PREFILL_SCRAMBLE_DISPLAY = "extra_prefill_scramble_display";
@@ -121,9 +122,11 @@ public class GanRobotActivity extends AppCompatActivity {
 
     private static class ScrambleResolutionResult {
         final String standardScramble;
+        final boolean useMainTargetState;
 
-        ScrambleResolutionResult(String standardScramble) {
+        ScrambleResolutionResult(String standardScramble, boolean useMainTargetState) {
             this.standardScramble = standardScramble;
+            this.useMainTargetState = useMainTargetState;
         }
     }
 
@@ -671,6 +674,7 @@ public class GanRobotActivity extends AppCompatActivity {
         final String orientationLabel = getActiveScrambleOrientationLabel();
         ScrambleResolutionResult scrambleResolution = resolveStandardScrambleForSubmit(displayScramble);
         final String scramble = scrambleResolution.standardScramble;
+        final boolean useMainTargetState = scrambleResolution.useMainTargetState;
         runOnUiThread(() -> appendStatus("Scramble orientation: " + orientationLabel));
         
         ioExecutor.execute(new Runnable() {
@@ -679,8 +683,9 @@ public class GanRobotActivity extends AppCompatActivity {
                 // Set robot moving flag at the very start
                 RobotSessionState.setRobotMoving(true);
                 try {
-                    String currentCubeState = RobotSessionState.getLatestSmartCubeState();
-                    if (!TextUtils.isEmpty(currentCubeState)) {
+                    String currentCubeState = waitForRobotSmartCubeStateSnapshot(250L);
+                    boolean smartCubeAvailable = isSmartCubeModeActive() && !TextUtils.isEmpty(currentCubeState);
+                    if (smartCubeAvailable && useMainTargetState) {
                         try {
                             String targetState = resolveTargetStateForSubmit();
                             runOnUiThread(() -> appendStatus("Smart cube detected -> state-to-state mode"));
@@ -694,7 +699,22 @@ public class GanRobotActivity extends AppCompatActivity {
                             return;
                         }
                     }
-                    runOnUiThread(() -> appendStatus("No smart cube state -> direct execute mode"));
+                    if (smartCubeAvailable && !useMainTargetState) {
+                        try {
+                            runOnUiThread(() -> appendStatus("Manual scramble + smart cube -> orientation probe mode"));
+                            OrientationPlan orientationPlan = runOrientationProbePlan(currentCubeState);
+                            String remappedScramble = remapAlgorithmWithFaceMap(scramble, orientationPlan.logicalToPhysicalFaceMap);
+                            String finalAlgorithm = prependProbeRollback(remappedScramble);
+                            runOnUiThread(() -> appendStatus("Manual plan (probe rollback): " + finalAlgorithm));
+                            executeAlgorithm(finalAlgorithm);
+                            return;
+                        } catch (Exception e) {
+                            runOnUiThread(() -> appendStatus("Orientation probe failed, fallback direct execute"));
+                        }
+                    }
+                    runOnUiThread(() -> appendStatus(useMainTargetState
+                            ? "No smart cube state -> direct execute mode"
+                            : "Manual scramble -> direct execute mode"));
                     executeAlgorithm(scramble);
                 } finally {
                     RobotSessionState.setRobotMoving(false);
@@ -739,16 +759,32 @@ public class GanRobotActivity extends AppCompatActivity {
         });
     }
 
-    private String waitForRobotSmartCubeStateSnapshot(long timeoutMs) throws Exception {
+    private String waitForRobotSmartCubeStateSnapshot(long timeoutMs) {
         long deadline = SystemClock.elapsedRealtime() + timeoutMs;
         while (SystemClock.elapsedRealtime() < deadline) {
             String cubeState = RobotSessionState.getLatestSmartCubeState();
             if (!TextUtils.isEmpty(cubeState)) {
                 return cubeState;
             }
-            Thread.sleep(20L);
+            try {
+                Thread.sleep(20L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
         return RobotSessionState.getLatestSmartCubeState();
+    }
+
+    private String prependProbeRollback(String algorithm) {
+        if (TextUtils.isEmpty(algorithm)) {
+            return ORIENTATION_PROBE_ROLLBACK;
+        }
+        return ORIENTATION_PROBE_ROLLBACK + " " + algorithm.trim();
+    }
+
+    private boolean isSmartCubeModeActive() {
+        return APP.enterTime == 3;
     }
 
     private void executeStateToStatePlan(String currentCubeState, String targetFacelet, String planLabel) throws Exception {
@@ -1008,9 +1044,9 @@ public class GanRobotActivity extends AppCompatActivity {
                 && !TextUtils.isEmpty(normalizedInputDisplay)
                 && !TextUtils.isEmpty(normalizedPrefillDisplay)
                 && TextUtils.equals(normalizedInputDisplay, normalizedPrefillDisplay)) {
-            return new ScrambleResolutionResult(prefillRawScramble);
+            return new ScrambleResolutionResult(prefillRawScramble, true);
         }
-        return new ScrambleResolutionResult(convertDisplayScrambleToStandard(displayScramble));
+        return new ScrambleResolutionResult(convertDisplayScrambleToStandard(displayScramble), false);
     }
 
     private String resolveTargetStateForSubmit() {
