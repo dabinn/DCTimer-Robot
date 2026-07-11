@@ -95,10 +95,6 @@ public final class GanRobotAutoConnector {
         adapter.startLeScan(leScanCallback);
     }
 
-    public static synchronized boolean isScanRunning() {
-        return scanRunning;
-    }
-
     private static void onDeviceScanned(Context context, BluetoothDevice device, ScanRecord scanRecord,
                                         Handler handler, DeviceCallback callback) {
         if (device == null) {
