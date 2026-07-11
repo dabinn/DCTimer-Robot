@@ -53,6 +53,7 @@ import android.widget.Toast;
 import com.dctimer.APP;
 import com.dctimer.R;
 import com.dctimer.model.SmartCubeTraining;
+import com.dctimer.util.GanRobotAutoConnector;
 import com.dctimer.util.GanRobotBleClient;
 import com.dctimer.util.GanRobotController;
 import com.dctimer.util.GanRobotCodec;
@@ -89,8 +90,8 @@ public class GanRobotActivity extends AppCompatActivity {
     private static final int STATE_DISCONNECTING = 3;
     private static final long SCAN_TIMEOUT_MS = 10000L;
     private static final long DISCONNECT_TIMEOUT_MS = 4000L;
-    private static final long AUTO_CONNECT_COOLDOWN_MS = 8000L;
-    private static final long AUTO_SCAN_TIMEOUT_MS = 8000L;
+    private static final long AUTO_CONNECT_COOLDOWN_MS = 15000L;
+    private static final long AUTO_SCAN_TIMEOUT_MS = 7000L;
     private static final String PREF_NAME = "dctimer";
     private static final String PREF_GAN_ROBOT_AUTO_CONNECT = "ganrobot_auto_connect";
     private static final int ROBOT_IDLE_ZERO_STREAK_EXECUTE = 5;
@@ -246,12 +247,6 @@ public class GanRobotActivity extends AppCompatActivity {
     private static volatile int sharedConnectionState = STATE_DISCONNECTED;
     private static volatile long sharedLastAutoConnectAttemptElapsedMs;
     private static final Handler autoConnectHandler = new Handler(Looper.getMainLooper());
-    private static boolean autoScanRunning;
-    private static BluetoothLeScanner autoBluetoothLeScanner;
-    private static BluetoothAdapter autoBluetoothAdapter;
-    private static ScanCallback autoScanCallback;
-    private static BluetoothAdapter.LeScanCallback autoLeScanCallback;
-    private static Runnable autoStopScanRunnable;
     private static WeakReference<GanRobotActivity> activeActivityRef = new WeakReference<>(null);
     private final Runnable stopScanRunnable = new Runnable() {
         @Override
@@ -429,6 +424,7 @@ public class GanRobotActivity extends AppCompatActivity {
         btnDisconnect.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                disableAutoConnectForManualDisconnect();
                 disconnectRobot();
             }
         });
@@ -469,6 +465,13 @@ public class GanRobotActivity extends AppCompatActivity {
     private void saveAutoConnectEnabled(boolean enabled) {
         SharedPreferences sharedPreferences = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
         sharedPreferences.edit().putBoolean(PREF_GAN_ROBOT_AUTO_CONNECT, enabled).apply();
+    }
+
+    private void disableAutoConnectForManualDisconnect() {
+        saveAutoConnectEnabled(false);
+        if (cbAutoConnect != null && cbAutoConnect.isChecked()) {
+            cbAutoConnect.setChecked(false);
+        }
     }
 
     private static boolean isAutoConnectEnabled(Context context) {
@@ -1630,46 +1633,50 @@ public class GanRobotActivity extends AppCompatActivity {
             return;
         }
         Context appContext = context.getApplicationContext();
-        if (!isAutoConnectEnabled(appContext)) {
+        if (shouldSkipAutoConnect(appContext)) {
             return;
         }
-        if (sharedConnectionState != STATE_DISCONNECTED || GanRobotBleClient.hasGatt()) {
+        BluetoothAdapter adapter = getEnabledBluetoothAdapter(appContext);
+        if (adapter == null) {
             return;
         }
+        markAutoConnectAttempt();
+        if (GanRobotAutoConnector.connectBondedDeviceIfAvailable(appContext, adapter,
+                GanRobotActivity::connectRobotSilently)) {
+            return;
+        }
+        GanRobotAutoConnector.startScan(appContext, adapter, AUTO_SCAN_TIMEOUT_MS, autoConnectHandler,
+                GanRobotActivity::connectRobotSilently);
+    }
+
+    private static boolean shouldSkipAutoConnect(Context context) {
+        return !isAutoConnectEnabled(context)
+                || sharedConnectionState != STATE_DISCONNECTED
+                || GanRobotBleClient.hasGatt()
+                || isAutoConnectCooldownActive()
+                || !hasAutoConnectPermissions(context)
+                || !isLocationEnabled(context);
+    }
+
+    private static boolean isAutoConnectCooldownActive() {
         long now = SystemClock.elapsedRealtime();
-        if (now - sharedLastAutoConnectAttemptElapsedMs < AUTO_CONNECT_COOLDOWN_MS) {
-            return;
+        return now - sharedLastAutoConnectAttemptElapsedMs < AUTO_CONNECT_COOLDOWN_MS;
+    }
+
+    private static void markAutoConnectAttempt() {
+        sharedLastAutoConnectAttemptElapsedMs = SystemClock.elapsedRealtime();
+    }
+
+    private static BluetoothAdapter getEnabledBluetoothAdapter(Context context) {
+        if (context == null) {
+            return null;
         }
-        if (!hasAutoConnectPermissions(appContext) || !isLocationEnabled(appContext)) {
-            return;
-        }
-        BluetoothManager bluetoothManager = (BluetoothManager) appContext.getSystemService(Context.BLUETOOTH_SERVICE);
+        BluetoothManager bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
         if (bluetoothManager == null) {
-            return;
+            return null;
         }
         BluetoothAdapter adapter = bluetoothManager.getAdapter();
-        if (adapter == null || !adapter.isEnabled()) {
-            return;
-        }
-        sharedLastAutoConnectAttemptElapsedMs = now;
-        try {
-            Set<BluetoothDevice> bondedDevices = adapter.getBondedDevices();
-            if (bondedDevices != null && !bondedDevices.isEmpty()) {
-                for (BluetoothDevice device : bondedDevices) {
-                    if (device == null) {
-                        continue;
-                    }
-                    String name = device.getName();
-                    if (!GanRobotProtocol.isCandidate(name, null)) {
-                        continue;
-                    }
-                    connectRobotSilently(appContext, device);
-                    return;
-                }
-            }
-        } catch (SecurityException ignored) {
-        }
-        startAutoScanAndConnect(appContext, adapter);
+        return adapter != null && adapter.isEnabled() ? adapter : null;
     }
 
     private static void connectRobotSilently(Context context, BluetoothDevice device) {
@@ -1727,89 +1734,6 @@ public class GanRobotActivity extends AppCompatActivity {
         } catch (Exception e) {
             return false;
         }
-    }
-
-    private static synchronized void startAutoScanAndConnect(Context context, BluetoothAdapter adapter) {
-        if (context == null || adapter == null || autoScanRunning) {
-            return;
-        }
-        stopAutoScanInternal();
-        autoScanRunning = true;
-        autoBluetoothAdapter = adapter;
-        autoStopScanRunnable = new Runnable() {
-            @Override
-            public void run() {
-                synchronized (GanRobotActivity.class) {
-                    stopAutoScanInternal();
-                    autoScanRunning = false;
-                }
-            }
-        };
-        autoConnectHandler.postDelayed(autoStopScanRunnable, AUTO_SCAN_TIMEOUT_MS);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            autoBluetoothLeScanner = adapter.getBluetoothLeScanner();
-            if (autoBluetoothLeScanner != null) {
-                autoScanCallback = new ScanCallback() {
-                    @Override
-                    public void onScanResult(int callbackType, ScanResult result) {
-                        BluetoothDevice device = result == null ? null : result.getDevice();
-                        ScanRecord scanRecord = result == null ? null : result.getScanRecord();
-                        onAutoDeviceScanned(context, device, scanRecord);
-                    }
-                };
-                autoBluetoothLeScanner.startScan(autoScanCallback);
-                return;
-            }
-        }
-        autoLeScanCallback = new BluetoothAdapter.LeScanCallback() {
-            @Override
-            public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
-                onAutoDeviceScanned(context, device, null);
-            }
-        };
-        adapter.startLeScan(autoLeScanCallback);
-    }
-
-    private static void onAutoDeviceScanned(Context context, BluetoothDevice device, ScanRecord scanRecord) {
-        if (device == null) {
-            return;
-        }
-        String name;
-        try {
-            name = device.getName();
-        } catch (SecurityException e) {
-            return;
-        }
-        if (!GanRobotProtocol.isCandidate(name, scanRecord)) {
-            return;
-        }
-        synchronized (GanRobotActivity.class) {
-            if (!autoScanRunning) {
-                return;
-            }
-            stopAutoScanInternal();
-            autoScanRunning = false;
-        }
-        connectRobotSilently(context, device);
-    }
-
-    private static void stopAutoScanInternal() {
-        if (autoStopScanRunnable != null) {
-            autoConnectHandler.removeCallbacks(autoStopScanRunnable);
-            autoStopScanRunnable = null;
-        }
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && autoBluetoothLeScanner != null && autoScanCallback != null) {
-                autoBluetoothLeScanner.stopScan(autoScanCallback);
-            } else if (autoBluetoothAdapter != null && autoLeScanCallback != null) {
-                autoBluetoothAdapter.stopLeScan(autoLeScanCallback);
-            }
-        } catch (SecurityException ignored) {
-        }
-        autoBluetoothLeScanner = null;
-        autoScanCallback = null;
-        autoLeScanCallback = null;
-        autoBluetoothAdapter = null;
     }
 
     private static void notifyConnectionUiChanged() {
