@@ -54,6 +54,7 @@ import android.widget.Toast;
 import com.dctimer.APP;
 import com.dctimer.R;
 import com.dctimer.model.SmartCubeTraining;
+import com.dctimer.util.GanRobotBleClient;
 import com.dctimer.util.GanRobotController;
 import com.dctimer.util.GanRobotCodec;
 import com.dctimer.util.GanRobotProtocol;
@@ -69,7 +70,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -89,7 +89,6 @@ public class GanRobotActivity extends AppCompatActivity {
     private static final int STATE_CONNECTED = 2;
     private static final int STATE_DISCONNECTING = 3;
     private static final long SCAN_TIMEOUT_MS = 10000L;
-    private static final long GATT_TIMEOUT_MS = 8000L;
     private static final long DISCONNECT_TIMEOUT_MS = 4000L;
     private static final long AUTO_CONNECT_COOLDOWN_MS = 8000L;
     private static final long AUTO_SCAN_TIMEOUT_MS = 8000L;
@@ -105,16 +104,6 @@ public class GanRobotActivity extends AppCompatActivity {
     public static final String SOLVED_FACELET = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
     public static final String EXTRA_PREFILL_SCRAMBLE = "extra_prefill_scramble";
     public static final String EXTRA_PREFILL_SCRAMBLE_DISPLAY = "extra_prefill_scramble_display";
-
-    private static class RobotStatusSample {
-        final int movesRemaining;
-        final byte[] raw;
-
-        RobotStatusSample(int movesRemaining, byte[] raw) {
-            this.movesRemaining = movesRemaining;
-            this.raw = raw;
-        }
-    }
 
     public static class OrientationPlan {
         public final String currentStateAfterProbe;
@@ -180,11 +169,8 @@ public class GanRobotActivity extends AppCompatActivity {
     private final Set<String> scannedAddresses = new HashSet<>();
     private final List<BluetoothDevice> scannedDevices = new ArrayList<>();
     private final List<String> scannedDeviceNames = new ArrayList<>();
-    private static final Object SHARED_GATT_IO_LOCK = new Object();
     private static volatile int sharedConnectionState = STATE_DISCONNECTED;
     private static volatile BluetoothGatt sharedBluetoothGatt;
-    private static volatile BluetoothGattCharacteristic sharedStatusCharacteristic;
-    private static volatile BluetoothGattCharacteristic sharedMoveCharacteristic;
     private static volatile long sharedLastAutoConnectAttemptElapsedMs;
     private static final Handler autoConnectHandler = new Handler(Looper.getMainLooper());
     private static boolean autoScanRunning;
@@ -194,11 +180,6 @@ public class GanRobotActivity extends AppCompatActivity {
     private static BluetoothAdapter.LeScanCallback autoLeScanCallback;
     private static Runnable autoStopScanRunnable;
     private static WeakReference<GanRobotActivity> activeActivityRef = new WeakReference<>(null);
-    private static CountDownLatch sharedWriteLatch;
-    private static int sharedWriteStatus = BluetoothGatt.GATT_FAILURE;
-    private static CountDownLatch sharedReadLatch;
-    private static int sharedReadStatus = BluetoothGatt.GATT_FAILURE;
-    private static byte[] sharedReadValue;
     private final Runnable stopScanRunnable = new Runnable() {
         @Override
         public void run() {
@@ -247,9 +228,7 @@ public class GanRobotActivity extends AppCompatActivity {
 
     public static boolean isConnectedAndReady() {
         return sharedConnectionState == STATE_CONNECTED
-                && sharedBluetoothGatt != null
-                && sharedStatusCharacteristic != null
-                && sharedMoveCharacteristic != null;
+                && GanRobotBleClient.isReady();
     }
 
     public void requestRobotButtonAction(int action) {
@@ -665,8 +644,7 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private static void closeGatt() {
-        sharedStatusCharacteristic = null;
-        sharedMoveCharacteristic = null;
+        GanRobotBleClient.clear();
         if (sharedBluetoothGatt != null) {
             try {
                 sharedBluetoothGatt.close();
@@ -715,15 +693,16 @@ public class GanRobotActivity extends AppCompatActivity {
                 });
                 return;
             }
-            sharedStatusCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_STATUS);
-            sharedMoveCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_MOVE);
-            if (sharedStatusCharacteristic == null || sharedMoveCharacteristic == null) {
+            BluetoothGattCharacteristic statusCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_STATUS);
+            BluetoothGattCharacteristic moveCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_MOVE);
+            if (statusCharacteristic == null || moveCharacteristic == null) {
                 runOnUiThread(() -> {
                     appendStatus(getString(R.string.ble_device_not_supported));
                     disconnectRobot();
                 });
                 return;
             }
+            GanRobotBleClient.attach(gatt, statusCharacteristic, moveCharacteristic);
             GanRobotProtocol.enableNotifications(gatt, service);
             runOnUiThread(() -> {
                 mainHandler.removeCallbacks(forceDisconnectRunnable);
@@ -734,25 +713,12 @@ public class GanRobotActivity extends AppCompatActivity {
 
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            synchronized (SHARED_GATT_IO_LOCK) {
-                if (sharedWriteLatch != null && sharedMoveCharacteristic != null && characteristic != null
-                        && sharedMoveCharacteristic.getUuid().equals(characteristic.getUuid())) {
-                    sharedWriteStatus = status;
-                    sharedWriteLatch.countDown();
-                }
-            }
+            GanRobotBleClient.onCharacteristicWrite(characteristic, status);
         }
 
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            synchronized (SHARED_GATT_IO_LOCK) {
-                if (sharedReadLatch != null && sharedStatusCharacteristic != null && characteristic != null
-                        && sharedStatusCharacteristic.getUuid().equals(characteristic.getUuid())) {
-                    sharedReadStatus = status;
-                    sharedReadValue = characteristic.getValue();
-                    sharedReadLatch.countDown();
-                }
-            }
+            GanRobotBleClient.onCharacteristicRead(characteristic, status);
         }
 
         @Override
@@ -774,7 +740,7 @@ public class GanRobotActivity extends AppCompatActivity {
     };
 
     private void submitScramble() {
-        if (getConnectionState() != STATE_CONNECTED || sharedBluetoothGatt == null || sharedStatusCharacteristic == null || sharedMoveCharacteristic == null) {
+        if (getConnectionState() != STATE_CONNECTED || !GanRobotBleClient.isReady()) {
             Toast.makeText(this, R.string.gan_robot_wait_connect, Toast.LENGTH_SHORT).show();
             return;
         }
@@ -809,7 +775,7 @@ public class GanRobotActivity extends AppCompatActivity {
             return;
         }
         if (getConnectionState() != STATE_CONNECTED || sharedIsSending || RobotSessionState.isRobotMoving()
-                || sharedBluetoothGatt == null || sharedStatusCharacteristic == null || sharedMoveCharacteristic == null) {
+                || !GanRobotBleClient.isReady()) {
             return;
         }
         int action = pendingRobotButtonAction;
@@ -1333,29 +1299,7 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private static void writeMovePacket(byte[] packet) throws Exception {
-        BluetoothGatt gatt = sharedBluetoothGatt;
-        if (gatt == null || sharedMoveCharacteristic == null) {
-            throw new IllegalStateException(robotContext().getString(R.string.gan_robot_wait_connect));
-        }
-        synchronized (SHARED_GATT_IO_LOCK) {
-            sharedWriteStatus = BluetoothGatt.GATT_FAILURE;
-            sharedWriteLatch = new CountDownLatch(1);
-            sharedMoveCharacteristic.setValue(packet);
-            boolean started = gatt.writeCharacteristic(sharedMoveCharacteristic);
-            if (!started) {
-                sharedWriteLatch = null;
-                throw new IllegalStateException(robotContext().getString(R.string.connect_fail));
-            }
-        }
-        if (sharedWriteLatch == null || !sharedWriteLatch.await(GATT_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
-            throw new IllegalStateException(robotContext().getString(R.string.gan_robot_status_timeout));
-        }
-        if (sharedWriteStatus != BluetoothGatt.GATT_SUCCESS) {
-            throw new IllegalStateException(robotContext().getString(R.string.gan_robot_status_write_failed, sharedWriteStatus));
-        }
-        synchronized (SHARED_GATT_IO_LOCK) {
-            sharedWriteLatch = null;
-        }
+        GanRobotBleClient.writeMovePacket(robotContext(), packet);
         postOnMainThread(() -> appendStatusSafely("TX fff3: " + toHex(packet)));
     }
 
@@ -1374,7 +1318,7 @@ public class GanRobotActivity extends AppCompatActivity {
         int lastValue = 0;
         int lastLoggedValue = -1;
         while (SystemClock.elapsedRealtime() < deadline) {
-            RobotStatusSample sample = readMovesRemaining();
+            GanRobotBleClient.StatusSample sample = GanRobotBleClient.readMovesRemaining(robotContext());
             lastValue = sample.movesRemaining;
             if (logStatus && lastValue != lastLoggedValue) {
                 final int currentValue = lastValue;
@@ -1397,36 +1341,8 @@ public class GanRobotActivity extends AppCompatActivity {
         throw new IllegalStateException(robotContext().getString(R.string.gan_robot_status_timeout));
     }
 
-    private static RobotStatusSample readMovesRemaining() throws Exception {
-        BluetoothGatt gatt = sharedBluetoothGatt;
-        if (gatt == null || sharedStatusCharacteristic == null) {
-            throw new IllegalStateException(robotContext().getString(R.string.gan_robot_wait_connect));
-        }
-        synchronized (SHARED_GATT_IO_LOCK) {
-            sharedReadStatus = BluetoothGatt.GATT_FAILURE;
-            sharedReadValue = null;
-            sharedReadLatch = new CountDownLatch(1);
-            boolean started = gatt.readCharacteristic(sharedStatusCharacteristic);
-            if (!started) {
-                sharedReadLatch = null;
-                throw new IllegalStateException(robotContext().getString(R.string.connect_fail));
-            }
-        }
-        if (sharedReadLatch == null || !sharedReadLatch.await(GATT_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
-            throw new IllegalStateException(robotContext().getString(R.string.gan_robot_status_timeout));
-        }
-        if (sharedReadStatus != BluetoothGatt.GATT_SUCCESS || sharedReadValue == null || sharedReadValue.length == 0) {
-            throw new IllegalStateException(robotContext().getString(R.string.gan_robot_status_read_failed, sharedReadStatus));
-        }
-        synchronized (SHARED_GATT_IO_LOCK) {
-            sharedReadLatch = null;
-        }
-        byte[] snapshot = sharedReadValue.clone();
-        return new RobotStatusSample(snapshot[0] & 0xff, snapshot);
-    }
-
     private static void ensureGattConnected() {
-        if (sharedConnectionState != STATE_CONNECTED || sharedBluetoothGatt == null || sharedStatusCharacteristic == null || sharedMoveCharacteristic == null) {
+        if (sharedConnectionState != STATE_CONNECTED || !GanRobotBleClient.isReady()) {
             throw new IllegalStateException(robotContext().getString(R.string.gan_robot_wait_connect));
         }
     }
@@ -1949,14 +1865,15 @@ public class GanRobotActivity extends AppCompatActivity {
                 notifyConnectionUiChanged();
                 return;
             }
-            sharedStatusCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_STATUS);
-            sharedMoveCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_MOVE);
-            if (sharedStatusCharacteristic == null || sharedMoveCharacteristic == null) {
+            BluetoothGattCharacteristic statusCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_STATUS);
+            BluetoothGattCharacteristic moveCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_MOVE);
+            if (statusCharacteristic == null || moveCharacteristic == null) {
                 closeGatt();
                 sharedConnectionState = STATE_DISCONNECTED;
                 notifyConnectionUiChanged();
                 return;
             }
+            GanRobotBleClient.attach(gatt, statusCharacteristic, moveCharacteristic);
             sharedConnectionState = STATE_CONNECTED;
             GanRobotProtocol.enableNotifications(gatt, service);
             notifyConnectionUiChanged();
@@ -1965,25 +1882,12 @@ public class GanRobotActivity extends AppCompatActivity {
 
         @Override
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            synchronized (SHARED_GATT_IO_LOCK) {
-                if (sharedWriteLatch != null && sharedMoveCharacteristic != null && characteristic != null
-                        && sharedMoveCharacteristic.getUuid().equals(characteristic.getUuid())) {
-                    sharedWriteStatus = status;
-                    sharedWriteLatch.countDown();
-                }
-            }
+            GanRobotBleClient.onCharacteristicWrite(characteristic, status);
         }
 
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            synchronized (SHARED_GATT_IO_LOCK) {
-                if (sharedReadLatch != null && sharedStatusCharacteristic != null && characteristic != null
-                        && sharedStatusCharacteristic.getUuid().equals(characteristic.getUuid())) {
-                    sharedReadStatus = status;
-                    sharedReadValue = characteristic.getValue();
-                    sharedReadLatch.countDown();
-                }
-            }
+            GanRobotBleClient.onCharacteristicRead(characteristic, status);
         }
 
         @Override
