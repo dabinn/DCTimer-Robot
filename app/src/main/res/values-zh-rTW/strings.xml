@@ -232,6 +232,7 @@
     <string name="gan_robot_wait_connect">機器人未連接</string>
     <string name="gan_robot_connect">連接機器人</string>
     <string name="gan_robot_disconnect">中斷</string>
+    <string name="gan_robot_auto_connect">自動連接機器人</string>
     <string name="gan_robot_send">打亂</string>
     <string name="gan_robot_solve">還原</string>
     <string name="gan_robot_connected">機器人已連接</string>

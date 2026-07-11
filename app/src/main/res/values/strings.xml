@@ -171,6 +171,7 @@
     <string name="gan_robot_wait_connect">Robot is not connected</string>
     <string name="gan_robot_connect">Connect robot</string>
     <string name="gan_robot_disconnect">Disconnect</string>
+    <string name="gan_robot_auto_connect">Auto connect robot</string>
     <string name="gan_robot_send">Scramble</string>
     <string name="gan_robot_solve">Solve</string>
     <string name="gan_robot_connected">Robot connected</string>
