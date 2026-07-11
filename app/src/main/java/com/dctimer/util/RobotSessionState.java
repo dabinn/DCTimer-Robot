@@ -6,6 +6,7 @@ public final class RobotSessionState {
     private static String latestMainScramble = "";
     private static String latestMainTargetState = "";
     private static String latestSmartCubeState = "";
+    private static boolean latestUseMainTargetState = true;
     private static boolean isRobotMoving = false;
     private static OnRobotStateChangeListener stateChangeListener;
 
@@ -42,6 +43,14 @@ public final class RobotSessionState {
 
     public static synchronized String getLatestMainTargetState() {
         return latestMainTargetState;
+    }
+
+    public static synchronized void setUseMainTargetState(boolean useMainTargetState) {
+        latestUseMainTargetState = useMainTargetState;
+    }
+
+    public static synchronized boolean getUseMainTargetState() {
+        return latestUseMainTargetState;
     }
 
     public static synchronized String getLatestSmartCubeState() {

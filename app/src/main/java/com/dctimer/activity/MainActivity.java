@@ -590,6 +590,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             inspectionAlertPlayer.release();
             inspectionAlertPlayer = null;
         }
+        RobotSessionState.setStateChangeListener(null);
         super.onDestroy();
     }
 

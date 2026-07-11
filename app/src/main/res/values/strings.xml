@@ -172,6 +172,10 @@
     <string name="gan_robot_connect">Connect robot</string>
     <string name="gan_robot_disconnect">Disconnect</string>
     <string name="gan_robot_auto_connect">Auto connect robot</string>
+    <string name="gan_robot_button_action_label">Robot button</string>
+    <string name="gan_robot_button_action_none">None</string>
+    <string name="gan_robot_button_action_solve">Solve</string>
+    <string name="gan_robot_button_action_scramble">Scramble</string>
     <string name="gan_robot_send">Scramble</string>
     <string name="gan_robot_solve">Solve</string>
     <string name="gan_robot_connected">Robot connected</string>
@@ -196,6 +200,8 @@
     <string name="gan_robot_send_failed_short">Execution failed</string>
     <string name="gan_robot_send_failed">Execution failed: %1$s</string>
     <string name="gan_robot_send_in_progress">Executing, please wait</string>
+    <string name="gan_robot_button_executing">Button: %1$s</string>
+    <string name="gan_robot_busy">Robot is busy</string>
     <string name="gan_robot_invalid_scramble_short">Invalid scramble</string>
     <string name="gan_robot_invalid_scramble">Invalid scramble: %1$s</string>
     <string name="gan_robot_solve_need_cube_state">Smart cube state unavailable</string>
