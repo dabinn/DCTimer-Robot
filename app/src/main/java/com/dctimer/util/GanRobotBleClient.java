@@ -1,9 +1,12 @@
 package com.dctimer.util;
 
 import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
+import android.bluetooth.BluetoothDevice;
 import android.content.Context;
+import android.os.Build;
 
 import com.dctimer.R;
 
@@ -34,6 +37,36 @@ public final class GanRobotBleClient {
     }
 
     private GanRobotBleClient() {
+    }
+
+    public static void connect(Context context, BluetoothDevice device, BluetoothGattCallback callback) {
+        close();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            bluetoothGatt = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE);
+        } else {
+            bluetoothGatt = device.connectGatt(context, false, callback);
+        }
+    }
+
+    public static boolean hasGatt() {
+        return bluetoothGatt != null;
+    }
+
+    public static void disconnect() {
+        if (bluetoothGatt != null) {
+            bluetoothGatt.disconnect();
+        }
+    }
+
+    public static void close() {
+        BluetoothGatt gatt = bluetoothGatt;
+        clear();
+        if (gatt != null) {
+            try {
+                gatt.close();
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     public static boolean attach(BluetoothGatt gatt) {
