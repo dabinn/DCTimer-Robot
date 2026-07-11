@@ -8,7 +8,6 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
@@ -685,25 +684,13 @@ public class GanRobotActivity extends AppCompatActivity {
                 });
                 return;
             }
-            BluetoothGattService service = gatt.getService(GanRobotProtocol.SERVICE_UUID);
-            if (service == null) {
+            if (!GanRobotBleClient.attach(gatt)) {
                 runOnUiThread(() -> {
                     appendStatus(getString(R.string.ble_device_not_supported));
                     disconnectRobot();
                 });
                 return;
             }
-            BluetoothGattCharacteristic statusCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_STATUS);
-            BluetoothGattCharacteristic moveCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_MOVE);
-            if (statusCharacteristic == null || moveCharacteristic == null) {
-                runOnUiThread(() -> {
-                    appendStatus(getString(R.string.ble_device_not_supported));
-                    disconnectRobot();
-                });
-                return;
-            }
-            GanRobotBleClient.attach(gatt, statusCharacteristic, moveCharacteristic);
-            GanRobotProtocol.enableNotifications(gatt, service);
             runOnUiThread(() -> {
                 mainHandler.removeCallbacks(forceDisconnectRunnable);
                 setConnectionState(STATE_CONNECTED);
@@ -1858,24 +1845,13 @@ public class GanRobotActivity extends AppCompatActivity {
                 notifyConnectionUiChanged();
                 return;
             }
-            BluetoothGattService service = gatt.getService(GanRobotProtocol.SERVICE_UUID);
-            if (service == null) {
+            if (!GanRobotBleClient.attach(gatt)) {
                 closeGatt();
                 sharedConnectionState = STATE_DISCONNECTED;
                 notifyConnectionUiChanged();
                 return;
             }
-            BluetoothGattCharacteristic statusCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_STATUS);
-            BluetoothGattCharacteristic moveCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_MOVE);
-            if (statusCharacteristic == null || moveCharacteristic == null) {
-                closeGatt();
-                sharedConnectionState = STATE_DISCONNECTED;
-                notifyConnectionUiChanged();
-                return;
-            }
-            GanRobotBleClient.attach(gatt, statusCharacteristic, moveCharacteristic);
             sharedConnectionState = STATE_CONNECTED;
-            GanRobotProtocol.enableNotifications(gatt, service);
             notifyConnectionUiChanged();
             showAutoConnectSuccessToast();
         }

@@ -2,6 +2,7 @@ package com.dctimer.util;
 
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattService;
 import android.content.Context;
 
 import com.dctimer.R;
@@ -35,7 +36,25 @@ public final class GanRobotBleClient {
     private GanRobotBleClient() {
     }
 
-    public static void attach(BluetoothGatt gatt, BluetoothGattCharacteristic status, BluetoothGattCharacteristic move) {
+    public static boolean attach(BluetoothGatt gatt) {
+        if (gatt == null) {
+            return false;
+        }
+        BluetoothGattService service = gatt.getService(GanRobotProtocol.SERVICE_UUID);
+        if (service == null) {
+            return false;
+        }
+        BluetoothGattCharacteristic status = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_STATUS);
+        BluetoothGattCharacteristic move = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_MOVE);
+        if (status == null || move == null) {
+            return false;
+        }
+        attach(gatt, status, move);
+        GanRobotProtocol.enableNotifications(gatt, service);
+        return true;
+    }
+
+    private static void attach(BluetoothGatt gatt, BluetoothGattCharacteristic status, BluetoothGattCharacteristic move) {
         bluetoothGatt = gatt;
         statusCharacteristic = status;
         moveCharacteristic = move;
