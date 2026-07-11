@@ -70,15 +70,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Future;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.lang.ref.WeakReference;
 
 import cs.min2phase.CubieCube;
-import cs.min2phase.Tools;
 import cs.min2phase.Util;
 
 public class GanRobotActivity extends AppCompatActivity {
@@ -124,20 +118,6 @@ public class GanRobotActivity extends AppCompatActivity {
         }
     }
 
-    public static class RobotSolvePlan {
-        final String algorithmLogical;
-        final String strategyLabel;
-        final int evaluatedCandidates;
-        final long searchTimeMs;
-
-        RobotSolvePlan(String algorithmLogical, String strategyLabel, int evaluatedCandidates, long searchTimeMs) {
-            this.algorithmLogical = algorithmLogical;
-            this.strategyLabel = strategyLabel;
-            this.evaluatedCandidates = evaluatedCandidates;
-            this.searchTimeMs = searchTimeMs;
-        }
-    }
-
     public static class RobotExecutionResult {
         final boolean success;
         final long executionTimeMs;
@@ -145,22 +125,6 @@ public class GanRobotActivity extends AppCompatActivity {
         RobotExecutionResult(boolean success, long executionTimeMs) {
             this.success = success;
             this.executionTimeMs = executionTimeMs;
-        }
-    }
-
-    public static class SolveCandidate {
-        final String algorithm;
-        final int cost;
-        final int length;
-        final int evaluatedCandidates;
-        final String profileName;
-
-        SolveCandidate(String algorithm, int cost, int length, int evaluatedCandidates, String profileName) {
-            this.algorithm = algorithm;
-            this.cost = cost;
-            this.length = length;
-            this.evaluatedCandidates = evaluatedCandidates;
-            this.profileName = profileName;
         }
     }
 
@@ -796,11 +760,11 @@ public class GanRobotActivity extends AppCompatActivity {
         long probeTimeMs = SystemClock.elapsedRealtime() - probeStartMs;
 
         long pathStartMs = SystemClock.elapsedRealtime();
-        RobotSolvePlan solvePlan = buildStateToStateAlgorithm(orientationPlan.currentStateAfterProbe, targetFacelet);
+        GanRobotExecutor.RobotSolvePlan solvePlan = GanRobotExecutor.buildStateToStateAlgorithm(orientationPlan.currentStateAfterProbe, targetFacelet);
         long pathTimeMs = SystemClock.elapsedRealtime() - pathStartMs;
 
         String algorithm = remapAlgorithmWithFaceMap(solvePlan.algorithmLogical, orientationPlan.logicalToPhysicalFaceMap);
-        int logicalMoveCount = countAlgorithmMoves(algorithm);
+        int logicalMoveCount = GanRobotExecutor.countAlgorithmMoves(algorithm);
         int robotMoveCount = TextUtils.isEmpty(algorithm) ? 0 : GanRobotCodec.estimateRobotCost(algorithm);
         postOnMainThread(() -> appendStatusSafely("Orientation probe done (D/F)"));
         postOnMainThread(() -> appendStatusSafely("Solve strategy: " + solvePlan.strategyLabel + " (" + solvePlan.evaluatedCandidates + " candidates/" + solvePlan.searchTimeMs + "ms)"));
@@ -866,176 +830,6 @@ public class GanRobotActivity extends AppCompatActivity {
             setSending(false);
             sharedLatestRemainingStatusLine = null;
         }
-    }
-
-    private static RobotSolvePlan buildStateToStateAlgorithm(String startFacelet, String targetFacelet) {
-        String start = normalizeFacelet(startFacelet);
-        String target = normalizeFacelet(targetFacelet);
-        if (TextUtils.equals(start, target)) {
-            return new RobotSolvePlan("", "already-at-target", 0, 0);
-        }
-        String scrambleFacelet = Tools.getScrambleFacelet(start, target);
-        if (scrambleFacelet == null) {
-            throw new IllegalStateException(robotContext().getString(R.string.gan_robot_send_failed_short));
-        }
-        RobotSolvePlan solvePlan = buildRobotOptimizedStateSolution(scrambleFacelet);
-        String algorithm = solvePlan.algorithmLogical;
-        if (algorithm == null || algorithm.trim().isEmpty()) {
-            throw new IllegalStateException(robotContext().getString(R.string.gan_robot_send_failed_short));
-        }
-        if (algorithm.startsWith("Error")) {
-            throw new IllegalStateException(algorithm);
-        }
-        return new RobotSolvePlan(algorithm.trim(), solvePlan.strategyLabel, solvePlan.evaluatedCandidates, solvePlan.searchTimeMs);
-    }
-
-    private static RobotSolvePlan buildRobotOptimizedStateSolution(String scrambleFacelet) {
-        long searchStartMs = SystemClock.elapsedRealtime();
-        final long totalTimeBudgetMs = 460L;
-        ExecutorService solverPool = Executors.newFixedThreadPool(4);
-        SolveCandidate bestCandidate = null;
-        int evaluatedCandidates = 0;
-        try {
-            List<Callable<SolveCandidate>> tasks = new ArrayList<>();
-            tasks.add(() -> runFallbackSearchProfile(
-                    scrambleFacelet,
-                    "fast",
-                    26,
-                    15000L,
-                    0L,
-                    2,
-                    4,
-                    180L
-            ));
-            tasks.add(() -> runFallbackSearchProfile(
-                    scrambleFacelet,
-                    "balance",
-                    28,
-                    26000L,
-                    50L,
-                    2,
-                    5,
-                    220L
-            ));
-            tasks.add(() -> runFallbackSearchProfile(
-                    scrambleFacelet,
-                    "deepA",
-                    30,
-                    45000L,
-                    100L,
-                    2,
-                    6,
-                    260L
-            ));
-            tasks.add(() -> runFallbackSearchProfile(
-                    scrambleFacelet,
-                    "deepB",
-                    30,
-                    50000L,
-                    100L,
-                    2,
-                    8,
-                    300L
-            ));
-            List<Future<SolveCandidate>> futures = solverPool.invokeAll(tasks, totalTimeBudgetMs, TimeUnit.MILLISECONDS);
-            for (Future<SolveCandidate> future : futures) {
-                if (future == null || !future.isDone() || future.isCancelled()) {
-                    continue;
-                }
-                SolveCandidate candidate = future.get();
-                if (candidate == null || TextUtils.isEmpty(candidate.algorithm) || candidate.algorithm.startsWith("Error")) {
-                    continue;
-                }
-                evaluatedCandidates += candidate.evaluatedCandidates;
-                if (bestCandidate == null
-                        || candidate.cost < bestCandidate.cost
-                        || (candidate.cost == bestCandidate.cost && candidate.length < bestCandidate.length)) {
-                    bestCandidate = candidate;
-                }
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "parallel fallback search failed, fallback to single profile", e);
-        } finally {
-            solverPool.shutdownNow();
-        }
-
-        long searchTimeMs = SystemClock.elapsedRealtime() - searchStartMs;
-        if (bestCandidate != null) {
-            return new RobotSolvePlan(
-                    bestCandidate.algorithm,
-                    "fallback-parallel-" + bestCandidate.profileName,
-                    Math.max(evaluatedCandidates, bestCandidate.evaluatedCandidates),
-                    searchTimeMs
-            );
-        }
-
-        SolveCandidate single = runFallbackSearchProfile(
-                scrambleFacelet,
-                "single",
-                30,
-                50000L,
-                100L,
-                2,
-                12,
-                350L
-        );
-        searchTimeMs = SystemClock.elapsedRealtime() - searchStartMs;
-        return new RobotSolvePlan(single.algorithm, "fallback-cost-optimized", single.evaluatedCandidates, searchTimeMs);
-    }
-
-    private static SolveCandidate runFallbackSearchProfile(
-            String scrambleFacelet,
-            String profileName,
-            int maxDepth,
-            long probeMax,
-            long probeMin,
-            int verbose,
-            int maxCandidateChecks,
-            long maxSearchTimeMs
-    ) {
-        long startMs = SystemClock.elapsedRealtime();
-        cs.min2phase.Search search = new cs.min2phase.Search();
-        String best = search.solution(scrambleFacelet, maxDepth, probeMax, probeMin, verbose);
-        int evaluated = 1;
-        if (TextUtils.isEmpty(best) || best.startsWith("Error")) {
-            return new SolveCandidate(best, Integer.MAX_VALUE, Integer.MAX_VALUE, evaluated, profileName);
-        }
-        best = best.trim();
-        int bestCost = GanRobotCodec.estimateRobotCost(best);
-        int bestLength = countAlgorithmMoves(best);
-        for (int i = 0; i < maxCandidateChecks; i++) {
-            if (SystemClock.elapsedRealtime() - startMs >= maxSearchTimeMs) {
-                break;
-            }
-            String candidate = search.next(probeMax, probeMin, verbose);
-            if (candidate == null || candidate.startsWith("Error")) {
-                break;
-            }
-            evaluated++;
-            candidate = candidate.trim();
-            if (candidate.isEmpty()) {
-                continue;
-            }
-            int candidateCost = GanRobotCodec.estimateRobotCost(candidate);
-            int candidateLength = countAlgorithmMoves(candidate);
-            if (candidateCost < bestCost || (candidateCost == bestCost && candidateLength < bestLength)) {
-                best = candidate;
-                bestCost = candidateCost;
-                bestLength = candidateLength;
-            }
-        }
-        return new SolveCandidate(best, bestCost, bestLength, evaluated, profileName);
-    }
-
-    private static int countAlgorithmMoves(String algorithm) {
-        if (TextUtils.isEmpty(algorithm)) {
-            return 0;
-        }
-        String trimmed = algorithm.trim();
-        if (trimmed.isEmpty()) {
-            return 0;
-        }
-        return trimmed.split("\\s+").length;
     }
 
     private ScrambleResolutionResult resolveStandardScrambleForSubmit(String displayScramble) {
