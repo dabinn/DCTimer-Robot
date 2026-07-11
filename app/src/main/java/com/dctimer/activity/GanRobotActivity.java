@@ -57,6 +57,7 @@ import com.dctimer.util.GanRobotAutoConnector;
 import com.dctimer.util.GanRobotBleClient;
 import com.dctimer.util.GanRobotController;
 import com.dctimer.util.GanRobotCodec;
+import com.dctimer.util.GanRobotExecutor;
 import com.dctimer.util.GanRobotProtocol;
 import com.dctimer.util.GanRobotSessionState;
 import com.dctimer.util.Utils;
@@ -445,7 +446,7 @@ public class GanRobotActivity extends AppCompatActivity {
         btnSolve.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                GanRobotController.solveFromSmartCubeState();
+                GanRobotExecutor.solveFromSmartCubeState();
             }
         });
         etScramble.addTextChangedListener(new TextWatcher() {
@@ -783,12 +784,12 @@ public class GanRobotActivity extends AppCompatActivity {
         GanRobotSessionState.setUseMainTargetState(useMainTargetState);
         runOnUiThread(() -> appendStatus("Scramble orientation: " + orientationLabel));
 
-        GanRobotController.executeScrambleAsync(scramble, useMainTargetState);
+        GanRobotExecutor.executeScramble(scramble, useMainTargetState);
     }
 
     private void performRobotButtonAction(int action) {
         if (action == GanRobotController.ACTION_SOLVE) {
-            GanRobotController.solveFromSmartCubeState();
+            GanRobotExecutor.solveFromSmartCubeState();
             return;
         }
         if (action == GanRobotController.ACTION_SCRAMBLE) {

@@ -4,15 +4,11 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
-import android.text.TextUtils;
 import android.widget.Toast;
 
 import com.dctimer.APP;
 import com.dctimer.R;
 import com.dctimer.activity.GanRobotActivity;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public final class GanRobotController {
     public static final int ACTION_NONE = 0;
@@ -24,7 +20,6 @@ public final class GanRobotController {
 
     private static int robotButtonAction = ACTION_SOLVE;
     private static boolean prefsLoaded = false;
-    static final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
 
     private GanRobotController() { }
 
@@ -44,89 +39,6 @@ public final class GanRobotController {
             }
         }
         return robotButtonAction;
-    }
-
-    public static void solveFromSmartCubeState() {
-        if (!GanRobotActivity.isConnectedAndReady()) {
-            GanRobotActivity.postOnMainThread(() -> Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_wait_connect, Toast.LENGTH_SHORT).show());
-            return;
-        }
-        if (GanRobotActivity.isSending() || GanRobotSessionState.isRobotMoving()) {
-            GanRobotActivity.postOnMainThread(() -> Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_send_in_progress, Toast.LENGTH_SHORT).show());
-            return;
-        }
-        ioExecutor.execute(() -> {
-            GanRobotSessionState.setRobotMoving(true);
-            try {
-                String currentCubeState = GanRobotActivity.waitForRobotSmartCubeStateSnapshot(400L);
-                if (TextUtils.isEmpty(currentCubeState)) {
-                    GanRobotActivity.postOnMainThread(() -> {
-                        GanRobotActivity.appendStatusSafely(GanRobotActivity.robotContext().getString(R.string.gan_robot_solve_requires_smart_cube));
-                        Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_solve_requires_smart_cube, Toast.LENGTH_SHORT).show();
-                    });
-                    return;
-                }
-                GanRobotActivity.executeStateToStatePlan(currentCubeState, GanRobotActivity.SOLVED_FACELET, "Solve plan");
-            } catch (Exception e) {
-                GanRobotActivity.postOnMainThread(() -> {
-                    GanRobotActivity.appendStatusSafely(GanRobotActivity.robotContext().getString(R.string.gan_robot_send_failed, e.getMessage()));
-                    Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_send_failed_short, Toast.LENGTH_SHORT).show();
-                });
-            } finally {
-                GanRobotSessionState.setRobotMoving(false);
-            }
-        });
-    }
-
-    public static void executeScrambleAsync(String scramble, boolean useMainTargetState) {
-        ioExecutor.execute(() -> {
-            GanRobotSessionState.setRobotMoving(true);
-            try {
-                // If scramble not supplied, read from state now that onRobotExecutionStart has fired
-                String effectiveScramble = TextUtils.isEmpty(scramble)
-                        ? GanRobotSessionState.getLatestMainScramble()
-                        : scramble;
-                if (TextUtils.isEmpty(effectiveScramble)) {
-                    GanRobotActivity.postOnMainThread(() -> Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_invalid_scramble_short, Toast.LENGTH_SHORT).show());
-                    return;
-                }
-                String currentCubeState = GanRobotActivity.waitForRobotSmartCubeStateSnapshot(250L);
-                boolean smartCubeAvailable = GanRobotActivity.isSmartCubeModeActive() && !TextUtils.isEmpty(currentCubeState);
-                if (smartCubeAvailable && useMainTargetState) {
-                    try {
-                        String targetState = GanRobotActivity.resolveTargetStateForSubmit();
-                        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Smart cube detected -> state-to-state mode"));
-                        GanRobotActivity.executeStateToStatePlan(currentCubeState, targetState, "State plan");
-                        return;
-                    } catch (Exception e) {
-                        GanRobotActivity.postOnMainThread(() -> {
-                            GanRobotActivity.appendStatusSafely(GanRobotActivity.robotContext().getString(R.string.gan_robot_send_failed, e.getMessage()));
-                            Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_send_failed_short, Toast.LENGTH_SHORT).show();
-                        });
-                        return;
-                    }
-                }
-                if (smartCubeAvailable) {
-                    try {
-                        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Manual scramble + smart cube -> orientation probe mode"));
-                        GanRobotActivity.OrientationPlan orientationPlan = GanRobotActivity.runOrientationProbePlan(currentCubeState);
-                        String remappedScramble = GanRobotActivity.remapAlgorithmWithFaceMap(effectiveScramble, orientationPlan.logicalToPhysicalFaceMap);
-                        String finalAlgorithm = GanRobotActivity.prependProbeRollback(remappedScramble);
-                        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Manual plan (probe rollback): " + finalAlgorithm));
-                        GanRobotActivity.executeAlgorithm(finalAlgorithm);
-                        return;
-                    } catch (Exception e) {
-                        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Orientation probe failed, fallback direct execute"));
-                    }
-                }
-                GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely(useMainTargetState
-                        ? "No smart cube state -> direct execute mode"
-                        : "Manual scramble -> direct execute mode"));
-                GanRobotActivity.executeAlgorithm(effectiveScramble);
-            } finally {
-                GanRobotSessionState.setRobotMoving(false);
-            }
-        });
     }
 
     public static void handleRobotButtonEvent(byte[] rawValue) {
@@ -154,7 +66,7 @@ public final class GanRobotController {
                 return;
             }
             showButtonActionToast(action);
-            solveFromSmartCubeState();
+            GanRobotExecutor.solveFromSmartCubeState();
             return;
         }
         if (action == ACTION_SCRAMBLE && GanRobotActivity.isConnectedAndReady()) {
@@ -163,7 +75,7 @@ public final class GanRobotController {
                 return;
             }
             showButtonActionToast(action);
-            executeScrambleAsync(null, false);
+            GanRobotExecutor.executeScramble(null, false);
             return;
         }
         // Cannot reach here in normal operation: button notifications only fire when BLE is connected
