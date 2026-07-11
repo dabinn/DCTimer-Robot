@@ -8,7 +8,6 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
@@ -22,7 +21,6 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.location.LocationManager;
-import android.os.ParcelUuid;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -58,7 +56,7 @@ import com.dctimer.R;
 import com.dctimer.model.SmartCubeTraining;
 import com.dctimer.util.GanRobotController;
 import com.dctimer.util.GanRobotCodec;
-import com.dctimer.util.BluetoothTools;
+import com.dctimer.util.GanRobotProtocol;
 import com.dctimer.util.RobotSessionState;
 import com.dctimer.util.Utils;
 import com.dctimer.widget.CustomToolbar;
@@ -70,7 +68,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
@@ -85,11 +82,6 @@ import cs.min2phase.Util;
 
 public class GanRobotActivity extends AppCompatActivity {
     private static final String TAG = "GanRobotActivity";
-    private static final UUID SERVICE_UUID_GAN_ROBOT = UUID.fromString("0000fff0-0000-1000-8000-00805f9b34fb");
-    private static final UUID CHARACTER_UUID_BUTTON = UUID.fromString("0000fff4-0000-1000-8000-00805f9b34fb");
-    private static final UUID CHARACTER_UUID_STATUS = UUID.fromString("0000fff2-0000-1000-8000-00805f9b34fb");
-    private static final UUID CHARACTER_UUID_MOVE = UUID.fromString("0000fff3-0000-1000-8000-00805f9b34fb");
-    private static final UUID CLIENT_CHARACTERISTIC_CONFIG_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
     private static final int REQUEST_ENABLE_BLUETOOTH = 31;
     private static final int REQUEST_BLE_PERMISSION = 32;
     private static final int STATE_DISCONNECTED = 0;
@@ -616,7 +608,7 @@ public class GanRobotActivity extends AppCompatActivity {
         } catch (SecurityException e) {
             return;
         }
-        if (!isGanRobotCandidate(name, scanRecord)) {
+        if (!GanRobotProtocol.isCandidate(name, scanRecord)) {
             return;
         }
         String address = device.getAddress();
@@ -630,40 +622,6 @@ public class GanRobotActivity extends AppCompatActivity {
                 scanAdapter.notifyDataSetChanged();
             }
         });
-    }
-
-    private static boolean isGanRobotCandidate(String deviceName, ScanRecord scanRecord) {
-        if (deviceName == null) {
-            return false;
-        }
-        String normalized = deviceName.trim().toUpperCase(Locale.US);
-        if (!normalized.startsWith("GANBOT-")) {
-            return false;
-        }
-        if (scanRecord != null) {
-            List<ParcelUuid> serviceUuids = scanRecord.getServiceUuids();
-            if (serviceUuids != null && !serviceUuids.isEmpty()) {
-                boolean hasRobotService = false;
-                for (ParcelUuid parcelUuid : serviceUuids) {
-                    UUID uuid = parcelUuid == null ? null : parcelUuid.getUuid();
-                    if (uuid == null) {
-                        continue;
-                    }
-                    if (SERVICE_UUID_GAN_ROBOT.equals(uuid)) {
-                        hasRobotService = true;
-                    }
-                    if (BluetoothTools.SERVICE_UUID_GAN_V2.equals(uuid)
-                            || BluetoothTools.SERVICE_UUID_GAN_V3.equals(uuid)
-                            || BluetoothTools.SERVICE_UUID_GAN_V4.equals(uuid)) {
-                        return false;
-                    }
-                }
-                if (hasRobotService) {
-                    return true;
-                }
-            }
-        }
-        return true;
     }
 
     private void connectRobot(BluetoothDevice device) {
@@ -749,7 +707,7 @@ public class GanRobotActivity extends AppCompatActivity {
                 });
                 return;
             }
-            BluetoothGattService service = gatt.getService(SERVICE_UUID_GAN_ROBOT);
+            BluetoothGattService service = gatt.getService(GanRobotProtocol.SERVICE_UUID);
             if (service == null) {
                 runOnUiThread(() -> {
                     appendStatus(getString(R.string.ble_device_not_supported));
@@ -757,8 +715,8 @@ public class GanRobotActivity extends AppCompatActivity {
                 });
                 return;
             }
-            sharedStatusCharacteristic = service.getCharacteristic(CHARACTER_UUID_STATUS);
-            sharedMoveCharacteristic = service.getCharacteristic(CHARACTER_UUID_MOVE);
+            sharedStatusCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_STATUS);
+            sharedMoveCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_MOVE);
             if (sharedStatusCharacteristic == null || sharedMoveCharacteristic == null) {
                 runOnUiThread(() -> {
                     appendStatus(getString(R.string.ble_device_not_supported));
@@ -766,7 +724,7 @@ public class GanRobotActivity extends AppCompatActivity {
                 });
                 return;
             }
-            enableRobotNotifications(gatt, service);
+            GanRobotProtocol.enableNotifications(gatt, service);
             runOnUiThread(() -> {
                 mainHandler.removeCallbacks(forceDisconnectRunnable);
                 setConnectionState(STATE_CONNECTED);
@@ -809,7 +767,7 @@ public class GanRobotActivity extends AppCompatActivity {
             if (characteristic == null) {
                 return;
             }
-            if (CHARACTER_UUID_BUTTON.equals(characteristic.getUuid())) {
+            if (GanRobotProtocol.CHARACTER_UUID_BUTTON.equals(characteristic.getUuid())) {
                 GanRobotController.handleRobotButtonEvent(value);
             }
         }
@@ -1568,40 +1526,6 @@ public class GanRobotActivity extends AppCompatActivity {
         tvRobotStatus.setText(next);
     }
 
-    private static void enableRobotNotifications(BluetoothGatt gatt, BluetoothGattService service) {
-        if (gatt == null || service == null) {
-            return;
-        }
-        List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
-        if (characteristics == null || characteristics.isEmpty()) {
-            return;
-        }
-        for (BluetoothGattCharacteristic characteristic : characteristics) {
-            if (characteristic == null) {
-                continue;
-            }
-            int properties = characteristic.getProperties();
-            if ((properties & BluetoothGattCharacteristic.PROPERTY_NOTIFY) == 0
-                    && (properties & BluetoothGattCharacteristic.PROPERTY_INDICATE) == 0) {
-                continue;
-            }
-            if (!gatt.setCharacteristicNotification(characteristic, true)) {
-                continue;
-            }
-            BluetoothGattDescriptor descriptor = characteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG_UUID);
-            if (descriptor == null) {
-                continue;
-            }
-            if ((properties & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
-                    && (properties & BluetoothGattCharacteristic.PROPERTY_NOTIFY) == 0) {
-                descriptor.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
-            } else {
-                descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-            }
-            gatt.writeDescriptor(descriptor);
-        }
-    }
-
     private boolean isTrainingScrambleMode() {
         return SmartCubeTraining.isSmart333Training(APP.scrambleIdx);
     }
@@ -1797,7 +1721,7 @@ public class GanRobotActivity extends AppCompatActivity {
                         continue;
                     }
                     String name = device.getName();
-                    if (!isGanRobotCandidate(name, null)) {
+                    if (!GanRobotProtocol.isCandidate(name, null)) {
                         continue;
                     }
                     connectRobotSilently(appContext, device);
@@ -1921,7 +1845,7 @@ public class GanRobotActivity extends AppCompatActivity {
         } catch (SecurityException e) {
             return;
         }
-        if (!isGanRobotCandidate(name, scanRecord)) {
+        if (!GanRobotProtocol.isCandidate(name, scanRecord)) {
             return;
         }
         synchronized (GanRobotActivity.class) {
@@ -2018,15 +1942,15 @@ public class GanRobotActivity extends AppCompatActivity {
                 notifyConnectionUiChanged();
                 return;
             }
-            BluetoothGattService service = gatt.getService(SERVICE_UUID_GAN_ROBOT);
+            BluetoothGattService service = gatt.getService(GanRobotProtocol.SERVICE_UUID);
             if (service == null) {
                 closeGatt();
                 sharedConnectionState = STATE_DISCONNECTED;
                 notifyConnectionUiChanged();
                 return;
             }
-            sharedStatusCharacteristic = service.getCharacteristic(CHARACTER_UUID_STATUS);
-            sharedMoveCharacteristic = service.getCharacteristic(CHARACTER_UUID_MOVE);
+            sharedStatusCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_STATUS);
+            sharedMoveCharacteristic = service.getCharacteristic(GanRobotProtocol.CHARACTER_UUID_MOVE);
             if (sharedStatusCharacteristic == null || sharedMoveCharacteristic == null) {
                 closeGatt();
                 sharedConnectionState = STATE_DISCONNECTED;
@@ -2034,7 +1958,7 @@ public class GanRobotActivity extends AppCompatActivity {
                 return;
             }
             sharedConnectionState = STATE_CONNECTED;
-            enableRobotNotifications(gatt, service);
+            GanRobotProtocol.enableNotifications(gatt, service);
             notifyConnectionUiChanged();
             showAutoConnectSuccessToast();
         }
@@ -2074,7 +1998,7 @@ public class GanRobotActivity extends AppCompatActivity {
             if (characteristic == null || characteristic.getUuid() == null) {
                 return;
             }
-            if (CHARACTER_UUID_BUTTON.equals(characteristic.getUuid())) {
+            if (GanRobotProtocol.CHARACTER_UUID_BUTTON.equals(characteristic.getUuid())) {
                 GanRobotController.handleRobotButtonEvent(value);
             }
         }
