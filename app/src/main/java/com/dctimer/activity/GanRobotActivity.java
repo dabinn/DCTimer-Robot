@@ -101,8 +101,6 @@ public class GanRobotActivity extends AppCompatActivity {
     private static final long ROBOT_IDLE_TIMEOUT_MS_PROBE = 5000L;
     private static final long SMART_CUBE_PROBE_TIMEOUT_MS = 2500L;
     private static final long SMART_CUBE_STATE_POLL_MS = 5L;
-    private static final String ORIENTATION_PROBE_ROLLBACK = "F' D'";
-    public static final String SOLVED_FACELET = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
     public static final String EXTRA_PREFILL_SCRAMBLE = "extra_prefill_scramble";
     public static final String EXTRA_PREFILL_SCRAMBLE_DISPLAY = "extra_prefill_scramble_display";
 
@@ -389,25 +387,12 @@ public class GanRobotActivity extends AppCompatActivity {
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             spinnerButtonAction.setAdapter(adapter);
             int savedAction = GanRobotController.getRobotButtonAction();
-            int savedSelection = 0;
-            if (savedAction == GanRobotController.ACTION_SCRAMBLE) {
-                savedSelection = 1;
-            } else if (savedAction == GanRobotController.ACTION_NONE) {
-                savedSelection = 2;
-            }
-            spinnerButtonAction.setSelection(savedSelection);
+            spinnerButtonAction.setSelection(GanRobotController.getSelectionForAction(savedAction));
             spinnerButtonAction.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                 @Override
                 public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    int action;
-                    if (position == 0) {
-                        action = GanRobotController.ACTION_SOLVE;
-                    } else if (position == 1) {
-                        action = GanRobotController.ACTION_SCRAMBLE;
-                    } else {
-                        action = GanRobotController.ACTION_NONE;
-                    }
-                    saveRobotButtonAction(action);
+                    int action = GanRobotController.getActionForSelection(position);
+                    GanRobotController.saveRobotButtonAction(GanRobotActivity.this, action);
                 }
 
                 @Override
@@ -481,12 +466,6 @@ public class GanRobotActivity extends AppCompatActivity {
         }
         SharedPreferences sharedPreferences = context.getApplicationContext().getSharedPreferences(PREF_NAME, MODE_PRIVATE);
         return sharedPreferences.getBoolean(PREF_GAN_ROBOT_AUTO_CONNECT, false);
-    }
-
-    private void saveRobotButtonAction(int action) {
-        SharedPreferences sharedPreferences = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
-        sharedPreferences.edit().putInt(GanRobotController.PREF_KEY_BUTTON_ACTION, action).apply();
-        GanRobotController.setRobotButtonAction(action);
     }
 
     private void setupToolbar() {
@@ -808,34 +787,6 @@ public class GanRobotActivity extends AppCompatActivity {
         int action = pendingRobotButtonAction;
         pendingRobotButtonAction = GanRobotController.ACTION_NONE;
         performRobotButtonAction(action);
-    }
-
-    public static String waitForRobotSmartCubeStateSnapshot(long timeoutMs) {
-        long deadline = SystemClock.elapsedRealtime() + timeoutMs;
-        while (SystemClock.elapsedRealtime() < deadline) {
-            String cubeState = GanRobotSessionState.getLatestSmartCubeState();
-            if (!TextUtils.isEmpty(cubeState)) {
-                return cubeState;
-            }
-            try {
-                Thread.sleep(20L);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-        return GanRobotSessionState.getLatestSmartCubeState();
-    }
-
-    public static String prependProbeRollback(String algorithm) {
-        if (TextUtils.isEmpty(algorithm)) {
-            return ORIENTATION_PROBE_ROLLBACK;
-        }
-        return ORIENTATION_PROBE_ROLLBACK + " " + algorithm.trim();
-    }
-
-    public static boolean isSmartCubeModeActive() {
-        return APP.enterTime == 3;
     }
 
     public static void executeStateToStatePlan(String currentCubeState, String targetFacelet, String planLabel) throws Exception {

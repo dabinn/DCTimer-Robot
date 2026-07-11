@@ -1,5 +1,6 @@
 package com.dctimer.util;
 
+import android.os.SystemClock;
 import android.text.TextUtils;
 
 public final class GanRobotSessionState {
@@ -59,6 +60,23 @@ public final class GanRobotSessionState {
 
     public static synchronized boolean hasSmartCubeState() {
         return !TextUtils.isEmpty(latestSmartCubeState);
+    }
+
+    public static String waitForSmartCubeStateSnapshot(long timeoutMs) {
+        long deadline = SystemClock.elapsedRealtime() + timeoutMs;
+        while (SystemClock.elapsedRealtime() < deadline) {
+            String cubeState = getLatestSmartCubeState();
+            if (!TextUtils.isEmpty(cubeState)) {
+                return cubeState;
+            }
+            try {
+                Thread.sleep(20L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        return getLatestSmartCubeState();
     }
 
     public static synchronized void setRobotMoving(boolean moving) {
