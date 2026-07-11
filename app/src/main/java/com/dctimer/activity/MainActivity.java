@@ -509,7 +509,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         //getBluetoothAdapter();
 
         // Register robot state change listener in onCreate so it's available from app start
-        RobotSessionState.setStateChangeListener(new RobotSessionState.OnRobotStateChangeListener() {
+        GanRobotSessionState.setStateChangeListener(new GanRobotSessionState.OnRobotStateChangeListener() {
             @Override
             public void onRobotExecutionStart() {
                 String latestRawScramble = currentScramble == null || TextUtils.isEmpty(currentScramble.getScramble())
@@ -520,9 +520,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         : currentScramble.getCubeState();
                 SmartCube activeCube = getActiveSmartCube();
                 String latestCubeState = activeCube == null ? "" : activeCube.getCubeState();
-                RobotSessionState.setLatestMainScramble(latestRawScramble);
-                RobotSessionState.setLatestMainTargetState(latestTargetState);
-                RobotSessionState.setLatestSmartCubeState(latestCubeState);
+                GanRobotSessionState.setLatestMainScramble(latestRawScramble);
+                GanRobotSessionState.setLatestMainTargetState(latestTargetState);
+                GanRobotSessionState.setLatestSmartCubeState(latestCubeState);
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -590,7 +590,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             inspectionAlertPlayer.release();
             inspectionAlertPlayer = null;
         }
-        RobotSessionState.setStateChangeListener(null);
+        GanRobotSessionState.setStateChangeListener(null);
         super.onDestroy();
     }
 
@@ -2098,7 +2098,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     public void refreshSmartCubeStateUi() {
         SmartCube cube = getActiveSmartCube();
         if (cube != null && !TextUtils.isEmpty(cube.getCubeState())) {
-            RobotSessionState.setLatestSmartCubeState(cube.getCubeState());
+            GanRobotSessionState.setLatestSmartCubeState(cube.getCubeState());
         }
         updateSmartCubeCompletionChecker(cube);
         if (refreshSmartCubeTrainingScrambleAfterConnect(cube)) {
@@ -2417,8 +2417,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 && (timer.getTimerState() == DCTTimer.READY || timer.getTimerState() == DCTTimer.INSPECTING);
         updateSmartCubeCompletionChecker(cube);
         cube.applyMove(move, time, isSmartCubeTrainingScramble() ? null : currentScramble.getCubeState());
-        RobotSessionState.setLatestSmartCubeState(cube.getCubeState());
-        if (!wasRunning && !waitingForSolveStart && !RobotSessionState.isRobotMoving()) {
+        GanRobotSessionState.setLatestSmartCubeState(cube.getCubeState());
+        if (!wasRunning && !waitingForSolveStart && !GanRobotSessionState.isRobotMoving()) {
             updateSmartCubeScrambleProgress(cube, trackScrambleDeviation ? move : -1);
             if (isSmartCubeTrainingScramble() && smartCubeScrambleProgress == smartCubeScrambleMoves.size()
                     && timer.getTimerState() != DCTTimer.RUNNING) {
@@ -4950,7 +4950,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         //Log.w("dct", currentScramble.getCategory()+", "+currentScramble.getImageType());
         if (cube != null && !TextUtils.isEmpty(cube.getCubeState())) {
             final String cubeState = cube.getCubeState();
-            RobotSessionState.setLatestSmartCubeState(cubeState);
+            GanRobotSessionState.setLatestSmartCubeState(cubeState);
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {

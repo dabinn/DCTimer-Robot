@@ -20,6 +20,8 @@ public final class GanRobotProtocol {
     public static final UUID CHARACTER_UUID_MOVE = UUID.fromString("0000fff3" + UUID_SUFFIX);
     public static final UUID CLIENT_CHARACTERISTIC_CONFIG_UUID = UUID.fromString("00002902" + UUID_SUFFIX);
 
+    private static final int PACKET_TYPE_BUTTON_PRESS = 0x02;
+
     private static final UUID SERVICE_UUID_GAN_V2 = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dc4179");
     private static final UUID SERVICE_UUID_GAN_V3 = UUID.fromString("8653000a-43e6-47b7-9cb0-5fc21d4ae340");
     private static final UUID SERVICE_UUID_GAN_V4 = UUID.fromString("00000010-0000-fff7-fff6-fff5fff4fff0");
@@ -91,6 +93,12 @@ public final class GanRobotProtocol {
             }
         }
         return true;
+    }
+
+    public static boolean isButtonPressEvent(byte[] rawValue) {
+        return rawValue != null
+                && rawValue.length > 0
+                && (rawValue[0] & 0xff) == PACKET_TYPE_BUTTON_PRESS;
     }
 
     private static boolean isGanSmartCubeService(UUID uuid) {

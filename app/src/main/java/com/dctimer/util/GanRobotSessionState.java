@@ -2,7 +2,7 @@ package com.dctimer.util;
 
 import android.text.TextUtils;
 
-public final class RobotSessionState {
+public final class GanRobotSessionState {
     private static String latestMainScramble = "";
     private static String latestMainTargetState = "";
     private static String latestSmartCubeState = "";
@@ -23,7 +23,7 @@ public final class RobotSessionState {
         void onRobotExecutionEnd();
     }
 
-    private RobotSessionState() { }
+    private GanRobotSessionState() { }
 
     public static synchronized void setLatestSmartCubeState(String cubeState) {
         latestSmartCubeState = cubeState == null ? "" : cubeState.trim();

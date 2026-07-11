@@ -58,7 +58,7 @@ import com.dctimer.util.GanRobotBleClient;
 import com.dctimer.util.GanRobotController;
 import com.dctimer.util.GanRobotCodec;
 import com.dctimer.util.GanRobotProtocol;
-import com.dctimer.util.RobotSessionState;
+import com.dctimer.util.GanRobotSessionState;
 import com.dctimer.util.Utils;
 import com.dctimer.widget.CustomToolbar;
 
@@ -779,8 +779,8 @@ public class GanRobotActivity extends AppCompatActivity {
         ScrambleResolutionResult scrambleResolution = resolveStandardScrambleForSubmit(displayScramble);
         final String scramble = scrambleResolution.standardScramble;
         final boolean useMainTargetState = scrambleResolution.useMainTargetState;
-        RobotSessionState.setLatestMainScramble(scramble);
-        RobotSessionState.setUseMainTargetState(useMainTargetState);
+        GanRobotSessionState.setLatestMainScramble(scramble);
+        GanRobotSessionState.setUseMainTargetState(useMainTargetState);
         runOnUiThread(() -> appendStatus("Scramble orientation: " + orientationLabel));
 
         GanRobotController.executeScrambleAsync(scramble, useMainTargetState);
@@ -800,7 +800,7 @@ public class GanRobotActivity extends AppCompatActivity {
         if (pendingRobotButtonAction == GanRobotController.ACTION_NONE) {
             return;
         }
-        if (getConnectionState() != STATE_CONNECTED || sharedIsSending || RobotSessionState.isRobotMoving()
+        if (getConnectionState() != STATE_CONNECTED || sharedIsSending || GanRobotSessionState.isRobotMoving()
                 || !GanRobotBleClient.isReady()) {
             return;
         }
@@ -812,7 +812,7 @@ public class GanRobotActivity extends AppCompatActivity {
     public static String waitForRobotSmartCubeStateSnapshot(long timeoutMs) {
         long deadline = SystemClock.elapsedRealtime() + timeoutMs;
         while (SystemClock.elapsedRealtime() < deadline) {
-            String cubeState = RobotSessionState.getLatestSmartCubeState();
+            String cubeState = GanRobotSessionState.getLatestSmartCubeState();
             if (!TextUtils.isEmpty(cubeState)) {
                 return cubeState;
             }
@@ -823,7 +823,7 @@ public class GanRobotActivity extends AppCompatActivity {
                 break;
             }
         }
-        return RobotSessionState.getLatestSmartCubeState();
+        return GanRobotSessionState.getLatestSmartCubeState();
     }
 
     public static String prependProbeRollback(String algorithm) {
@@ -1099,7 +1099,7 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     public static String resolveTargetStateForSubmit() {
-        String targetState = normalizeFacelet(RobotSessionState.getLatestMainTargetState());
+        String targetState = normalizeFacelet(GanRobotSessionState.getLatestMainTargetState());
         if (TextUtils.isEmpty(targetState)) {
             throw new IllegalStateException(robotContext().getString(R.string.gan_robot_send_failed_short));
         }
@@ -1170,7 +1170,7 @@ public class GanRobotActivity extends AppCompatActivity {
         long deadline = SystemClock.elapsedRealtime() + timeoutMs;
         String prev = normalizeFacelet(previousState);
         while (SystemClock.elapsedRealtime() < deadline) {
-            String now = RobotSessionState.getLatestSmartCubeState();
+            String now = GanRobotSessionState.getLatestSmartCubeState();
             if (!TextUtils.isEmpty(now)) {
                 String normalizedNow = normalizeFacelet(now);
                 if (!TextUtils.equals(prev, normalizedNow)) {

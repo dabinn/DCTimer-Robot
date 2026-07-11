@@ -51,12 +51,12 @@ public final class GanRobotController {
             GanRobotActivity.postOnMainThread(() -> Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_wait_connect, Toast.LENGTH_SHORT).show());
             return;
         }
-        if (GanRobotActivity.isSending() || RobotSessionState.isRobotMoving()) {
+        if (GanRobotActivity.isSending() || GanRobotSessionState.isRobotMoving()) {
             GanRobotActivity.postOnMainThread(() -> Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_send_in_progress, Toast.LENGTH_SHORT).show());
             return;
         }
         ioExecutor.execute(() -> {
-            RobotSessionState.setRobotMoving(true);
+            GanRobotSessionState.setRobotMoving(true);
             try {
                 String currentCubeState = GanRobotActivity.waitForRobotSmartCubeStateSnapshot(400L);
                 if (TextUtils.isEmpty(currentCubeState)) {
@@ -73,18 +73,18 @@ public final class GanRobotController {
                     Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_send_failed_short, Toast.LENGTH_SHORT).show();
                 });
             } finally {
-                RobotSessionState.setRobotMoving(false);
+                GanRobotSessionState.setRobotMoving(false);
             }
         });
     }
 
     public static void executeScrambleAsync(String scramble, boolean useMainTargetState) {
         ioExecutor.execute(() -> {
-            RobotSessionState.setRobotMoving(true);
+            GanRobotSessionState.setRobotMoving(true);
             try {
                 // If scramble not supplied, read from state now that onRobotExecutionStart has fired
                 String effectiveScramble = TextUtils.isEmpty(scramble)
-                        ? RobotSessionState.getLatestMainScramble()
+                        ? GanRobotSessionState.getLatestMainScramble()
                         : scramble;
                 if (TextUtils.isEmpty(effectiveScramble)) {
                     GanRobotActivity.postOnMainThread(() -> Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_invalid_scramble_short, Toast.LENGTH_SHORT).show());
@@ -124,15 +124,14 @@ public final class GanRobotController {
                         : "Manual scramble -> direct execute mode"));
                 GanRobotActivity.executeAlgorithm(effectiveScramble);
             } finally {
-                RobotSessionState.setRobotMoving(false);
+                GanRobotSessionState.setRobotMoving(false);
             }
         });
     }
 
     public static void handleRobotButtonEvent(byte[] rawValue) {
         int action = getRobotButtonAction();
-        // Only react to button press packet (02 FF); ignore initial handshake (03 00 00 FF 00 00)
-        if (rawValue == null || rawValue.length == 0 || (rawValue[0] & 0xff) != 0x02) {
+        if (!GanRobotProtocol.isButtonPressEvent(rawValue)) {
             return;
         }
         if (action == ACTION_NONE) {
@@ -140,8 +139,8 @@ public final class GanRobotController {
         }
         GanRobotActivity activity = GanRobotActivity.getActiveActivity();
         if (activity != null) {
-            if (GanRobotActivity.isSending() || RobotSessionState.isRobotMoving()) {
-                GanRobotActivity.postOnMainThread(() -> Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_busy, Toast.LENGTH_SHORT).show());
+            if (isBusy()) {
+                showBusyToast();
                 return;
             }
             showButtonActionToast(action);
@@ -150,8 +149,8 @@ public final class GanRobotController {
         }
         // No visible Activity — execute directly if already connected (stays in background)
         if (action == ACTION_SOLVE && GanRobotActivity.isConnectedAndReady()) {
-            if (GanRobotActivity.isSending() || RobotSessionState.isRobotMoving()) {
-                GanRobotActivity.postOnMainThread(() -> Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_busy, Toast.LENGTH_SHORT).show());
+            if (isBusy()) {
+                showBusyToast();
                 return;
             }
             showButtonActionToast(action);
@@ -159,8 +158,8 @@ public final class GanRobotController {
             return;
         }
         if (action == ACTION_SCRAMBLE && GanRobotActivity.isConnectedAndReady()) {
-            if (GanRobotActivity.isSending() || RobotSessionState.isRobotMoving()) {
-                GanRobotActivity.postOnMainThread(() -> Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_busy, Toast.LENGTH_SHORT).show());
+            if (isBusy()) {
+                showBusyToast();
                 return;
             }
             showButtonActionToast(action);
@@ -168,6 +167,15 @@ public final class GanRobotController {
             return;
         }
         // Cannot reach here in normal operation: button notifications only fire when BLE is connected
+    }
+
+    private static boolean isBusy() {
+        return GanRobotActivity.isSending() || GanRobotSessionState.isRobotMoving();
+    }
+
+    private static void showBusyToast() {
+        GanRobotActivity.postOnMainThread(() ->
+                Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_busy, Toast.LENGTH_SHORT).show());
     }
 
     private static void showButtonActionToast(int action) {
