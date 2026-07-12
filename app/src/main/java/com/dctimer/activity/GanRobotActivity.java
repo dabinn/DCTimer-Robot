@@ -1004,12 +1004,7 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private static boolean shouldSkipAutoConnect(Context context) {
-        return !isAutoConnectEnabled(context)
-                || sharedConnectionState != STATE_DISCONNECTED
-                || GanRobotBleClient.hasGatt()
-                || isAutoConnectCooldownActive()
-                || !hasAutoConnectPermissions(context)
-                || !isLocationEnabled(context);
+        return !canAcceptAutoConnectDevice(context) || isAutoConnectCooldownActive();
     }
 
     private static boolean isAutoConnectCooldownActive() {
@@ -1037,11 +1032,15 @@ public class GanRobotActivity extends AppCompatActivity {
         if (context == null || device == null) {
             return;
         }
+        Context appContext = context.getApplicationContext();
+        if (!canAcceptAutoConnectDevice(appContext)) {
+            return;
+        }
         closeGatt();
         sharedConnectionState = STATE_CONNECTING;
         notifyConnectionUiChanged();
         try {
-            GanRobotBleClient.connect(context, device, autoGattCallback);
+            GanRobotBleClient.connect(appContext, device, autoGattCallback);
         } catch (SecurityException e) {
             closeGatt();
             sharedConnectionState = STATE_DISCONNECTED;
@@ -1069,6 +1068,14 @@ public class GanRobotActivity extends AppCompatActivity {
             }
         }
         return true;
+    }
+
+    private static boolean canAcceptAutoConnectDevice(Context context) {
+        return isAutoConnectEnabled(context)
+                && sharedConnectionState == STATE_DISCONNECTED
+                && !GanRobotBleClient.hasGatt()
+                && hasAutoConnectPermissions(context)
+                && isLocationEnabled(context);
     }
 
     private static boolean isLocationEnabled(Context context) {
