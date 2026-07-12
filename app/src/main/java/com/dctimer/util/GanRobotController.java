@@ -104,7 +104,7 @@ public final class GanRobotController {
                 return;
             }
             showButtonActionToast(action);
-            GanRobotExecutor.executeScramble(null, false);
+            GanRobotExecutor.executeScramble(null, true);
             return;
         }
         // Cannot reach here in normal operation: button notifications only fire when BLE is connected
