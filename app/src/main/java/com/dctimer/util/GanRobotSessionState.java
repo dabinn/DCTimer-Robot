@@ -79,17 +79,21 @@ public final class GanRobotSessionState {
         return getLatestSmartCubeState();
     }
 
-    public static synchronized void setRobotMoving(boolean moving) {
-        boolean wasMoving = isRobotMoving;
-        isRobotMoving = moving;
-
-        // Notify listener of state change
-        if (!wasMoving && moving && stateChangeListener != null) {
-            // Robot just started executing
-            stateChangeListener.onRobotExecutionStart();
-        } else if (wasMoving && !moving && stateChangeListener != null) {
-            // Robot just finished executing
-            stateChangeListener.onRobotExecutionEnd();
+    public static void setRobotMoving(boolean moving) {
+        OnRobotStateChangeListener listener;
+        boolean notifyStart;
+        boolean notifyEnd;
+        synchronized (GanRobotSessionState.class) {
+            boolean wasMoving = isRobotMoving;
+            isRobotMoving = moving;
+            listener = stateChangeListener;
+            notifyStart = !wasMoving && moving && listener != null;
+            notifyEnd = wasMoving && !moving && listener != null;
+        }
+        if (notifyStart) {
+            listener.onRobotExecutionStart();
+        } else if (notifyEnd) {
+            listener.onRobotExecutionEnd();
         }
     }
 
