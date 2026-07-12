@@ -1,18 +1,27 @@
 package com.dctimer.util;
 
+import android.Manifest;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanRecord;
 import android.bluetooth.le.ScanResult;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.location.LocationManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
+
+import androidx.core.content.ContextCompat;
 
 import com.dctimer.R;
 import com.dctimer.model.BLEDevice;
@@ -27,6 +36,10 @@ import java.util.concurrent.TimeUnit;
 public final class GanRobotBleClient {
     private static final Object GATT_IO_LOCK = new Object();
     private static final long GATT_TIMEOUT_MS = 8000L;
+    public static final String PREF_NAME = "dctimer";
+    public static final String PREF_GAN_ROBOT_AUTO_CONNECT = "ganrobot_auto_connect";
+    private static final long AUTO_CONNECT_COOLDOWN_MS = 15000L;
+    private static final long AUTO_SCAN_TIMEOUT_MS = 7000L;
 
     private static volatile BluetoothGatt bluetoothGatt;
     private static volatile BluetoothGattCharacteristic statusCharacteristic;
@@ -42,6 +55,14 @@ public final class GanRobotBleClient {
     private static boolean scanning;
     private static Set<String> scannedAddresses;
     private static List<BLEDevice> scannedDevices = new ArrayList<>();
+    private static final Handler autoConnectHandler = new Handler(Looper.getMainLooper());
+    private static boolean autoScanRunning;
+    private static BluetoothLeScanner autoBluetoothLeScanner;
+    private static BluetoothAdapter autoBluetoothAdapter;
+    private static ScanCallback autoScanCallback;
+    private static BluetoothAdapter.LeScanCallback autoLeScanCallback;
+    private static Runnable autoStopScanRunnable;
+    private static volatile long lastAutoConnectAttemptElapsedMs;
 
     public interface Callback {
         void onDeviceListChanged(List<BLEDevice> devices);
@@ -55,6 +76,10 @@ public final class GanRobotBleClient {
         void onUnsupportedDevice();
 
         void onConnectFailed();
+    }
+
+    private interface DeviceCallback {
+        void onDeviceFound(Context context, BluetoothDevice device);
     }
 
     public static class StatusSample {
@@ -72,6 +97,35 @@ public final class GanRobotBleClient {
 
     public static void setCallback(Callback callback) {
         GanRobotBleClient.callback = callback;
+    }
+
+    public static void maybeAutoConnect(Context context) {
+        if (context == null) {
+            return;
+        }
+        Context appContext = context.getApplicationContext();
+        if (shouldSkipAutoConnect(appContext)) {
+            return;
+        }
+        BluetoothAdapter adapter = getEnabledBluetoothAdapter(appContext);
+        if (adapter == null) {
+            return;
+        }
+        markAutoConnectAttempt();
+        if (connectBondedDeviceIfAvailable(appContext, adapter, GanRobotBleClient::connectRobotSilently)) {
+            return;
+        }
+        startAutoScan(appContext, adapter, AUTO_SCAN_TIMEOUT_MS, autoConnectHandler,
+                GanRobotBleClient::connectRobotSilently);
+    }
+
+    public static boolean isAutoConnectEnabled(Context context) {
+        if (context == null) {
+            return false;
+        }
+        return context.getApplicationContext()
+                .getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+                .getBoolean(PREF_GAN_ROBOT_AUTO_CONNECT, false);
     }
 
     public static synchronized boolean initBluetoothAdapter(Context context) {
@@ -136,7 +190,218 @@ public final class GanRobotBleClient {
 
     public static synchronized void closeConnection() {
         stopScan();
+        stopAutoScan(autoConnectHandler);
+        autoScanRunning = false;
         close();
+    }
+
+    private static boolean connectBondedDeviceIfAvailable(Context context, BluetoothAdapter adapter,
+                                                          DeviceCallback callback) {
+        if (context == null || adapter == null || callback == null) {
+            return false;
+        }
+        try {
+            Set<BluetoothDevice> bondedDevices = adapter.getBondedDevices();
+            if (bondedDevices == null || bondedDevices.isEmpty()) {
+                return false;
+            }
+            for (BluetoothDevice device : bondedDevices) {
+                if (device == null) {
+                    continue;
+                }
+                String name = device.getName();
+                if (!GanRobotProtocol.isCandidate(name, null)) {
+                    continue;
+                }
+                callback.onDeviceFound(context, device);
+                return true;
+            }
+        } catch (SecurityException ignored) {
+        }
+        return false;
+    }
+
+    private static synchronized void startAutoScan(Context context, BluetoothAdapter adapter, long scanTimeoutMs,
+                                                   Handler handler, DeviceCallback callback) {
+        if (context == null || adapter == null || handler == null || callback == null || autoScanRunning) {
+            return;
+        }
+        stopAutoScan(handler);
+        autoScanRunning = true;
+        autoBluetoothAdapter = adapter;
+        autoStopScanRunnable = new Runnable() {
+            @Override
+            public void run() {
+                synchronized (GanRobotBleClient.class) {
+                    stopAutoScan(handler);
+                    autoScanRunning = false;
+                }
+            }
+        };
+        handler.postDelayed(autoStopScanRunnable, scanTimeoutMs);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            autoBluetoothLeScanner = adapter.getBluetoothLeScanner();
+            if (autoBluetoothLeScanner != null) {
+                autoScanCallback = new ScanCallback() {
+                    @Override
+                    public void onScanResult(int callbackType, ScanResult result) {
+                        BluetoothDevice device = result == null ? null : result.getDevice();
+                        ScanRecord scanRecord = result == null ? null : result.getScanRecord();
+                        onAutoDeviceScanned(context, device, scanRecord, handler, callback);
+                    }
+                };
+                autoBluetoothLeScanner.startScan(autoScanCallback);
+                return;
+            }
+        }
+        autoLeScanCallback = new BluetoothAdapter.LeScanCallback() {
+            @Override
+            public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
+                onAutoDeviceScanned(context, device, null, handler, callback);
+            }
+        };
+        adapter.startLeScan(autoLeScanCallback);
+    }
+
+    private static void onAutoDeviceScanned(Context context, BluetoothDevice device, ScanRecord scanRecord,
+                                            Handler handler, DeviceCallback callback) {
+        if (device == null) {
+            return;
+        }
+        String name;
+        try {
+            name = device.getName();
+        } catch (SecurityException e) {
+            return;
+        }
+        if (!GanRobotProtocol.isCandidate(name, scanRecord)) {
+            return;
+        }
+        synchronized (GanRobotBleClient.class) {
+            if (!autoScanRunning) {
+                return;
+            }
+            stopAutoScan(handler);
+            autoScanRunning = false;
+        }
+        callback.onDeviceFound(context, device);
+    }
+
+    private static boolean shouldSkipAutoConnect(Context context) {
+        return !canAcceptAutoConnectDevice(context) || isAutoConnectCooldownActive();
+    }
+
+    private static boolean isAutoConnectCooldownActive() {
+        long now = SystemClock.elapsedRealtime();
+        return now - lastAutoConnectAttemptElapsedMs < AUTO_CONNECT_COOLDOWN_MS;
+    }
+
+    private static void markAutoConnectAttempt() {
+        lastAutoConnectAttemptElapsedMs = SystemClock.elapsedRealtime();
+    }
+
+    private static BluetoothAdapter getEnabledBluetoothAdapter(Context context) {
+        if (context == null) {
+            return null;
+        }
+        BluetoothManager bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
+        if (bluetoothManager == null) {
+            return null;
+        }
+        BluetoothAdapter adapter = bluetoothManager.getAdapter();
+        return adapter != null && adapter.isEnabled() ? adapter : null;
+    }
+
+    private static void connectRobotSilently(Context context, BluetoothDevice device) {
+        if (context == null || device == null) {
+            return;
+        }
+        Context appContext = context.getApplicationContext();
+        if (!canAcceptAutoConnectDevice(appContext)) {
+            return;
+        }
+        closeConnection();
+        try {
+            if (!initBluetoothAdapter(appContext)) {
+                resetAutoConnection();
+                return;
+            }
+            connectDevice(appContext, device);
+        } catch (SecurityException e) {
+            resetAutoConnection();
+        }
+    }
+
+    private static boolean canAcceptAutoConnectDevice(Context context) {
+        return isAutoConnectEnabled(context)
+                && !hasGatt()
+                && hasAutoConnectPermissions(context)
+                && isLocationEnabled(context);
+    }
+
+    private static boolean hasAutoConnectPermissions(Context context) {
+        if (context == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+        String[] permissions;
+        if (Build.VERSION.SDK_INT >= 31) {
+            permissions = new String[] {
+                    Manifest.permission.BLUETOOTH_SCAN,
+                    Manifest.permission.BLUETOOTH_CONNECT,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+            };
+        } else {
+            permissions = new String[] { Manifest.permission.ACCESS_FINE_LOCATION };
+        }
+        for (String permission : permissions) {
+            if (ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean isLocationEnabled(Context context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+        try {
+            LocationManager manager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+            if (manager == null) {
+                return false;
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                return manager.isLocationEnabled();
+            }
+            return manager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+                    || manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static void resetAutoConnection() {
+        closeConnection();
+    }
+
+    private static void stopAutoScan(Handler handler) {
+        if (autoStopScanRunnable != null && handler != null) {
+            handler.removeCallbacks(autoStopScanRunnable);
+            autoStopScanRunnable = null;
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP
+                    && autoBluetoothLeScanner != null && autoScanCallback != null) {
+                autoBluetoothLeScanner.stopScan(autoScanCallback);
+            } else if (autoBluetoothAdapter != null && autoLeScanCallback != null) {
+                autoBluetoothAdapter.stopLeScan(autoLeScanCallback);
+            }
+        } catch (SecurityException ignored) {
+        }
+        autoBluetoothLeScanner = null;
+        autoScanCallback = null;
+        autoLeScanCallback = null;
+        autoBluetoothAdapter = null;
     }
 
     private static void connectDevice(Context context, String address) {

@@ -44,7 +44,6 @@ import com.dctimer.APP;
 import com.dctimer.R;
 import com.dctimer.model.BLEDevice;
 import com.dctimer.model.SmartCubeTraining;
-import com.dctimer.util.GanRobotAutoConnector;
 import com.dctimer.util.GanRobotBleClient;
 import com.dctimer.util.GanRobotController;
 import com.dctimer.util.GanRobotExecutor;
@@ -287,7 +286,7 @@ public class GanRobotActivity extends AppCompatActivity {
             cbAutoConnect.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 saveAutoConnectEnabled(isChecked);
                 if (isChecked) {
-                    GanRobotAutoConnector.maybeAutoConnect(this);
+                    GanRobotBleClient.maybeAutoConnect(this);
                 }
             });
         }
@@ -366,8 +365,8 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private void saveAutoConnectEnabled(boolean enabled) {
-        SharedPreferences sharedPreferences = getSharedPreferences(GanRobotAutoConnector.PREF_NAME, MODE_PRIVATE);
-        sharedPreferences.edit().putBoolean(GanRobotAutoConnector.PREF_GAN_ROBOT_AUTO_CONNECT, enabled).apply();
+        SharedPreferences sharedPreferences = getSharedPreferences(GanRobotBleClient.PREF_NAME, MODE_PRIVATE);
+        sharedPreferences.edit().putBoolean(GanRobotBleClient.PREF_GAN_ROBOT_AUTO_CONNECT, enabled).apply();
     }
 
     private void disableAutoConnectForManualDisconnect() {
@@ -378,7 +377,7 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private static boolean isAutoConnectEnabled(Context context) {
-        return GanRobotAutoConnector.isAutoConnectEnabled(context);
+        return GanRobotBleClient.isAutoConnectEnabled(context);
     }
 
     private void setupToolbar() {
@@ -570,8 +569,7 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private void closeRobotConnection() {
-        GanRobotAutoConnector.closeConnection();
-        GanRobotBleClient.close();
+        GanRobotBleClient.closeConnection();
     }
 
     private void submitScramble() {
@@ -933,7 +931,7 @@ public class GanRobotActivity extends AppCompatActivity {
             sharedConnectionState = STATE_CONNECTED;
         }
         updateConnectionUi();
-        GanRobotAutoConnector.maybeAutoConnect(this);
+        GanRobotBleClient.maybeAutoConnect(this);
         performPendingRobotButtonActionIfPossible();
     }
 
