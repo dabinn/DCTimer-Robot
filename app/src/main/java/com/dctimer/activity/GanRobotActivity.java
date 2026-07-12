@@ -53,10 +53,8 @@ import com.dctimer.util.Utils;
 import com.dctimer.widget.CustomToolbar;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.lang.ref.WeakReference;
 
 public class GanRobotActivity extends AppCompatActivity {
@@ -83,8 +81,6 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private final Set<String> scannedAddresses = new HashSet<>();
-    private final List<BLEDevice> scannedDevices = new ArrayList<>();
     private final List<String> scannedDeviceNames = new ArrayList<>();
     private static volatile int sharedConnectionState = STATE_DISCONNECTED;
     private static final Handler autoConnectHandler = new Handler(Looper.getMainLooper());
@@ -94,15 +90,19 @@ public class GanRobotActivity extends AppCompatActivity {
         public void onDeviceListChanged(List<BLEDevice> devices) {
             GanRobotActivity activity = activeActivityRef.get();
             if (activity != null) {
-                activity.refreshRobotDeviceList(devices);
+                activity.runOnUiThread(() -> activity.refreshRobotDeviceList(devices));
             }
         }
 
         @Override
         public void onScanFailed() {
             GanRobotActivity activity = activeActivityRef.get();
-            if (activity != null && activity.scanProgress != null) {
-                activity.scanProgress.setVisibility(View.GONE);
+            if (activity != null) {
+                activity.runOnUiThread(() -> {
+                    if (activity.scanProgress != null) {
+                        activity.scanProgress.setVisibility(View.GONE);
+                    }
+                });
             }
         }
 
@@ -111,9 +111,11 @@ public class GanRobotActivity extends AppCompatActivity {
             sharedConnectionState = STATE_CONNECTED;
             GanRobotActivity activity = activeActivityRef.get();
             if (activity != null) {
-                activity.mainHandler.removeCallbacks(activity.forceDisconnectRunnable);
-                activity.updateConnectionUi();
-                activity.appendStatus(activity.getString(R.string.gan_robot_connected));
+                activity.runOnUiThread(() -> {
+                    activity.mainHandler.removeCallbacks(activity.forceDisconnectRunnable);
+                    activity.updateConnectionUi();
+                    activity.appendStatus(activity.getString(R.string.gan_robot_connected));
+                });
             } else {
                 notifyConnectionUiChanged();
                 showAutoConnectSuccessToast();
@@ -125,9 +127,11 @@ public class GanRobotActivity extends AppCompatActivity {
             sharedConnectionState = STATE_DISCONNECTED;
             GanRobotActivity activity = activeActivityRef.get();
             if (activity != null) {
-                activity.mainHandler.removeCallbacks(activity.forceDisconnectRunnable);
-                activity.updateConnectionUi();
-                activity.appendStatus(activity.getString(R.string.gan_robot_status_disconnected));
+                activity.runOnUiThread(() -> {
+                    activity.mainHandler.removeCallbacks(activity.forceDisconnectRunnable);
+                    activity.updateConnectionUi();
+                    activity.appendStatus(activity.getString(R.string.gan_robot_status_disconnected));
+                });
             } else {
                 notifyConnectionUiChanged();
             }
@@ -138,8 +142,10 @@ public class GanRobotActivity extends AppCompatActivity {
             sharedConnectionState = STATE_DISCONNECTED;
             GanRobotActivity activity = activeActivityRef.get();
             if (activity != null) {
-                activity.appendStatus(activity.getString(R.string.ble_device_not_supported));
-                activity.updateConnectionUi();
+                activity.runOnUiThread(() -> {
+                    activity.appendStatus(activity.getString(R.string.ble_device_not_supported));
+                    activity.updateConnectionUi();
+                });
             } else {
                 notifyConnectionUiChanged();
             }
@@ -150,8 +156,10 @@ public class GanRobotActivity extends AppCompatActivity {
             sharedConnectionState = STATE_DISCONNECTED;
             GanRobotActivity activity = activeActivityRef.get();
             if (activity != null) {
-                activity.appendStatus(activity.getString(R.string.connect_fail));
-                activity.updateConnectionUi();
+                activity.runOnUiThread(() -> {
+                    activity.appendStatus(activity.getString(R.string.connect_fail));
+                    activity.updateConnectionUi();
+                });
             } else {
                 notifyConnectionUiChanged();
             }
@@ -479,7 +487,7 @@ public class GanRobotActivity extends AppCompatActivity {
         scanAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, scannedDeviceNames);
         listView.setAdapter(scanAdapter);
         listView.setOnItemClickListener((adapterView, itemView, i, l) -> {
-            if (i < 0 || i >= scannedDevices.size()) {
+            if (i < 0 || i >= scannedDeviceNames.size()) {
                 return;
             }
             if (scanDialog != null) {
@@ -499,8 +507,6 @@ public class GanRobotActivity extends AppCompatActivity {
 
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
     private void startScan() {
-        scannedAddresses.clear();
-        scannedDevices.clear();
         scannedDeviceNames.clear();
         if (scanAdapter != null) {
             scanAdapter.notifyDataSetChanged();
@@ -528,22 +534,18 @@ public class GanRobotActivity extends AppCompatActivity {
             scanProgress.setVisibility(View.GONE);
         }
         GanRobotBleClient.stopScan();
-        if (scannedDevices.isEmpty()) {
+        if (scannedDeviceNames.isEmpty()) {
             appendStatus(getString(R.string.gan_robot_no_device));
         }
     }
 
     private void refreshRobotDeviceList(List<BLEDevice> devices) {
-        scannedAddresses.clear();
-        scannedDevices.clear();
         scannedDeviceNames.clear();
         if (devices != null) {
             for (BLEDevice device : devices) {
-                if (device == null || TextUtils.isEmpty(device.getAddress())
-                        || !scannedAddresses.add(device.getAddress())) {
+                if (device == null || TextUtils.isEmpty(device.getAddress())) {
                     continue;
                 }
-                scannedDevices.add(device);
                 scannedDeviceNames.add(String.format(Locale.US, "%s (%s)", device.getName(), device.getAddress()));
             }
         }
@@ -553,7 +555,7 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private void connectRobot(int deviceIndex) {
-        if (deviceIndex < 0 || deviceIndex >= scannedDevices.size()) {
+        if (deviceIndex < 0 || deviceIndex >= scannedDeviceNames.size()) {
             return;
         }
         GanRobotBleClient.closeConnection();
