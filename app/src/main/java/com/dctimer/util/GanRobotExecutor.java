@@ -156,6 +156,7 @@ public final class GanRobotExecutor {
                     try {
                         postStatus("Manual scramble + smart cube -> orientation probe mode");
                         OrientationPlan orientationPlan = runOrientationProbePlan(currentCubeState);
+                        postStatus("Orientation probe complete. Calculating...");
                         String remappedScramble = remapAlgorithmWithFaceMap(effectiveScramble, orientationPlan.logicalToPhysicalFaceMap);
                         String finalAlgorithm = prependProbeRollback(remappedScramble);
                         postStatus("Manual plan (probe rollback): " + finalAlgorithm);
@@ -219,6 +220,7 @@ public final class GanRobotExecutor {
         long probeStartMs = totalStartMs;
         OrientationPlan orientationPlan = runOrientationProbePlan(currentCubeState);
         long probeTimeMs = SystemClock.elapsedRealtime() - probeStartMs;
+        postStatus("Orientation probe complete. Calculating...");
 
         long pathStartMs = SystemClock.elapsedRealtime();
         RobotSolvePlan solvePlan = buildStateToStateAlgorithm(orientationPlan.currentStateAfterProbe, targetFacelet);
@@ -227,7 +229,6 @@ public final class GanRobotExecutor {
         String algorithm = remapAlgorithmWithFaceMap(solvePlan.algorithmLogical, orientationPlan.logicalToPhysicalFaceMap);
         int logicalMoveCount = countAlgorithmMoves(algorithm);
         int robotMoveCount = TextUtils.isEmpty(algorithm) ? 0 : GanRobotCodec.estimateRobotCost(algorithm);
-        postStatus("Orientation probe done (D/F)");
         postStatus("Solve strategy: " + solvePlan.strategyLabel + " (" + solvePlan.evaluatedCandidates + " candidates/" + solvePlan.searchTimeMs + "ms)");
         postStatus("Robot convert: " + logicalMoveCount + " -> " + robotMoveCount + " moves");
         postStatus(planLabel + ": " + algorithm);
