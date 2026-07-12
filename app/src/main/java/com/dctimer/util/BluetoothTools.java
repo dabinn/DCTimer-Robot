@@ -146,6 +146,9 @@ public class BluetoothTools {
         if (GanCubeProtocol.matchesDeviceName(deviceName)) {
             return BLEDevice.TYPE_GANI_CUBE;
         }
+        if (GanRobotProtocol.isCandidate(deviceName, scanRecord)) {
+            return BLEDevice.TYPE_GAN_ROBOT;
+        }
         if (scanRecord != null) {
             if (hasServiceUuid(scanRecord, QiyiSmartTimerProtocol.SERVICE_UUID)
                     || hasManufacturerData(scanRecord, QiyiSmartTimerProtocol.MANUFACTURER_ID)) {
@@ -175,6 +178,9 @@ public class BluetoothTools {
         if (gatt.getService(QiyiSmartTimerProtocol.SERVICE_UUID) != null
                 || findServiceByCharacteristic(gatt, QiyiSmartTimerProtocol.READ_UUID, QiyiSmartTimerProtocol.WRITE_UUID) != null) {
             return BLEDevice.TYPE_QIYI_TIMER;
+        }
+        if (gatt.getService(GanRobotProtocol.SERVICE_UUID) != null) {
+            return BLEDevice.TYPE_GAN_ROBOT;
         }
         if (gatt.getService(Moyu32CubeProtocol.SERVICE_UUID) != null
                 || findServiceByCharacteristic(gatt, Moyu32CubeProtocol.READ_UUID, Moyu32CubeProtocol.WRITE_UUID) != null) {

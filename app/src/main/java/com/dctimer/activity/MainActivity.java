@@ -507,11 +507,47 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         bluetoothTools.setCubeStateChangedCallback(cubeStateChangeCallback);
         bluetoothTools.setTimerStateCallback(timerStateCallback);
         //getBluetoothAdapter();
+
+        // Register robot state change listener in onCreate so it's available from app start
+        GanRobotSessionState.setStateChangeListener(new GanRobotSessionState.OnRobotStateChangeListener() {
+            @Override
+            public void onRobotExecutionStart() {
+                String latestRawScramble = currentScramble == null || TextUtils.isEmpty(currentScramble.getScramble())
+                        ? ""
+                        : currentScramble.getScramble();
+                String latestTargetState = currentScramble == null || TextUtils.isEmpty(currentScramble.getCubeState())
+                        ? ""
+                        : currentScramble.getCubeState();
+                SmartCube activeCube = getActiveSmartCube();
+                String latestCubeState = activeCube == null ? "" : activeCube.getCubeState();
+                GanRobotSessionState.setLatestMainScramble(latestRawScramble);
+                GanRobotSessionState.setLatestMainTargetState(latestTargetState);
+                GanRobotSessionState.setLatestSmartCubeState(latestCubeState);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        clearSmartCubeScrambleCache();
+                    }
+                });
+            }
+
+            @Override
+            public void onRobotExecutionEnd() {
+                runOnUiThread(() -> {
+                    // Force a state check after robot execution completes
+                    refreshSmartCubeStateUi();
+                    // refreshSmartCubeStateUi() may call completeSmartCubeScramble() and set this flag to true again.
+                    // Robot-finished path is not a real "current move", so keep user's first manual turn effective.
+                    smartCubeSkipStartForCurrentMove = false;
+                });
+            }
+        });
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        GanRobotBleClient.maybeAutoConnect(this);
         if (sensorManager != null && sensor != null) {
             sensorManager.registerListener(mSensorEventListener, sensor, SensorManager.SENSOR_DELAY_NORMAL);
         }
@@ -554,6 +590,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             inspectionAlertPlayer.release();
             inspectionAlertPlayer = null;
         }
+        GanRobotSessionState.setStateChangeListener(null);
         super.onDestroy();
     }
 
@@ -831,6 +868,16 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     }
                 }
                 Intent intent = new Intent(context, TestActivity.class);
+                startActivity(intent);
+                break;
+            case R.id.nav_gan_robot:
+                intent = new Intent(context, GanRobotActivity.class);
+                // Use the raw scramble formula from currentScramble, not the display text from tvScramble
+                // because tvScramble may contain manual move errors shown as red text
+                String rawScramble = currentScramble == null || TextUtils.isEmpty(currentScramble.getScramble())
+                        ? ""
+                        : currentScramble.getScramble();
+                intent.putExtra(GanRobotActivity.EXTRA_PREFILL_SCRAMBLE, rawScramble);
                 startActivity(intent);
                 break;
             case R.id.nav_algorithm:    //公式库
@@ -2050,6 +2097,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     public void refreshSmartCubeStateUi() {
         SmartCube cube = getActiveSmartCube();
+        if (cube != null && !TextUtils.isEmpty(cube.getCubeState())) {
+            GanRobotSessionState.setLatestSmartCubeState(cube.getCubeState());
+        }
         updateSmartCubeCompletionChecker(cube);
         if (refreshSmartCubeTrainingScrambleAfterConnect(cube)) {
             return;
@@ -2367,7 +2417,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 && (timer.getTimerState() == DCTTimer.READY || timer.getTimerState() == DCTTimer.INSPECTING);
         updateSmartCubeCompletionChecker(cube);
         cube.applyMove(move, time, isSmartCubeTrainingScramble() ? null : currentScramble.getCubeState());
-        if (!wasRunning && !waitingForSolveStart) {
+        GanRobotSessionState.setLatestSmartCubeState(cube.getCubeState());
+        if (!wasRunning && !waitingForSolveStart && !GanRobotSessionState.isRobotMoving()) {
             updateSmartCubeScrambleProgress(cube, trackScrambleDeviation ? move : -1);
             if (isSmartCubeTrainingScramble() && smartCubeScrambleProgress == smartCubeScrambleMoves.size()
                     && timer.getTimerState() != DCTTimer.RUNNING) {
@@ -4237,7 +4288,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         edit.remove("timerupd");	edit.remove("timeform");    edit.remove("showstat");
         edit.remove("screenori");   edit.remove("resultorder");
         edit.remove("scgyro"); edit.remove("scvsize"); edit.remove("sctori");
-        edit.remove("applang");
+        edit.remove("applang"); edit.remove("ganrobot_auto_connect");
         edit.apply();
     }
 
@@ -4899,6 +4950,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         //Log.w("dct", currentScramble.getCategory()+", "+currentScramble.getImageType());
         if (cube != null && !TextUtils.isEmpty(cube.getCubeState())) {
             final String cubeState = cube.getCubeState();
+            GanRobotSessionState.setLatestSmartCubeState(cubeState);
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
