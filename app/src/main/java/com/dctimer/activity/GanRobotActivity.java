@@ -111,13 +111,8 @@ public class GanRobotActivity extends AppCompatActivity {
             sharedConnectionState = STATE_CONNECTED;
             GanRobotActivity activity = activeActivityRef.get();
             if (activity != null) {
-                activity.runOnUiThread(() -> {
-                    activity.mainHandler.removeCallbacks(activity.forceDisconnectRunnable);
-                    activity.updateConnectionUi();
-                    activity.appendStatus(activity.getString(R.string.gan_robot_connected));
-                });
+                activity.runOnUiThread(() -> activity.handleRobotConnected());
             } else {
-                notifyConnectionUiChanged();
                 showAutoConnectSuccessToast();
             }
         }
@@ -127,13 +122,7 @@ public class GanRobotActivity extends AppCompatActivity {
             sharedConnectionState = STATE_DISCONNECTED;
             GanRobotActivity activity = activeActivityRef.get();
             if (activity != null) {
-                activity.runOnUiThread(() -> {
-                    activity.mainHandler.removeCallbacks(activity.forceDisconnectRunnable);
-                    activity.updateConnectionUi();
-                    activity.appendStatus(activity.getString(R.string.gan_robot_status_disconnected));
-                });
-            } else {
-                notifyConnectionUiChanged();
+                activity.runOnUiThread(() -> activity.handleRobotDisconnected());
             }
         }
 
@@ -142,12 +131,7 @@ public class GanRobotActivity extends AppCompatActivity {
             sharedConnectionState = STATE_DISCONNECTED;
             GanRobotActivity activity = activeActivityRef.get();
             if (activity != null) {
-                activity.runOnUiThread(() -> {
-                    activity.appendStatus(activity.getString(R.string.ble_device_not_supported));
-                    activity.updateConnectionUi();
-                });
-            } else {
-                notifyConnectionUiChanged();
+                activity.runOnUiThread(() -> activity.handleRobotConnectionError(R.string.ble_device_not_supported));
             }
         }
 
@@ -156,12 +140,7 @@ public class GanRobotActivity extends AppCompatActivity {
             sharedConnectionState = STATE_DISCONNECTED;
             GanRobotActivity activity = activeActivityRef.get();
             if (activity != null) {
-                activity.runOnUiThread(() -> {
-                    activity.appendStatus(activity.getString(R.string.connect_fail));
-                    activity.updateConnectionUi();
-                });
-            } else {
-                notifyConnectionUiChanged();
+                activity.runOnUiThread(() -> activity.handleRobotConnectionError(R.string.connect_fail));
             }
         }
     };
@@ -219,7 +198,7 @@ public class GanRobotActivity extends AppCompatActivity {
         @Override
         public void run() {
             if (getConnectionState() == STATE_DISCONNECTING) {
-                closeCurrentGatt();
+                closeRobotConnection();
                 setConnectionState(STATE_DISCONNECTED);
                 appendStatus(getString(R.string.gan_robot_status_disconnected));
             }
@@ -585,16 +564,12 @@ public class GanRobotActivity extends AppCompatActivity {
             mainHandler.postDelayed(forceDisconnectRunnable, DISCONNECT_TIMEOUT_MS);
         } catch (SecurityException e) {
             Log.e(TAG, "disconnect failed", e);
-            closeCurrentGatt();
+            closeRobotConnection();
             setConnectionState(STATE_DISCONNECTED);
         }
     }
 
-    private void closeCurrentGatt() {
-        closeGatt();
-    }
-
-    private static void closeGatt() {
+    private void closeRobotConnection() {
         GanRobotAutoConnector.closeConnection();
         GanRobotBleClient.close();
     }
@@ -670,6 +645,24 @@ public class GanRobotActivity extends AppCompatActivity {
 
     public static boolean isSending() {
         return GanRobotExecutor.isSending();
+    }
+
+    private void handleRobotConnected() {
+        mainHandler.removeCallbacks(forceDisconnectRunnable);
+        updateConnectionUi();
+        appendStatus(getString(R.string.gan_robot_connected));
+    }
+
+    private void handleRobotDisconnected() {
+        mainHandler.removeCallbacks(forceDisconnectRunnable);
+        updateConnectionUi();
+        appendStatus(getString(R.string.gan_robot_status_disconnected));
+    }
+
+    private void handleRobotConnectionError(int messageResId) {
+        mainHandler.removeCallbacks(forceDisconnectRunnable);
+        updateConnectionUi();
+        appendStatus(getString(messageResId));
     }
 
     private void setConnectionState(int state) {
@@ -902,13 +895,6 @@ public class GanRobotActivity extends AppCompatActivity {
                     || manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
         } catch (Exception e) {
             return false;
-        }
-    }
-
-    public static void notifyConnectionUiChanged() {
-        GanRobotActivity activity = activeActivityRef.get();
-        if (activity != null) {
-            activity.runOnUiThread(activity::updateConnectionUi);
         }
     }
 
