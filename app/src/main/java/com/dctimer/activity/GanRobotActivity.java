@@ -179,6 +179,27 @@ public class GanRobotActivity extends AppCompatActivity {
     private static volatile long sharedLastAutoConnectAttemptElapsedMs;
     private static final Handler autoConnectHandler = new Handler(Looper.getMainLooper());
     private static WeakReference<GanRobotActivity> activeActivityRef = new WeakReference<>(null);
+    private final GanRobotExecutor.Listener robotExecutorListener = new GanRobotExecutor.Listener() {
+        @Override
+        public void onStatus(String message) {
+            appendStatus(message);
+        }
+
+        @Override
+        public void onToast(int messageResId) {
+            Toast.makeText(GanRobotActivity.this, messageResId, Toast.LENGTH_SHORT).show();
+        }
+
+        @Override
+        public void onRemainingChanged(int remaining) {
+            upsertRemainingStatus(remaining);
+        }
+
+        @Override
+        public void onSendingChanged() {
+            updateConnectionUi();
+        }
+    };
     private final Runnable stopScanRunnable = new Runnable() {
         @Override
         public void run() {
@@ -208,6 +229,7 @@ public class GanRobotActivity extends AppCompatActivity {
     private ArrayAdapter<String> scanAdapter;
     private String prefillRawScramble = "";
     private String prefillDisplayScramble = "";
+    private String latestRemainingStatusLine;
     private final Runnable forceDisconnectRunnable = new Runnable() {
         @Override
         public void run() {
@@ -816,7 +838,6 @@ public class GanRobotActivity extends AppCompatActivity {
     private void upsertRemainingStatus(int remaining) {
         String nextLine = "RX fff2: remaining=" + remaining;
         String current = tvRobotStatus.getText() == null ? "" : tvRobotStatus.getText().toString();
-        String latestRemainingStatusLine = GanRobotExecutor.getLatestRemainingStatusLine();
         if (!TextUtils.isEmpty(latestRemainingStatusLine) && !TextUtils.isEmpty(current)) {
             String[] lines = current.split("\\n");
             StringBuilder rebuilt = new StringBuilder(current.length());
@@ -831,7 +852,7 @@ public class GanRobotActivity extends AppCompatActivity {
             }
             current = rebuilt.toString();
         }
-        GanRobotExecutor.setLatestRemainingStatusLine(nextLine);
+        latestRemainingStatusLine = nextLine;
         String next = TextUtils.isEmpty(current) ? nextLine : current + "\n" + nextLine;
         tvRobotStatus.setText(next);
     }
@@ -1119,20 +1140,6 @@ public class GanRobotActivity extends AppCompatActivity {
         return act != null ? act : APP.getInstance();
     }
 
-    public static void appendStatusSafely(String msg) {
-        GanRobotActivity act = activeActivityRef == null ? null : activeActivityRef.get();
-        if (act != null) {
-            act.appendStatus(msg);
-        }
-    }
-
-    public static void upsertRemainingStatusSafely(int remaining) {
-        GanRobotActivity act = activeActivityRef == null ? null : activeActivityRef.get();
-        if (act != null) {
-            act.upsertRemainingStatus(remaining);
-        }
-    }
-
     private static void showAutoConnectSuccessToast() {
         GanRobotActivity activity = activeActivityRef.get();
         if (activity != null) {
@@ -1182,6 +1189,7 @@ public class GanRobotActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         activeActivityRef = new WeakReference<>(this);
+        GanRobotExecutor.setListener(robotExecutorListener);
         updateConnectionUi();
         maybeAutoConnect(this);
         performPendingRobotButtonActionIfPossible();
@@ -1189,6 +1197,7 @@ public class GanRobotActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
+        GanRobotExecutor.clearListener(robotExecutorListener);
         if (activeActivityRef.get() == this) {
             activeActivityRef.clear();
         }

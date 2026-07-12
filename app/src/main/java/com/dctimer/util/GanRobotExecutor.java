@@ -1,5 +1,8 @@
 package com.dctimer.util;
 
+import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.Log;
@@ -34,11 +37,19 @@ public final class GanRobotExecutor {
     private static final long SMART_CUBE_PROBE_TIMEOUT_MS = 2500L;
     private static final long SMART_CUBE_STATE_POLL_MS = 5L;
 
+    private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
     private static final ExecutorService IO_EXECUTOR = Executors.newSingleThreadExecutor();
+    private static volatile Listener listener;
     private static boolean isSending;
-    private static String latestRemainingStatusLine;
 
     private GanRobotExecutor() {
+    }
+
+    public interface Listener {
+        void onStatus(String message);
+        void onToast(int messageResId);
+        void onRemainingChanged(int remaining);
+        void onSendingChanged();
     }
 
     private static class RobotSolvePlan {
@@ -133,7 +144,7 @@ public final class GanRobotExecutor {
                 if (smartCubeAvailable && useMainTargetState) {
                     try {
                         String targetState = resolveTargetStateForSubmit();
-                        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Smart cube detected -> state-to-state mode"));
+                        postStatus("Smart cube detected -> state-to-state mode");
                         executeStateToStatePlan(currentCubeState, targetState, "State plan");
                         return;
                     } catch (Exception e) {
@@ -143,20 +154,20 @@ public final class GanRobotExecutor {
                 }
                 if (smartCubeAvailable) {
                     try {
-                        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Manual scramble + smart cube -> orientation probe mode"));
+                        postStatus("Manual scramble + smart cube -> orientation probe mode");
                         OrientationPlan orientationPlan = runOrientationProbePlan(currentCubeState);
                         String remappedScramble = remapAlgorithmWithFaceMap(effectiveScramble, orientationPlan.logicalToPhysicalFaceMap);
                         String finalAlgorithm = prependProbeRollback(remappedScramble);
-                        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Manual plan (probe rollback): " + finalAlgorithm));
+                        postStatus("Manual plan (probe rollback): " + finalAlgorithm);
                         executeAlgorithm(finalAlgorithm);
                         return;
                     } catch (Exception e) {
-                        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Orientation probe failed, fallback direct execute"));
+                        postStatus("Orientation probe failed, fallback direct execute");
                     }
                 }
-                GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely(useMainTargetState
+                postStatus(useMainTargetState
                         ? "No smart cube state -> direct execute mode"
-                        : "Manual scramble -> direct execute mode"));
+                        : "Manual scramble -> direct execute mode");
                 executeAlgorithm(effectiveScramble);
             } finally {
                 GanRobotSessionState.setRobotMoving(false);
@@ -166,20 +177,15 @@ public final class GanRobotExecutor {
 
     private static RobotExecutionResult executeAlgorithm(String algorithm) {
         if (TextUtils.isEmpty(algorithm) || TextUtils.isEmpty(algorithm.trim())) {
-            GanRobotActivity.postOnMainThread(() -> {
-                GanRobotActivity.appendStatusSafely(GanRobotActivity.robotContext().getString(R.string.gan_robot_send_success));
-                Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_send_success, Toast.LENGTH_SHORT).show();
-            });
+            postStatusAndToast(R.string.gan_robot_send_success);
             return new RobotExecutionResult(true, 0L);
         }
         List<byte[]> packets;
         try {
             packets = GanRobotCodec.encodeScramble(algorithm);
         } catch (IllegalArgumentException e) {
-            GanRobotActivity.postOnMainThread(() -> {
-                GanRobotActivity.appendStatusSafely(GanRobotActivity.robotContext().getString(R.string.gan_robot_invalid_scramble, e.getMessage()));
-                Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_invalid_scramble_short, Toast.LENGTH_SHORT).show();
-            });
+            postStatus(getString(R.string.gan_robot_invalid_scramble, e.getMessage()));
+            showToast(R.string.gan_robot_invalid_scramble_short);
             return new RobotExecutionResult(false, 0L);
         }
         if (packets.isEmpty()) {
@@ -188,20 +194,16 @@ public final class GanRobotExecutor {
         }
         long executeStartMs = SystemClock.elapsedRealtime();
         setSending(true);
-        latestRemainingStatusLine = null;
-        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely(GanRobotActivity.robotContext().getString(R.string.gan_robot_waiting_execution, packets.size())));
+        postStatus(getString(R.string.gan_robot_waiting_execution, packets.size()));
         try {
             for (int i = 0; i < packets.size(); i++) {
                 ensureGattConnected();
                 writeMovePacket(packets.get(i));
                 waitRobotIdle();
                 final int chunk = i + 1;
-                GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Chunk " + chunk + "/" + packets.size() + " done"));
+                postStatus("Chunk " + chunk + "/" + packets.size() + " done");
             }
-            GanRobotActivity.postOnMainThread(() -> {
-                GanRobotActivity.appendStatusSafely(GanRobotActivity.robotContext().getString(R.string.gan_robot_send_success));
-                Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_send_success, Toast.LENGTH_SHORT).show();
-            });
+            postStatusAndToast(R.string.gan_robot_send_success);
             return new RobotExecutionResult(true, SystemClock.elapsedRealtime() - executeStartMs);
         } catch (Exception e) {
             Log.e(TAG, "execute scramble failed", e);
@@ -209,7 +211,6 @@ public final class GanRobotExecutor {
             return new RobotExecutionResult(false, SystemClock.elapsedRealtime() - executeStartMs);
         } finally {
             setSending(false);
-            latestRemainingStatusLine = null;
         }
     }
 
@@ -226,17 +227,17 @@ public final class GanRobotExecutor {
         String algorithm = remapAlgorithmWithFaceMap(solvePlan.algorithmLogical, orientationPlan.logicalToPhysicalFaceMap);
         int logicalMoveCount = countAlgorithmMoves(algorithm);
         int robotMoveCount = TextUtils.isEmpty(algorithm) ? 0 : GanRobotCodec.estimateRobotCost(algorithm);
-        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Orientation probe done (D/F)"));
-        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Solve strategy: " + solvePlan.strategyLabel + " (" + solvePlan.evaluatedCandidates + " candidates/" + solvePlan.searchTimeMs + "ms)"));
-        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Robot convert: " + logicalMoveCount + " -> " + robotMoveCount + " moves"));
-        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely(planLabel + ": " + algorithm));
+        postStatus("Orientation probe done (D/F)");
+        postStatus("Solve strategy: " + solvePlan.strategyLabel + " (" + solvePlan.evaluatedCandidates + " candidates/" + solvePlan.searchTimeMs + "ms)");
+        postStatus("Robot convert: " + logicalMoveCount + " -> " + robotMoveCount + " moves");
+        postStatus(planLabel + ": " + algorithm);
         RobotExecutionResult executionResult = executeAlgorithm(algorithm);
         if (executionResult.success) {
             long totalTimeMs = SystemClock.elapsedRealtime() - totalStartMs;
-            GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Timing(ms) probe=" + probeTimeMs
+            postStatus("Timing(ms) probe=" + probeTimeMs
                     + ", path=" + pathTimeMs
                     + ", move=" + executionResult.executionTimeMs
-                    + ", total=" + totalTimeMs));
+                    + ", total=" + totalTimeMs);
         }
     }
 
@@ -303,12 +304,14 @@ public final class GanRobotExecutor {
         return isSending;
     }
 
-    public static String getLatestRemainingStatusLine() {
-        return latestRemainingStatusLine;
+    public static void setListener(Listener listener) {
+        GanRobotExecutor.listener = listener;
     }
 
-    public static void setLatestRemainingStatusLine(String statusLine) {
-        latestRemainingStatusLine = statusLine;
+    public static void clearListener(Listener listener) {
+        if (GanRobotExecutor.listener == listener) {
+            GanRobotExecutor.listener = null;
+        }
     }
 
     private static boolean isSmartCubeModeActive() {
@@ -323,8 +326,8 @@ public final class GanRobotExecutor {
     }
 
     private static void writeMovePacket(byte[] packet) throws Exception {
-        GanRobotBleClient.writeMovePacket(GanRobotActivity.robotContext(), packet);
-        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("TX fff3: " + toHex(packet)));
+        GanRobotBleClient.writeMovePacket(robotContext(), packet);
+        postStatus("TX fff3: " + toHex(packet));
     }
 
     private static int waitRobotIdle() throws Exception {
@@ -342,11 +345,10 @@ public final class GanRobotExecutor {
         int lastValue = 0;
         int lastLoggedValue = -1;
         while (SystemClock.elapsedRealtime() < deadline) {
-            GanRobotBleClient.StatusSample sample = GanRobotBleClient.readMovesRemaining(GanRobotActivity.robotContext());
+            GanRobotBleClient.StatusSample sample = GanRobotBleClient.readMovesRemaining(robotContext());
             lastValue = sample.movesRemaining;
             if (logStatus && lastValue != lastLoggedValue) {
-                final int currentValue = lastValue;
-                GanRobotActivity.postOnMainThread(() -> GanRobotActivity.upsertRemainingStatusSafely(currentValue));
+                postRemainingChanged(lastValue);
                 lastLoggedValue = lastValue;
             }
             if (lastValue > 0) {
@@ -359,18 +361,18 @@ public final class GanRobotExecutor {
                 }
             }
         }
-        throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_status_timeout));
+        throw new IllegalStateException(getString(R.string.gan_robot_status_timeout));
     }
 
     private static void ensureGattConnected() {
         if (!GanRobotActivity.isConnectedAndReady()) {
-            throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_wait_connect));
+            throw new IllegalStateException(getString(R.string.gan_robot_wait_connect));
         }
     }
 
     private static void setSending(final boolean sending) {
         isSending = sending;
-        GanRobotActivity.notifyConnectionUiChanged();
+        postSendingChanged();
     }
 
     private static String toHex(byte[] value) {
@@ -395,12 +397,12 @@ public final class GanRobotExecutor {
         }
         String scrambleFacelet = Tools.getScrambleFacelet(start, target);
         if (scrambleFacelet == null) {
-            throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_send_failed_short));
+            throw new IllegalStateException(getString(R.string.gan_robot_send_failed_short));
         }
         RobotSolvePlan solvePlan = buildRobotOptimizedStateSolution(scrambleFacelet);
         String algorithm = solvePlan.algorithmLogical;
         if (algorithm == null || algorithm.trim().isEmpty()) {
-            throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_send_failed_short));
+            throw new IllegalStateException(getString(R.string.gan_robot_send_failed_short));
         }
         if (algorithm.startsWith("Error")) {
             throw new IllegalStateException(algorithm);
@@ -422,7 +424,7 @@ public final class GanRobotExecutor {
     private static String resolveTargetStateForSubmit() {
         String targetState = normalizeFacelet(GanRobotSessionState.getLatestMainTargetState());
         if (TextUtils.isEmpty(targetState)) {
-            throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_send_failed_short));
+            throw new IllegalStateException(getString(R.string.gan_robot_send_failed_short));
         }
         return targetState;
     }
@@ -567,14 +569,14 @@ public final class GanRobotExecutor {
 
     private static String normalizeFacelet(String facelet) {
         if (TextUtils.isEmpty(facelet)) {
-            throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_solve_need_cube_state));
+            throw new IllegalStateException(getString(R.string.gan_robot_solve_need_cube_state));
         }
         String normalized = facelet.trim();
         if (normalized.length() != 54) {
-            throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_solve_invalid_cube_state));
+            throw new IllegalStateException(getString(R.string.gan_robot_solve_invalid_cube_state));
         }
         if (!normalized.matches("^[URFDLB]{54}$")) {
-            throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_solve_invalid_cube_state));
+            throw new IllegalStateException(getString(R.string.gan_robot_solve_invalid_cube_state));
         }
         return normalized;
     }
@@ -609,7 +611,7 @@ public final class GanRobotExecutor {
     private static String applyFaceClockwise(String facelet, char face) {
         CubieCube cube = new CubieCube();
         if (Util.toCubieCube(facelet, cube) != 0) {
-            throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_solve_invalid_cube_state));
+            throw new IllegalStateException(getString(R.string.gan_robot_solve_invalid_cube_state));
         }
         int moveIndex = toClockwiseMoveIndex(face);
         CubieCube moved = cube.move(moveIndex);
@@ -711,21 +713,63 @@ public final class GanRobotExecutor {
     }
 
     private static void postStatusAndToast(int messageResId) {
-        GanRobotActivity.postOnMainThread(() -> {
-            GanRobotActivity.appendStatusSafely(GanRobotActivity.robotContext().getString(messageResId));
-            Toast.makeText(GanRobotActivity.robotContext(), messageResId, Toast.LENGTH_SHORT).show();
-        });
+        postStatus(getString(messageResId));
+        showToast(messageResId);
     }
 
     private static void postSendFailed(Exception e) {
-        GanRobotActivity.postOnMainThread(() -> {
-            GanRobotActivity.appendStatusSafely(GanRobotActivity.robotContext().getString(R.string.gan_robot_send_failed, e.getMessage()));
-            Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_send_failed_short, Toast.LENGTH_SHORT).show();
-        });
+        postStatus(getString(R.string.gan_robot_send_failed, e.getMessage()));
+        showToast(R.string.gan_robot_send_failed_short);
     }
 
     private static void showToast(int messageResId) {
-        GanRobotActivity.postOnMainThread(() ->
-                Toast.makeText(GanRobotActivity.robotContext(), messageResId, Toast.LENGTH_SHORT).show());
+        Listener current = listener;
+        if (current != null) {
+            MAIN_HANDLER.post(() -> current.onToast(messageResId));
+            return;
+        }
+        Context context = robotContext();
+        if (context != null) {
+            MAIN_HANDLER.post(() -> Toast.makeText(context, messageResId, Toast.LENGTH_SHORT).show());
+        }
+    }
+
+    private static void postStatus(String message) {
+        if (TextUtils.isEmpty(message)) {
+            return;
+        }
+        Listener current = listener;
+        if (current != null) {
+            MAIN_HANDLER.post(() -> current.onStatus(message));
+        }
+    }
+
+    private static void postRemainingChanged(int remaining) {
+        Listener current = listener;
+        if (current != null) {
+            MAIN_HANDLER.post(() -> current.onRemainingChanged(remaining));
+        }
+    }
+
+    private static void postSendingChanged() {
+        Listener current = listener;
+        if (current != null) {
+            MAIN_HANDLER.post(current::onSendingChanged);
+        }
+    }
+
+    private static Context robotContext() {
+        Context context = APP.getInstance();
+        return context == null ? null : context.getApplicationContext();
+    }
+
+    private static String getString(int resId, Object... args) {
+        Context context = robotContext();
+        if (context == null) {
+            return "";
+        }
+        return args == null || args.length == 0
+                ? context.getString(resId)
+                : context.getString(resId, args);
     }
 }
