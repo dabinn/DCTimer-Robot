@@ -20,9 +20,11 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.widget.Toast;
 
 import androidx.core.content.ContextCompat;
 
+import com.dctimer.APP;
 import com.dctimer.R;
 import com.dctimer.model.BLEDevice;
 
@@ -63,6 +65,7 @@ public final class GanRobotBleClient {
     private static BluetoothAdapter.LeScanCallback autoLeScanCallback;
     private static Runnable autoStopScanRunnable;
     private static volatile long lastAutoConnectAttemptElapsedMs;
+    private static volatile Context autoConnectToastContext;
 
     public interface Callback {
         void onDeviceListChanged(List<BLEDevice> devices);
@@ -104,6 +107,7 @@ public final class GanRobotBleClient {
             return;
         }
         Context appContext = context.getApplicationContext();
+        autoConnectToastContext = appContext;
         if (shouldSkipAutoConnect(appContext)) {
             return;
         }
@@ -546,7 +550,22 @@ public final class GanRobotBleClient {
         Callback current = callback;
         if (current != null) {
             current.onConnected();
+        } else {
+            showAutoConnectSuccessToast();
         }
+    }
+
+    private static void showAutoConnectSuccessToast() {
+        Context context = autoConnectToastContext;
+        if (context == null) {
+            context = APP.getInstance();
+        }
+        if (context == null) {
+            return;
+        }
+        Context toastContext = context;
+        autoConnectHandler.post(() ->
+                Toast.makeText(toastContext, R.string.gan_robot_connected, Toast.LENGTH_SHORT).show());
     }
 
     static void notifyDisconnected(BLEDevice device) {
