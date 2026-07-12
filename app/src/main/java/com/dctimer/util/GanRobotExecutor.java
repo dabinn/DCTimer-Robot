@@ -10,21 +10,33 @@ import com.dctimer.R;
 import com.dctimer.activity.GanRobotActivity;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import cs.min2phase.CubieCube;
 import cs.min2phase.Tools;
+import cs.min2phase.Util;
 
 public final class GanRobotExecutor {
     private static final String TAG = "GanRobotExecutor";
     private static final String SOLVED_FACELET = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
     private static final String ORIENTATION_PROBE_ROLLBACK = "F' D'";
+    private static final int ROBOT_IDLE_ZERO_STREAK_EXECUTE = 5;
+    private static final int ROBOT_IDLE_ZERO_STREAK_PROBE = 2;
+    private static final long ROBOT_IDLE_TIMEOUT_MS_EXECUTE = 20000L;
+    private static final long ROBOT_IDLE_TIMEOUT_MS_PROBE = 5000L;
+    private static final long SMART_CUBE_PROBE_TIMEOUT_MS = 2500L;
+    private static final long SMART_CUBE_STATE_POLL_MS = 5L;
 
     private static final ExecutorService IO_EXECUTOR = Executors.newSingleThreadExecutor();
+    private static boolean isSending;
+    private static String latestRemainingStatusLine;
 
     private GanRobotExecutor() {
     }
@@ -56,6 +68,26 @@ public final class GanRobotExecutor {
             this.length = length;
             this.evaluatedCandidates = evaluatedCandidates;
             this.profileName = profileName;
+        }
+    }
+
+    public static class RobotExecutionResult {
+        public final boolean success;
+        public final long executionTimeMs;
+
+        RobotExecutionResult(boolean success, long executionTimeMs) {
+            this.success = success;
+            this.executionTimeMs = executionTimeMs;
+        }
+    }
+
+    public static class OrientationPlan {
+        public final String currentStateAfterProbe;
+        public final Map<Character, Character> logicalToPhysicalFaceMap;
+
+        OrientationPlan(String currentStateAfterProbe, Map<Character, Character> logicalToPhysicalFaceMap) {
+            this.currentStateAfterProbe = currentStateAfterProbe;
+            this.logicalToPhysicalFaceMap = logicalToPhysicalFaceMap;
         }
     }
 
@@ -112,11 +144,11 @@ public final class GanRobotExecutor {
                 if (smartCubeAvailable) {
                     try {
                         GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Manual scramble + smart cube -> orientation probe mode"));
-                        GanRobotActivity.OrientationPlan orientationPlan = GanRobotActivity.runOrientationProbePlan(currentCubeState);
-                        String remappedScramble = GanRobotActivity.remapAlgorithmWithFaceMap(effectiveScramble, orientationPlan.logicalToPhysicalFaceMap);
+                        OrientationPlan orientationPlan = runOrientationProbePlan(currentCubeState);
+                        String remappedScramble = remapAlgorithmWithFaceMap(effectiveScramble, orientationPlan.logicalToPhysicalFaceMap);
                         String finalAlgorithm = prependProbeRollback(remappedScramble);
                         GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Manual plan (probe rollback): " + finalAlgorithm));
-                        GanRobotActivity.executeAlgorithm(finalAlgorithm);
+                        executeAlgorithm(finalAlgorithm);
                         return;
                     } catch (Exception e) {
                         GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Orientation probe failed, fallback direct execute"));
@@ -125,11 +157,131 @@ public final class GanRobotExecutor {
                 GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely(useMainTargetState
                         ? "No smart cube state -> direct execute mode"
                         : "Manual scramble -> direct execute mode"));
-                GanRobotActivity.executeAlgorithm(effectiveScramble);
+                executeAlgorithm(effectiveScramble);
             } finally {
                 GanRobotSessionState.setRobotMoving(false);
             }
         });
+    }
+
+    public static RobotExecutionResult executeAlgorithm(String algorithm) {
+        if (TextUtils.isEmpty(algorithm) || TextUtils.isEmpty(algorithm.trim())) {
+            GanRobotActivity.postOnMainThread(() -> {
+                GanRobotActivity.appendStatusSafely(GanRobotActivity.robotContext().getString(R.string.gan_robot_send_success));
+                Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_send_success, Toast.LENGTH_SHORT).show();
+            });
+            return new RobotExecutionResult(true, 0L);
+        }
+        List<byte[]> packets;
+        try {
+            packets = GanRobotCodec.encodeScramble(algorithm);
+        } catch (IllegalArgumentException e) {
+            GanRobotActivity.postOnMainThread(() -> {
+                GanRobotActivity.appendStatusSafely(GanRobotActivity.robotContext().getString(R.string.gan_robot_invalid_scramble, e.getMessage()));
+                Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_invalid_scramble_short, Toast.LENGTH_SHORT).show();
+            });
+            return new RobotExecutionResult(false, 0L);
+        }
+        if (packets.isEmpty()) {
+            showToast(R.string.gan_robot_invalid_scramble_short);
+            return new RobotExecutionResult(false, 0L);
+        }
+        long executeStartMs = SystemClock.elapsedRealtime();
+        setSending(true);
+        latestRemainingStatusLine = null;
+        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely(GanRobotActivity.robotContext().getString(R.string.gan_robot_waiting_execution, packets.size())));
+        try {
+            for (int i = 0; i < packets.size(); i++) {
+                ensureGattConnected();
+                writeMovePacket(packets.get(i));
+                waitRobotIdle();
+                final int chunk = i + 1;
+                GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Chunk " + chunk + "/" + packets.size() + " done"));
+            }
+            GanRobotActivity.postOnMainThread(() -> {
+                GanRobotActivity.appendStatusSafely(GanRobotActivity.robotContext().getString(R.string.gan_robot_send_success));
+                Toast.makeText(GanRobotActivity.robotContext(), R.string.gan_robot_send_success, Toast.LENGTH_SHORT).show();
+            });
+            return new RobotExecutionResult(true, SystemClock.elapsedRealtime() - executeStartMs);
+        } catch (Exception e) {
+            Log.e(TAG, "execute scramble failed", e);
+            postSendFailed(e);
+            return new RobotExecutionResult(false, SystemClock.elapsedRealtime() - executeStartMs);
+        } finally {
+            setSending(false);
+            latestRemainingStatusLine = null;
+        }
+    }
+
+    public static void writeProbeMove(String move) throws Exception {
+        List<byte[]> packets = GanRobotCodec.encodeScramble(move);
+        if (packets.isEmpty()) {
+            throw new IllegalStateException("Probe move is empty");
+        }
+        for (byte[] packet : packets) {
+            ensureGattConnected();
+            writeMovePacket(packet);
+            waitRobotIdleForProbe();
+        }
+    }
+
+    public static OrientationPlan runOrientationProbePlan(String currentCubeState) throws Exception {
+        String stateBeforeProbe = normalizeFacelet(currentCubeState);
+
+        writeProbeMove("D");
+        String stateAfterD = waitForSmartCubeStateChange(stateBeforeProbe, SMART_CUBE_PROBE_TIMEOUT_MS, "D");
+        char logicalFaceForPhysicalD = detectAppliedFaceClockwise(stateBeforeProbe, stateAfterD);
+        if (logicalFaceForPhysicalD == 0) {
+            throw new IllegalStateException("Cannot infer orientation from D probe");
+        }
+
+        writeProbeMove("F");
+        String stateAfterF = waitForSmartCubeStateChange(stateAfterD, SMART_CUBE_PROBE_TIMEOUT_MS, "F");
+        char logicalFaceForPhysicalF = detectAppliedFaceClockwise(stateAfterD, stateAfterF);
+        if (logicalFaceForPhysicalF == 0) {
+            throw new IllegalStateException("Cannot infer orientation from F probe");
+        }
+
+        Map<Character, Character> logicalToPhysical = buildLogicalToPhysicalFaceMap(logicalFaceForPhysicalD, logicalFaceForPhysicalF);
+        return new OrientationPlan(stateAfterF, logicalToPhysical);
+    }
+
+    public static String remapAlgorithmWithFaceMap(String algorithm, Map<Character, Character> logicalToPhysicalFaceMap) {
+        if (TextUtils.isEmpty(algorithm) || logicalToPhysicalFaceMap == null || logicalToPhysicalFaceMap.isEmpty()) {
+            return algorithm;
+        }
+        String[] tokens = algorithm.trim().split("\\s+");
+        StringBuilder builder = new StringBuilder(algorithm.length() + 8);
+        for (String token : tokens) {
+            if (TextUtils.isEmpty(token)) {
+                continue;
+            }
+            char logicalFace = token.charAt(0);
+            Character physicalFace = logicalToPhysicalFaceMap.get(logicalFace);
+            if (physicalFace == null) {
+                throw new IllegalStateException("Orientation remap missing face: " + logicalFace);
+            }
+            if (builder.length() > 0) {
+                builder.append(' ');
+            }
+            builder.append(physicalFace);
+            if (token.length() > 1) {
+                builder.append(token.substring(1));
+            }
+        }
+        return builder.toString();
+    }
+
+    public static boolean isSending() {
+        return isSending;
+    }
+
+    public static String getLatestRemainingStatusLine() {
+        return latestRemainingStatusLine;
+    }
+
+    public static void setLatestRemainingStatusLine(String statusLine) {
+        latestRemainingStatusLine = statusLine;
     }
 
     private static boolean isSmartCubeModeActive() {
@@ -141,6 +293,71 @@ public final class GanRobotExecutor {
             return ORIENTATION_PROBE_ROLLBACK;
         }
         return ORIENTATION_PROBE_ROLLBACK + " " + algorithm.trim();
+    }
+
+    private static void writeMovePacket(byte[] packet) throws Exception {
+        GanRobotBleClient.writeMovePacket(GanRobotActivity.robotContext(), packet);
+        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("TX fff3: " + toHex(packet)));
+    }
+
+    private static int waitRobotIdle() throws Exception {
+        return waitRobotIdleInternal(ROBOT_IDLE_TIMEOUT_MS_EXECUTE, ROBOT_IDLE_ZERO_STREAK_EXECUTE, true);
+    }
+
+    private static int waitRobotIdleForProbe() throws Exception {
+        return waitRobotIdleInternal(ROBOT_IDLE_TIMEOUT_MS_PROBE, ROBOT_IDLE_ZERO_STREAK_PROBE, false);
+    }
+
+    private static int waitRobotIdleInternal(long timeoutMs, int zeroStreakTarget, boolean logStatus) throws Exception {
+        boolean seenNonZero = false;
+        int zeroStreak = 0;
+        long deadline = SystemClock.elapsedRealtime() + timeoutMs;
+        int lastValue = 0;
+        int lastLoggedValue = -1;
+        while (SystemClock.elapsedRealtime() < deadline) {
+            GanRobotBleClient.StatusSample sample = GanRobotBleClient.readMovesRemaining(GanRobotActivity.robotContext());
+            lastValue = sample.movesRemaining;
+            if (logStatus && lastValue != lastLoggedValue) {
+                final int currentValue = lastValue;
+                GanRobotActivity.postOnMainThread(() -> GanRobotActivity.upsertRemainingStatusSafely(currentValue));
+                lastLoggedValue = lastValue;
+            }
+            if (lastValue > 0) {
+                seenNonZero = true;
+                zeroStreak = 0;
+            } else {
+                zeroStreak++;
+                if (seenNonZero || zeroStreak >= zeroStreakTarget) {
+                    return lastValue;
+                }
+            }
+        }
+        throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_status_timeout));
+    }
+
+    private static void ensureGattConnected() {
+        if (!GanRobotActivity.isConnectedAndReady()) {
+            throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_wait_connect));
+        }
+    }
+
+    private static void setSending(final boolean sending) {
+        isSending = sending;
+        GanRobotActivity.notifyConnectionUiChanged();
+    }
+
+    private static String toHex(byte[] value) {
+        if (value == null || value.length == 0) {
+            return "(empty)";
+        }
+        StringBuilder builder = new StringBuilder(value.length * 3);
+        for (int i = 0; i < value.length; i++) {
+            if (i > 0) {
+                builder.append(' ');
+            }
+            builder.append(String.format(java.util.Locale.US, "%02X", value[i] & 0xff));
+        }
+        return builder.toString();
     }
 
     public static RobotSolvePlan buildStateToStateAlgorithm(String startFacelet, String targetFacelet) {
@@ -313,7 +530,7 @@ public final class GanRobotExecutor {
         return new SolveCandidate(best, bestCost, bestLength, evaluated, profileName);
     }
 
-    private static String normalizeFacelet(String facelet) {
+    public static String normalizeFacelet(String facelet) {
         if (TextUtils.isEmpty(facelet)) {
             throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_solve_need_cube_state));
         }
@@ -325,6 +542,137 @@ public final class GanRobotExecutor {
             throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_solve_invalid_cube_state));
         }
         return normalized;
+    }
+
+    private static String waitForSmartCubeStateChange(String previousState, long timeoutMs, String probeName) throws Exception {
+        long deadline = SystemClock.elapsedRealtime() + timeoutMs;
+        String prev = normalizeFacelet(previousState);
+        while (SystemClock.elapsedRealtime() < deadline) {
+            String now = GanRobotSessionState.getLatestSmartCubeState();
+            if (!TextUtils.isEmpty(now)) {
+                String normalizedNow = normalizeFacelet(now);
+                if (!TextUtils.equals(prev, normalizedNow)) {
+                    return normalizedNow;
+                }
+            }
+            Thread.sleep(SMART_CUBE_STATE_POLL_MS);
+        }
+        throw new IllegalStateException("Smart cube probe timeout on " + probeName);
+    }
+
+    private static char detectAppliedFaceClockwise(String beforeState, String afterState) {
+        char[] faces = new char[] {'U', 'R', 'F', 'D', 'L', 'B'};
+        for (char face : faces) {
+            String transformed = applyFaceClockwise(beforeState, face);
+            if (TextUtils.equals(transformed, afterState)) {
+                return face;
+            }
+        }
+        return 0;
+    }
+
+    private static String applyFaceClockwise(String facelet, char face) {
+        CubieCube cube = new CubieCube();
+        if (Util.toCubieCube(facelet, cube) != 0) {
+            throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_solve_invalid_cube_state));
+        }
+        int moveIndex = toClockwiseMoveIndex(face);
+        CubieCube moved = cube.move(moveIndex);
+        return Util.toFaceCube(moved);
+    }
+
+    private static int toClockwiseMoveIndex(char face) {
+        switch (face) {
+            case 'U':
+                return 0;
+            case 'R':
+                return 3;
+            case 'F':
+                return 6;
+            case 'D':
+                return 9;
+            case 'L':
+                return 12;
+            case 'B':
+                return 15;
+            default:
+                throw new IllegalArgumentException("Unsupported face: " + face);
+        }
+    }
+
+    private static Map<Character, Character> buildLogicalToPhysicalFaceMap(char logicalForPhysicalD, char logicalForPhysicalF) {
+        int[] physicalUp = negate(faceToVector(logicalForPhysicalD));
+        int[] physicalFront = faceToVector(logicalForPhysicalF);
+        if (dot(physicalUp, physicalFront) != 0) {
+            throw new IllegalStateException("Invalid orientation probe result");
+        }
+        int[] physicalRight = cross(physicalUp, physicalFront);
+        if (norm1(physicalRight) != 1) {
+            throw new IllegalStateException("Invalid orientation probe basis");
+        }
+
+        Map<Character, Character> physicalToLogical = new HashMap<>();
+        physicalToLogical.put('U', vectorToFace(physicalUp));
+        physicalToLogical.put('D', vectorToFace(negate(physicalUp)));
+        physicalToLogical.put('F', vectorToFace(physicalFront));
+        physicalToLogical.put('B', vectorToFace(negate(physicalFront)));
+        physicalToLogical.put('R', vectorToFace(physicalRight));
+        physicalToLogical.put('L', vectorToFace(negate(physicalRight)));
+
+        Map<Character, Character> logicalToPhysical = new HashMap<>();
+        for (Map.Entry<Character, Character> entry : physicalToLogical.entrySet()) {
+            logicalToPhysical.put(entry.getValue(), entry.getKey());
+        }
+        return logicalToPhysical;
+    }
+
+    private static int[] faceToVector(char face) {
+        switch (face) {
+            case 'U':
+                return new int[] {0, 1, 0};
+            case 'D':
+                return new int[] {0, -1, 0};
+            case 'F':
+                return new int[] {0, 0, 1};
+            case 'B':
+                return new int[] {0, 0, -1};
+            case 'R':
+                return new int[] {1, 0, 0};
+            case 'L':
+                return new int[] {-1, 0, 0};
+            default:
+                throw new IllegalArgumentException("Unknown face " + face);
+        }
+    }
+
+    private static char vectorToFace(int[] vector) {
+        if (vector[0] == 0 && vector[1] == 1 && vector[2] == 0) return 'U';
+        if (vector[0] == 0 && vector[1] == -1 && vector[2] == 0) return 'D';
+        if (vector[0] == 0 && vector[1] == 0 && vector[2] == 1) return 'F';
+        if (vector[0] == 0 && vector[1] == 0 && vector[2] == -1) return 'B';
+        if (vector[0] == 1 && vector[1] == 0 && vector[2] == 0) return 'R';
+        if (vector[0] == -1 && vector[1] == 0 && vector[2] == 0) return 'L';
+        throw new IllegalArgumentException("Invalid vector");
+    }
+
+    private static int[] negate(int[] v) {
+        return new int[] {-v[0], -v[1], -v[2]};
+    }
+
+    private static int dot(int[] a, int[] b) {
+        return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    }
+
+    private static int[] cross(int[] a, int[] b) {
+        return new int[] {
+                a[1] * b[2] - a[2] * b[1],
+                a[2] * b[0] - a[0] * b[2],
+                a[0] * b[1] - a[1] * b[0]
+        };
+    }
+
+    private static int norm1(int[] v) {
+        return Math.abs(v[0]) + Math.abs(v[1]) + Math.abs(v[2]);
     }
 
     private static void postStatusAndToast(int messageResId) {
