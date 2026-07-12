@@ -4,16 +4,7 @@ import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothManager;
-import android.bluetooth.BluetoothProfile;
-import android.bluetooth.le.BluetoothLeScanner;
-import android.bluetooth.le.ScanRecord;
-import android.bluetooth.le.ScanCallback;
-import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -24,7 +15,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.SystemClock;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
@@ -52,12 +42,12 @@ import android.widget.Toast;
 
 import com.dctimer.APP;
 import com.dctimer.R;
+import com.dctimer.model.BLEDevice;
 import com.dctimer.model.SmartCubeTraining;
 import com.dctimer.util.GanRobotAutoConnector;
 import com.dctimer.util.GanRobotBleClient;
 import com.dctimer.util.GanRobotController;
 import com.dctimer.util.GanRobotExecutor;
-import com.dctimer.util.GanRobotProtocol;
 import com.dctimer.util.GanRobotSessionState;
 import com.dctimer.util.Utils;
 import com.dctimer.widget.CustomToolbar;
@@ -79,10 +69,6 @@ public class GanRobotActivity extends AppCompatActivity {
     private static final int STATE_DISCONNECTING = 3;
     private static final long SCAN_TIMEOUT_MS = 10000L;
     private static final long DISCONNECT_TIMEOUT_MS = 4000L;
-    private static final long AUTO_CONNECT_COOLDOWN_MS = 15000L;
-    private static final long AUTO_SCAN_TIMEOUT_MS = 7000L;
-    private static final String PREF_NAME = "dctimer";
-    private static final String PREF_GAN_ROBOT_AUTO_CONNECT = "ganrobot_auto_connect";
     public static final String EXTRA_PREFILL_SCRAMBLE = "extra_prefill_scramble";
     public static final String EXTRA_PREFILL_SCRAMBLE_DISPLAY = "extra_prefill_scramble_display";
 
@@ -96,89 +82,81 @@ public class GanRobotActivity extends AppCompatActivity {
         }
     }
 
-    private abstract static class BaseRobotGattCallback extends BluetoothGattCallback {
-        @Override
-        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            GanRobotBleClient.onCharacteristicWrite(characteristic, status);
-        }
-
-        @Override
-        public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            GanRobotBleClient.onCharacteristicRead(characteristic, status);
-        }
-
-        @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-            if (characteristic != null) {
-                onCharacteristicChanged(gatt, characteristic, characteristic.getValue());
-            }
-        }
-
-        @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, byte[] value) {
-            if (characteristic == null || characteristic.getUuid() == null) {
-                return;
-            }
-            if (GanRobotProtocol.CHARACTER_UUID_BUTTON.equals(characteristic.getUuid())) {
-                GanRobotController.handleRobotButtonEvent(value);
-            }
-        }
-    }
-
-    private interface RobotGattEventHandler {
-        void onDiscoverServicesFailed();
-
-        void onDiscoverServicesException(SecurityException e);
-
-        void onDisconnected();
-
-        void onUnsupportedDevice();
-
-        void onConnected();
-    }
-
-    private static class RobotGattEventCallback extends BaseRobotGattCallback {
-        private final RobotGattEventHandler eventHandler;
-
-        RobotGattEventCallback(RobotGattEventHandler eventHandler) {
-            this.eventHandler = eventHandler;
-        }
-
-        @Override
-        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
-                try {
-                    gatt.discoverServices();
-                } catch (SecurityException e) {
-                    eventHandler.onDiscoverServicesException(e);
-                }
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                eventHandler.onDisconnected();
-            }
-        }
-
-        @Override
-        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            if (status != BluetoothGatt.GATT_SUCCESS) {
-                eventHandler.onDiscoverServicesFailed();
-                return;
-            }
-            if (!GanRobotBleClient.attach(gatt)) {
-                eventHandler.onUnsupportedDevice();
-                return;
-            }
-            eventHandler.onConnected();
-        }
-    }
-
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Set<String> scannedAddresses = new HashSet<>();
-    private final List<BluetoothDevice> scannedDevices = new ArrayList<>();
+    private final List<BLEDevice> scannedDevices = new ArrayList<>();
     private final List<String> scannedDeviceNames = new ArrayList<>();
     private static volatile int sharedConnectionState = STATE_DISCONNECTED;
-    private static volatile long sharedLastAutoConnectAttemptElapsedMs;
     private static final Handler autoConnectHandler = new Handler(Looper.getMainLooper());
     private static WeakReference<GanRobotActivity> activeActivityRef = new WeakReference<>(null);
+    private static final GanRobotBleClient.Callback robotBleCallback = new GanRobotBleClient.Callback() {
+        @Override
+        public void onDeviceListChanged(List<BLEDevice> devices) {
+            GanRobotActivity activity = activeActivityRef.get();
+            if (activity != null) {
+                activity.refreshRobotDeviceList(devices);
+            }
+        }
+
+        @Override
+        public void onScanFailed() {
+            GanRobotActivity activity = activeActivityRef.get();
+            if (activity != null && activity.scanProgress != null) {
+                activity.scanProgress.setVisibility(View.GONE);
+            }
+        }
+
+        @Override
+        public void onConnected() {
+            sharedConnectionState = STATE_CONNECTED;
+            GanRobotActivity activity = activeActivityRef.get();
+            if (activity != null) {
+                activity.mainHandler.removeCallbacks(activity.forceDisconnectRunnable);
+                activity.updateConnectionUi();
+                activity.appendStatus(activity.getString(R.string.gan_robot_connected));
+            } else {
+                notifyConnectionUiChanged();
+                showAutoConnectSuccessToast();
+            }
+        }
+
+        @Override
+        public void onDisconnected(BLEDevice device) {
+            sharedConnectionState = STATE_DISCONNECTED;
+            GanRobotActivity activity = activeActivityRef.get();
+            if (activity != null) {
+                activity.mainHandler.removeCallbacks(activity.forceDisconnectRunnable);
+                activity.updateConnectionUi();
+                activity.appendStatus(activity.getString(R.string.gan_robot_status_disconnected));
+            } else {
+                notifyConnectionUiChanged();
+            }
+        }
+
+        @Override
+        public void onUnsupportedDevice() {
+            sharedConnectionState = STATE_DISCONNECTED;
+            GanRobotActivity activity = activeActivityRef.get();
+            if (activity != null) {
+                activity.appendStatus(activity.getString(R.string.ble_device_not_supported));
+                activity.updateConnectionUi();
+            } else {
+                notifyConnectionUiChanged();
+            }
+        }
+
+        @Override
+        public void onConnectFailed() {
+            sharedConnectionState = STATE_DISCONNECTED;
+            GanRobotActivity activity = activeActivityRef.get();
+            if (activity != null) {
+                activity.appendStatus(activity.getString(R.string.connect_fail));
+                activity.updateConnectionUi();
+            } else {
+                notifyConnectionUiChanged();
+            }
+        }
+    };
     private final GanRobotExecutor.Listener robotExecutorListener = new GanRobotExecutor.Listener() {
         @Override
         public void onStatus(String message) {
@@ -223,7 +201,6 @@ public class GanRobotActivity extends AppCompatActivity {
     private int pendingRobotButtonAction = GanRobotController.ACTION_NONE;
 
     private BluetoothAdapter bluetoothAdapter;
-    private BluetoothLeScanner bluetoothLeScanner;
     private AlertDialog scanDialog;
     private ProgressBar scanProgress;
     private ArrayAdapter<String> scanAdapter;
@@ -234,7 +211,7 @@ public class GanRobotActivity extends AppCompatActivity {
         @Override
         public void run() {
             if (getConnectionState() == STATE_DISCONNECTING) {
-                closeGatt();
+                closeCurrentGatt();
                 setConnectionState(STATE_DISCONNECTED);
                 appendStatus(getString(R.string.gan_robot_status_disconnected));
             }
@@ -246,8 +223,7 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     public static boolean isConnectedAndReady() {
-        return sharedConnectionState == STATE_CONNECTED
-                && GanRobotBleClient.isReady();
+        return GanRobotBleClient.isReady();
     }
 
     public void requestRobotButtonAction(int action) {
@@ -289,6 +265,8 @@ public class GanRobotActivity extends AppCompatActivity {
         if (bluetoothManager != null) {
             bluetoothAdapter = bluetoothManager.getAdapter();
         }
+        GanRobotBleClient.setCallback(robotBleCallback);
+        GanRobotBleClient.initBluetoothAdapter(this);
     }
 
     @Override
@@ -322,7 +300,7 @@ public class GanRobotActivity extends AppCompatActivity {
             cbAutoConnect.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 saveAutoConnectEnabled(isChecked);
                 if (isChecked) {
-                    maybeAutoConnect(this);
+                    GanRobotAutoConnector.maybeAutoConnect(this);
                 }
             });
         }
@@ -401,8 +379,8 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private void saveAutoConnectEnabled(boolean enabled) {
-        SharedPreferences sharedPreferences = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
-        sharedPreferences.edit().putBoolean(PREF_GAN_ROBOT_AUTO_CONNECT, enabled).apply();
+        SharedPreferences sharedPreferences = getSharedPreferences(GanRobotAutoConnector.PREF_NAME, MODE_PRIVATE);
+        sharedPreferences.edit().putBoolean(GanRobotAutoConnector.PREF_GAN_ROBOT_AUTO_CONNECT, enabled).apply();
     }
 
     private void disableAutoConnectForManualDisconnect() {
@@ -413,11 +391,7 @@ public class GanRobotActivity extends AppCompatActivity {
     }
 
     private static boolean isAutoConnectEnabled(Context context) {
-        if (context == null) {
-            return false;
-        }
-        SharedPreferences sharedPreferences = context.getApplicationContext().getSharedPreferences(PREF_NAME, MODE_PRIVATE);
-        return sharedPreferences.getBoolean(PREF_GAN_ROBOT_AUTO_CONNECT, false);
+        return GanRobotAutoConnector.isAutoConnectEnabled(context);
     }
 
     private void setupToolbar() {
@@ -508,11 +482,10 @@ public class GanRobotActivity extends AppCompatActivity {
             if (i < 0 || i >= scannedDevices.size()) {
                 return;
             }
-            BluetoothDevice device = scannedDevices.get(i);
             if (scanDialog != null) {
                 scanDialog.dismiss();
             }
-            connectRobot(device);
+            connectRobot(i);
         });
 
         scanDialog = new AlertDialog.Builder(this)
@@ -538,14 +511,15 @@ public class GanRobotActivity extends AppCompatActivity {
         appendStatus(getString(R.string.gan_robot_scanning));
         mainHandler.removeCallbacks(stopScanRunnable);
         mainHandler.postDelayed(stopScanRunnable, SCAN_TIMEOUT_MS);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
-            if (bluetoothLeScanner != null) {
-                bluetoothLeScanner.startScan(scanCallback);
-                return;
+        if (!GanRobotBleClient.initBluetoothAdapter(this)) {
+            mainHandler.removeCallbacks(stopScanRunnable);
+            if (scanProgress != null) {
+                scanProgress.setVisibility(View.GONE);
             }
+            Toast.makeText(this, R.string.ble_not_supported, Toast.LENGTH_SHORT).show();
+            return;
         }
-        bluetoothAdapter.startLeScan(leScanCallback);
+        GanRobotBleClient.startScan(this);
     }
 
     private void stopScan() {
@@ -553,73 +527,40 @@ public class GanRobotActivity extends AppCompatActivity {
         if (scanProgress != null) {
             scanProgress.setVisibility(View.GONE);
         }
-        if (bluetoothAdapter == null) {
-            return;
-        }
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && bluetoothLeScanner != null) {
-                bluetoothLeScanner.stopScan(scanCallback);
-                bluetoothLeScanner = null;
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-                bluetoothAdapter.stopLeScan(leScanCallback);
-            }
-        } catch (SecurityException e) {
-            Log.e(TAG, "Stop scan failed", e);
-        }
+        GanRobotBleClient.stopScan();
         if (scannedDevices.isEmpty()) {
             appendStatus(getString(R.string.gan_robot_no_device));
         }
     }
 
-    private final BluetoothAdapter.LeScanCallback leScanCallback = new BluetoothAdapter.LeScanCallback() {
-        @Override
-        public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
-            onDeviceScanned(device, null);
-        }
-    };
-
-    private final ScanCallback scanCallback = new ScanCallback() {
-        @Override
-        public void onScanResult(int callbackType, ScanResult result) {
-            onDeviceScanned(result == null ? null : result.getDevice(), result == null ? null : result.getScanRecord());
-        }
-    };
-
-    private void onDeviceScanned(final BluetoothDevice device, final ScanRecord scanRecord) {
-        if (device == null) {
-            return;
-        }
-        String name;
-        try {
-            name = device.getName();
-        } catch (SecurityException e) {
-            return;
-        }
-        if (!GanRobotProtocol.isCandidate(name, scanRecord)) {
-            return;
-        }
-        String address = device.getAddress();
-        if (TextUtils.isEmpty(address) || !scannedAddresses.add(address)) {
-            return;
-        }
-        scannedDevices.add(device);
-        scannedDeviceNames.add(String.format(Locale.US, "%s (%s)", name, address));
-        runOnUiThread(() -> {
-            if (scanAdapter != null) {
-                scanAdapter.notifyDataSetChanged();
+    private void refreshRobotDeviceList(List<BLEDevice> devices) {
+        scannedAddresses.clear();
+        scannedDevices.clear();
+        scannedDeviceNames.clear();
+        if (devices != null) {
+            for (BLEDevice device : devices) {
+                if (device == null || TextUtils.isEmpty(device.getAddress())
+                        || !scannedAddresses.add(device.getAddress())) {
+                    continue;
+                }
+                scannedDevices.add(device);
+                scannedDeviceNames.add(String.format(Locale.US, "%s (%s)", device.getName(), device.getAddress()));
             }
-        });
+        }
+        if (scanAdapter != null) {
+            scanAdapter.notifyDataSetChanged();
+        }
     }
 
-    private void connectRobot(BluetoothDevice device) {
-        if (device == null) {
+    private void connectRobot(int deviceIndex) {
+        if (deviceIndex < 0 || deviceIndex >= scannedDevices.size()) {
             return;
         }
-        closeGatt();
+        GanRobotBleClient.closeConnection();
         setConnectionState(STATE_CONNECTING);
         appendStatus(getString(R.string.gan_robot_connecting));
         try {
-            GanRobotBleClient.connect(this, device, gattCallback);
+            GanRobotBleClient.connectScannedDevice(this, deviceIndex);
         } catch (SecurityException e) {
             setConnectionState(STATE_DISCONNECTED);
             appendStatus(getString(R.string.connect_fail));
@@ -642,60 +583,19 @@ public class GanRobotActivity extends AppCompatActivity {
             mainHandler.postDelayed(forceDisconnectRunnable, DISCONNECT_TIMEOUT_MS);
         } catch (SecurityException e) {
             Log.e(TAG, "disconnect failed", e);
-            closeGatt();
+            closeCurrentGatt();
             setConnectionState(STATE_DISCONNECTED);
         }
     }
 
-    private static void closeGatt() {
-        GanRobotBleClient.close();
+    private void closeCurrentGatt() {
+        closeGatt();
     }
 
-    private final BluetoothGattCallback gattCallback = new RobotGattEventCallback(new RobotGattEventHandler() {
-        @Override
-        public void onDiscoverServicesFailed() {
-            runOnUiThread(() -> {
-                appendStatus(getString(R.string.connect_fail));
-                disconnectRobot();
-            });
-        }
-
-        @Override
-        public void onDiscoverServicesException(SecurityException e) {
-            Log.e(TAG, "discoverServices failed", e);
-            runOnUiThread(() -> {
-                appendStatus(getString(R.string.connect_fail));
-                disconnectRobot();
-            });
-        }
-
-        @Override
-        public void onDisconnected() {
-            runOnUiThread(() -> {
-                mainHandler.removeCallbacks(forceDisconnectRunnable);
-                closeGatt();
-                setConnectionState(STATE_DISCONNECTED);
-                appendStatus(getString(R.string.gan_robot_status_disconnected));
-            });
-        }
-
-        @Override
-        public void onUnsupportedDevice() {
-            runOnUiThread(() -> {
-                appendStatus(getString(R.string.ble_device_not_supported));
-                disconnectRobot();
-            });
-        }
-
-        @Override
-        public void onConnected() {
-            runOnUiThread(() -> {
-                mainHandler.removeCallbacks(forceDisconnectRunnable);
-                setConnectionState(STATE_CONNECTED);
-                appendStatus(getString(R.string.gan_robot_connected));
-            });
-        }
-    });
+    private static void closeGatt() {
+        GanRobotAutoConnector.closeConnection();
+        GanRobotBleClient.close();
+    }
 
     private void submitScramble() {
         if (getConnectionState() != STATE_CONNECTED || !GanRobotBleClient.isReady()) {
@@ -1003,132 +903,11 @@ public class GanRobotActivity extends AppCompatActivity {
         }
     }
 
-    public static void maybeAutoConnect(Context context) {
-        if (context == null) {
-            return;
-        }
-        Context appContext = context.getApplicationContext();
-        if (shouldSkipAutoConnect(appContext)) {
-            return;
-        }
-        BluetoothAdapter adapter = getEnabledBluetoothAdapter(appContext);
-        if (adapter == null) {
-            return;
-        }
-        markAutoConnectAttempt();
-        if (GanRobotAutoConnector.connectBondedDeviceIfAvailable(appContext, adapter,
-                GanRobotActivity::connectRobotSilently)) {
-            return;
-        }
-        GanRobotAutoConnector.startScan(appContext, adapter, AUTO_SCAN_TIMEOUT_MS, autoConnectHandler,
-                GanRobotActivity::connectRobotSilently);
-    }
-
-    private static boolean shouldSkipAutoConnect(Context context) {
-        return !canAcceptAutoConnectDevice(context) || isAutoConnectCooldownActive();
-    }
-
-    private static boolean isAutoConnectCooldownActive() {
-        long now = SystemClock.elapsedRealtime();
-        return now - sharedLastAutoConnectAttemptElapsedMs < AUTO_CONNECT_COOLDOWN_MS;
-    }
-
-    private static void markAutoConnectAttempt() {
-        sharedLastAutoConnectAttemptElapsedMs = SystemClock.elapsedRealtime();
-    }
-
-    private static BluetoothAdapter getEnabledBluetoothAdapter(Context context) {
-        if (context == null) {
-            return null;
-        }
-        BluetoothManager bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
-        if (bluetoothManager == null) {
-            return null;
-        }
-        BluetoothAdapter adapter = bluetoothManager.getAdapter();
-        return adapter != null && adapter.isEnabled() ? adapter : null;
-    }
-
-    private static void connectRobotSilently(Context context, BluetoothDevice device) {
-        if (context == null || device == null) {
-            return;
-        }
-        Context appContext = context.getApplicationContext();
-        if (!canAcceptAutoConnectDevice(appContext)) {
-            return;
-        }
-        closeGatt();
-        sharedConnectionState = STATE_CONNECTING;
-        notifyConnectionUiChanged();
-        try {
-            GanRobotBleClient.connect(appContext, device, autoGattCallback);
-        } catch (SecurityException e) {
-            closeGatt();
-            sharedConnectionState = STATE_DISCONNECTED;
-            notifyConnectionUiChanged();
-        }
-    }
-
-    private static boolean hasAutoConnectPermissions(Context context) {
-        if (context == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return true;
-        }
-        String[] permissions;
-        if (Build.VERSION.SDK_INT >= 31) {
-            permissions = new String[] {
-                    Manifest.permission.BLUETOOTH_SCAN,
-                    Manifest.permission.BLUETOOTH_CONNECT,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-            };
-        } else {
-            permissions = new String[] { Manifest.permission.ACCESS_FINE_LOCATION };
-        }
-        for (String permission : permissions) {
-            if (ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static boolean canAcceptAutoConnectDevice(Context context) {
-        return isAutoConnectEnabled(context)
-                && sharedConnectionState == STATE_DISCONNECTED
-                && !GanRobotBleClient.hasGatt()
-                && hasAutoConnectPermissions(context)
-                && isLocationEnabled(context);
-    }
-
-    private static boolean isLocationEnabled(Context context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return true;
-        }
-        try {
-            LocationManager manager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-            if (manager == null) {
-                return false;
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                return manager.isLocationEnabled();
-            }
-            return manager.isProviderEnabled(LocationManager.GPS_PROVIDER)
-                    || manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     public static void notifyConnectionUiChanged() {
         GanRobotActivity activity = activeActivityRef.get();
         if (activity != null) {
             activity.runOnUiThread(activity::updateConnectionUi);
         }
-    }
-
-    private static void resetAutoConnection() {
-        closeGatt();
-        sharedConnectionState = STATE_DISCONNECTED;
-        notifyConnectionUiChanged();
     }
 
     public static void postOnMainThread(Runnable r) {
@@ -1156,42 +935,17 @@ public class GanRobotActivity extends AppCompatActivity {
         }
     }
 
-    private static final BluetoothGattCallback autoGattCallback = new RobotGattEventCallback(new RobotGattEventHandler() {
-        @Override
-        public void onDiscoverServicesFailed() {
-            resetAutoConnection();
-        }
-
-        @Override
-        public void onDiscoverServicesException(SecurityException e) {
-            resetAutoConnection();
-        }
-
-        @Override
-        public void onDisconnected() {
-            resetAutoConnection();
-        }
-
-        @Override
-        public void onUnsupportedDevice() {
-            resetAutoConnection();
-        }
-
-        @Override
-        public void onConnected() {
-            sharedConnectionState = STATE_CONNECTED;
-            notifyConnectionUiChanged();
-            showAutoConnectSuccessToast();
-        }
-    });
-
     @Override
     protected void onResume() {
         super.onResume();
         activeActivityRef = new WeakReference<>(this);
+        GanRobotBleClient.setCallback(robotBleCallback);
         GanRobotExecutor.setListener(robotExecutorListener);
+        if (GanRobotBleClient.isReady()) {
+            sharedConnectionState = STATE_CONNECTED;
+        }
         updateConnectionUi();
-        maybeAutoConnect(this);
+        GanRobotAutoConnector.maybeAutoConnect(this);
         performPendingRobotButtonActionIfPossible();
     }
 

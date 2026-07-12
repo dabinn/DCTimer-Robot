@@ -547,7 +547,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     protected void onResume() {
         super.onResume();
-        GanRobotActivity.maybeAutoConnect(this);
+        GanRobotAutoConnector.maybeAutoConnect(this);
         if (sensorManager != null && sensor != null) {
             sensorManager.registerListener(mSensorEventListener, sensor, SensorManager.SENSOR_DELAY_NORMAL);
         }
