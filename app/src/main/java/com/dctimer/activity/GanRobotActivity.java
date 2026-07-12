@@ -56,7 +56,6 @@ import com.dctimer.model.SmartCubeTraining;
 import com.dctimer.util.GanRobotAutoConnector;
 import com.dctimer.util.GanRobotBleClient;
 import com.dctimer.util.GanRobotController;
-import com.dctimer.util.GanRobotCodec;
 import com.dctimer.util.GanRobotExecutor;
 import com.dctimer.util.GanRobotProtocol;
 import com.dctimer.util.GanRobotSessionState;
@@ -720,33 +719,6 @@ public class GanRobotActivity extends AppCompatActivity {
         performRobotButtonAction(action);
     }
 
-    public static void executeStateToStatePlan(String currentCubeState, String targetFacelet, String planLabel) throws Exception {
-        long totalStartMs = SystemClock.elapsedRealtime();
-        long probeStartMs = totalStartMs;
-        GanRobotExecutor.OrientationPlan orientationPlan = GanRobotExecutor.runOrientationProbePlan(currentCubeState);
-        long probeTimeMs = SystemClock.elapsedRealtime() - probeStartMs;
-
-        long pathStartMs = SystemClock.elapsedRealtime();
-        GanRobotExecutor.RobotSolvePlan solvePlan = GanRobotExecutor.buildStateToStateAlgorithm(orientationPlan.currentStateAfterProbe, targetFacelet);
-        long pathTimeMs = SystemClock.elapsedRealtime() - pathStartMs;
-
-        String algorithm = GanRobotExecutor.remapAlgorithmWithFaceMap(solvePlan.algorithmLogical, orientationPlan.logicalToPhysicalFaceMap);
-        int logicalMoveCount = GanRobotExecutor.countAlgorithmMoves(algorithm);
-        int robotMoveCount = TextUtils.isEmpty(algorithm) ? 0 : GanRobotCodec.estimateRobotCost(algorithm);
-        postOnMainThread(() -> appendStatusSafely("Orientation probe done (D/F)"));
-        postOnMainThread(() -> appendStatusSafely("Solve strategy: " + solvePlan.strategyLabel + " (" + solvePlan.evaluatedCandidates + " candidates/" + solvePlan.searchTimeMs + "ms)"));
-        postOnMainThread(() -> appendStatusSafely("Robot convert: " + logicalMoveCount + " -> " + robotMoveCount + " moves"));
-        postOnMainThread(() -> appendStatusSafely(planLabel + ": " + algorithm));
-        GanRobotExecutor.RobotExecutionResult executionResult = GanRobotExecutor.executeAlgorithm(algorithm);
-        if (executionResult.success) {
-            long totalTimeMs = SystemClock.elapsedRealtime() - totalStartMs;
-            postOnMainThread(() -> appendStatusSafely("Timing(ms) probe=" + probeTimeMs
-                    + ", path=" + pathTimeMs
-                    + ", move=" + executionResult.executionTimeMs
-                    + ", total=" + totalTimeMs));
-        }
-    }
-
     private ScrambleResolutionResult resolveStandardScrambleForSubmit(String displayScramble) {
         String normalizedInputDisplay = normalizeScrambleString(displayScramble);
         String normalizedPrefillDisplay = normalizeScrambleString(prefillDisplayScramble);
@@ -757,14 +729,6 @@ public class GanRobotActivity extends AppCompatActivity {
             return new ScrambleResolutionResult(prefillRawScramble, true);
         }
         return new ScrambleResolutionResult(convertDisplayScrambleToStandard(displayScramble), false);
-    }
-
-    public static String resolveTargetStateForSubmit() {
-        String targetState = GanRobotExecutor.normalizeFacelet(GanRobotSessionState.getLatestMainTargetState());
-        if (TextUtils.isEmpty(targetState)) {
-            throw new IllegalStateException(robotContext().getString(R.string.gan_robot_send_failed_short));
-        }
-        return targetState;
     }
 
     private String normalizeScrambleString(String scramble) {

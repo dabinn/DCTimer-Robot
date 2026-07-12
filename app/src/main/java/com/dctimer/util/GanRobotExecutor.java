@@ -41,7 +41,7 @@ public final class GanRobotExecutor {
     private GanRobotExecutor() {
     }
 
-    public static class RobotSolvePlan {
+    private static class RobotSolvePlan {
         public final String algorithmLogical;
         public final String strategyLabel;
         public final int evaluatedCandidates;
@@ -71,7 +71,7 @@ public final class GanRobotExecutor {
         }
     }
 
-    public static class RobotExecutionResult {
+    private static class RobotExecutionResult {
         public final boolean success;
         public final long executionTimeMs;
 
@@ -81,7 +81,7 @@ public final class GanRobotExecutor {
         }
     }
 
-    public static class OrientationPlan {
+    private static class OrientationPlan {
         public final String currentStateAfterProbe;
         public final Map<Character, Character> logicalToPhysicalFaceMap;
 
@@ -108,7 +108,7 @@ public final class GanRobotExecutor {
                     postStatusAndToast(R.string.gan_robot_solve_requires_smart_cube);
                     return;
                 }
-                GanRobotActivity.executeStateToStatePlan(currentCubeState, SOLVED_FACELET, "Solve plan");
+                executeStateToStatePlan(currentCubeState, SOLVED_FACELET, "Solve plan");
             } catch (Exception e) {
                 postSendFailed(e);
             } finally {
@@ -132,9 +132,9 @@ public final class GanRobotExecutor {
                 boolean smartCubeAvailable = isSmartCubeModeActive() && !TextUtils.isEmpty(currentCubeState);
                 if (smartCubeAvailable && useMainTargetState) {
                     try {
-                        String targetState = GanRobotActivity.resolveTargetStateForSubmit();
+                        String targetState = resolveTargetStateForSubmit();
                         GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Smart cube detected -> state-to-state mode"));
-                        GanRobotActivity.executeStateToStatePlan(currentCubeState, targetState, "State plan");
+                        executeStateToStatePlan(currentCubeState, targetState, "State plan");
                         return;
                     } catch (Exception e) {
                         postSendFailed(e);
@@ -164,7 +164,7 @@ public final class GanRobotExecutor {
         });
     }
 
-    public static RobotExecutionResult executeAlgorithm(String algorithm) {
+    private static RobotExecutionResult executeAlgorithm(String algorithm) {
         if (TextUtils.isEmpty(algorithm) || TextUtils.isEmpty(algorithm.trim())) {
             GanRobotActivity.postOnMainThread(() -> {
                 GanRobotActivity.appendStatusSafely(GanRobotActivity.robotContext().getString(R.string.gan_robot_send_success));
@@ -213,7 +213,34 @@ public final class GanRobotExecutor {
         }
     }
 
-    public static void writeProbeMove(String move) throws Exception {
+    private static void executeStateToStatePlan(String currentCubeState, String targetFacelet, String planLabel) throws Exception {
+        long totalStartMs = SystemClock.elapsedRealtime();
+        long probeStartMs = totalStartMs;
+        OrientationPlan orientationPlan = runOrientationProbePlan(currentCubeState);
+        long probeTimeMs = SystemClock.elapsedRealtime() - probeStartMs;
+
+        long pathStartMs = SystemClock.elapsedRealtime();
+        RobotSolvePlan solvePlan = buildStateToStateAlgorithm(orientationPlan.currentStateAfterProbe, targetFacelet);
+        long pathTimeMs = SystemClock.elapsedRealtime() - pathStartMs;
+
+        String algorithm = remapAlgorithmWithFaceMap(solvePlan.algorithmLogical, orientationPlan.logicalToPhysicalFaceMap);
+        int logicalMoveCount = countAlgorithmMoves(algorithm);
+        int robotMoveCount = TextUtils.isEmpty(algorithm) ? 0 : GanRobotCodec.estimateRobotCost(algorithm);
+        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Orientation probe done (D/F)"));
+        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Solve strategy: " + solvePlan.strategyLabel + " (" + solvePlan.evaluatedCandidates + " candidates/" + solvePlan.searchTimeMs + "ms)"));
+        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Robot convert: " + logicalMoveCount + " -> " + robotMoveCount + " moves"));
+        GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely(planLabel + ": " + algorithm));
+        RobotExecutionResult executionResult = executeAlgorithm(algorithm);
+        if (executionResult.success) {
+            long totalTimeMs = SystemClock.elapsedRealtime() - totalStartMs;
+            GanRobotActivity.postOnMainThread(() -> GanRobotActivity.appendStatusSafely("Timing(ms) probe=" + probeTimeMs
+                    + ", path=" + pathTimeMs
+                    + ", move=" + executionResult.executionTimeMs
+                    + ", total=" + totalTimeMs));
+        }
+    }
+
+    private static void writeProbeMove(String move) throws Exception {
         List<byte[]> packets = GanRobotCodec.encodeScramble(move);
         if (packets.isEmpty()) {
             throw new IllegalStateException("Probe move is empty");
@@ -225,7 +252,7 @@ public final class GanRobotExecutor {
         }
     }
 
-    public static OrientationPlan runOrientationProbePlan(String currentCubeState) throws Exception {
+    private static OrientationPlan runOrientationProbePlan(String currentCubeState) throws Exception {
         String stateBeforeProbe = normalizeFacelet(currentCubeState);
 
         writeProbeMove("D");
@@ -246,7 +273,7 @@ public final class GanRobotExecutor {
         return new OrientationPlan(stateAfterF, logicalToPhysical);
     }
 
-    public static String remapAlgorithmWithFaceMap(String algorithm, Map<Character, Character> logicalToPhysicalFaceMap) {
+    private static String remapAlgorithmWithFaceMap(String algorithm, Map<Character, Character> logicalToPhysicalFaceMap) {
         if (TextUtils.isEmpty(algorithm) || logicalToPhysicalFaceMap == null || logicalToPhysicalFaceMap.isEmpty()) {
             return algorithm;
         }
@@ -360,7 +387,7 @@ public final class GanRobotExecutor {
         return builder.toString();
     }
 
-    public static RobotSolvePlan buildStateToStateAlgorithm(String startFacelet, String targetFacelet) {
+    private static RobotSolvePlan buildStateToStateAlgorithm(String startFacelet, String targetFacelet) {
         String start = normalizeFacelet(startFacelet);
         String target = normalizeFacelet(targetFacelet);
         if (TextUtils.equals(start, target)) {
@@ -381,7 +408,7 @@ public final class GanRobotExecutor {
         return new RobotSolvePlan(algorithm.trim(), solvePlan.strategyLabel, solvePlan.evaluatedCandidates, solvePlan.searchTimeMs);
     }
 
-    public static int countAlgorithmMoves(String algorithm) {
+    private static int countAlgorithmMoves(String algorithm) {
         if (TextUtils.isEmpty(algorithm)) {
             return 0;
         }
@@ -390,6 +417,14 @@ public final class GanRobotExecutor {
             return 0;
         }
         return trimmed.split("\\s+").length;
+    }
+
+    private static String resolveTargetStateForSubmit() {
+        String targetState = normalizeFacelet(GanRobotSessionState.getLatestMainTargetState());
+        if (TextUtils.isEmpty(targetState)) {
+            throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_send_failed_short));
+        }
+        return targetState;
     }
 
     private static RobotSolvePlan buildRobotOptimizedStateSolution(String scrambleFacelet) {
@@ -530,7 +565,7 @@ public final class GanRobotExecutor {
         return new SolveCandidate(best, bestCost, bestLength, evaluated, profileName);
     }
 
-    public static String normalizeFacelet(String facelet) {
+    private static String normalizeFacelet(String facelet) {
         if (TextUtils.isEmpty(facelet)) {
             throw new IllegalStateException(GanRobotActivity.robotContext().getString(R.string.gan_robot_solve_need_cube_state));
         }
