@@ -34,7 +34,8 @@
 
 ## 特点
 
-- 兼容主流的智能魔方品牌
+- 兼容主流的智能魔方品牌（GAN、Moyu、Qiyi）
+- 支持奇艺智能计时器、GAN 魔方机器人二代
 - 支持 CFOP/Roux 解法分段及专项训练
   - CFOP：F2L/OLL/PLL/顶层/CLL/ELL/COLL/EOCP/2GLL/OLLCP/ZZLL/ZBLS/ZBLL
   - Roux：CMLL/LSE/L10P
@@ -48,6 +49,7 @@
 - `QYSC` / `Tornado V4`（奇艺智能及风系列）
 - `GAN`（`v2 / v3 / v4`）（GAN 智能）
 - `QiYi Smart Timer`（奇艺智能计时器）
+- `GAN Robot v2`（GAN 魔方机器人二代）
 
 ## 新增 / 改进
 
