@@ -6,7 +6,7 @@
         android:id="@+id/action_quick_smart_cube"
         android:orderInCategory="99"
         android:icon="@drawable/ic_bluetooth"
-        android:title="@string/action_connect_smart_cube"
+        android:title="@string/action_connect_bluetooth_timing_device"
         app:showAsAction="always" />
 
     <item

@@ -717,7 +717,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         final LayoutInflater factory;
         switch (id) {
             case R.id.action_quick_smart_cube:
-                quickConnectSmartCube();
+                quickConnectBluetoothTimingDevice();
                 break;
             case R.id.action_scramble:  //打乱详情
                 ScrambleDetailDialog scrambleDialog = ScrambleDetailDialog.newInstance(currentScramble.getScramble(), currentScramble.getScrambleLen(), currentScramble.is333Scramble() ? 3 : 0);
@@ -1306,7 +1306,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         View v = LayoutInflater.from(this).inflate(R.layout.dialog_bluetooth, null);
         TextView titleView = v.findViewById(R.id.tv_title);
         if (titleView != null) {
-            titleView.setText(isSmartTimerMode() ? R.string.select_smart_timer : R.string.select_smart_cube);
+            titleView.setText(bluetoothTools.isScanningAllTimingDevices()
+                    ? R.string.select_bluetooth_timing_device
+                    : (isSmartTimerMode() ? R.string.select_smart_timer : R.string.select_smart_cube));
         }
         btnScan = v.findViewById(R.id.btn_scan);
         btnScan.setOnClickListener(mOnClickListener);
@@ -1322,6 +1324,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         clearPendingBlePermissionAction();
                         handler.removeCallbacks(stopBleScanRunnable);
                         bluetoothTools.stopScan();
+                        bluetoothTools.setScanAllTimingDevices(false);
                         bluetoothTools.disconnect();
                         fallbackBleModeToTimer();
                     }
@@ -1337,21 +1340,17 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         handler.postDelayed(stopBleScanRunnable, 20000);
     }
 
-    private void quickConnectSmartCube() {
+    private void quickConnectBluetoothTimingDevice() {
         if (curTab != 0) {
             curTab = 0;
             tabHost.setCurrentTab(0);
             rbTimer.setChecked(true);
         }
-        enterTime = 3;
-        if (stAdapter != null) {
-            stAdapter.setText(ST_ENTER_TIME, itemStr[0][enterTime]);
-        }
         if (stackmat != null) {
             stackmat.stop();
             stackmat = null;
         }
-        setPref("tiway", enterTime);
+        bluetoothTools.setScanAllTimingDevices(true);
         startBleScanFlow();
     }
 
@@ -2367,6 +2366,35 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         bluetoothTools.connectDevice(pos);
     }
 
+    public void onTimingBleDeviceConnected(final int deviceType) {
+        final int targetEnterTime;
+        if (isSmartCubeDeviceType(deviceType)) {
+            targetEnterTime = 3;
+        } else if (isSmartTimerDeviceType(deviceType)) {
+            targetEnterTime = 4;
+        } else {
+            return;
+        }
+        final boolean wasSmartCubeMode = isSmartCubeMode();
+        enterTime = targetEnterTime;
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (stAdapter != null) {
+                    stAdapter.setText(ST_ENTER_TIME, itemStr[0][targetEnterTime]);
+                }
+                if (targetEnterTime == 4) {
+                    disableSmartTimerWcaSettings(false);
+                }
+                if (wasSmartCubeMode && targetEnterTime != 3) {
+                    hideTimerPageCubeState();
+                    showScrambleView();
+                }
+                setPref("tiway", targetEnterTime);
+            }
+        });
+    }
+
     public void dismissDialog() {
         handler.removeCallbacks(stopBleScanRunnable);
         if (dialog != null && dialog.isShowing()) dialog.dismiss();
@@ -3090,6 +3118,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                                 stackmat.stop();
                                 stackmat = null;
                             }
+                            bluetoothTools.setScanAllTimingDevices(false);
                             boolean wcaWasEnabled = wca || inspectionAlert;
                             disableSmartTimerWcaSettings(false);
                             if (wcaWasEnabled) {

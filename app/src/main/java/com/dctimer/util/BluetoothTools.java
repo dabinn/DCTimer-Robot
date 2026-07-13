@@ -58,6 +58,7 @@ public class BluetoothTools {
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothLeScanner bluetoothLeScanner;
     private boolean mScanning;
+    private boolean scanAllTimingDevices;
     private Set<String> addressMap;
     private List<BLEDevice> cubeList;
     //private BLEDevice bleDevice;
@@ -127,6 +128,9 @@ public class BluetoothTools {
     }
 
     private boolean shouldShowDeviceType(int deviceType) {
+        if (scanAllTimingDevices) {
+            return isSmartCubeType(deviceType) || isSmartTimerType(deviceType);
+        }
         if (isSmartCubeMode()) {
             return isSmartCubeType(deviceType);
         }
@@ -274,6 +278,14 @@ public class BluetoothTools {
 
     public void setTimerStateCallback(SmartTimerProtocol.StateCallback callback) {
         this.smartTimerStateCallback = callback;
+    }
+
+    public void setScanAllTimingDevices(boolean scanAllTimingDevices) {
+        this.scanAllTimingDevices = scanAllTimingDevices;
+    }
+
+    public boolean isScanningAllTimingDevices() {
+        return scanAllTimingDevices;
     }
 
     @TargetApi(18)
@@ -490,6 +502,7 @@ public class BluetoothTools {
             context.showScanButton();
         }
         connectedIndex = pos;
+        scanAllTimingDevices = false;
         BLEDevice bleDevice = cubeList.get(pos);
         bleDeviceType = bleDevice.getType();
         if (bleDeviceType == BLEDevice.TYPE_UNKNOWN) {
@@ -614,27 +627,30 @@ public class BluetoothTools {
                     }
                 });
                 gatt.disconnect();
-            } else if (bleDeviceType == BLEDevice.TYPE_MOYU32_CUBE
+            } else {
+                context.onTimingBleDeviceConnected(bleDeviceType);
+                if (bleDeviceType == BLEDevice.TYPE_MOYU32_CUBE
                     || bleDeviceType == BLEDevice.TYPE_QIYI_CUBE
                     || bleDeviceType == BLEDevice.TYPE_GANI_CUBE) {
-                if (smartCubeProtocol == null || !smartCubeProtocol.start(gatt, service, gatt.getDevice().getName(), resolveProtocolAddress(gatt))) {
-                    context.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(context, context.getString(R.string.connect_fail), Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                    gatt.disconnect();
-                }
-            } else if (bleDeviceType == BLEDevice.TYPE_QIYI_TIMER) {
-                if (smartTimerProtocol == null || !smartTimerProtocol.start(gatt, service, gatt.getDevice().getName(), resolveProtocolAddress(gatt))) {
-                    context.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(context, context.getString(R.string.connect_fail), Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                    gatt.disconnect();
+                    if (smartCubeProtocol == null || !smartCubeProtocol.start(gatt, service, gatt.getDevice().getName(), resolveProtocolAddress(gatt))) {
+                        context.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(context, context.getString(R.string.connect_fail), Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                        gatt.disconnect();
+                    }
+                } else if (bleDeviceType == BLEDevice.TYPE_QIYI_TIMER) {
+                    if (smartTimerProtocol == null || !smartTimerProtocol.start(gatt, service, gatt.getDevice().getName(), resolveProtocolAddress(gatt))) {
+                        context.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(context, context.getString(R.string.connect_fail), Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                        gatt.disconnect();
+                    }
                 }
             }
         }

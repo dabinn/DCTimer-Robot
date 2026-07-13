@@ -25,6 +25,7 @@
     <string name="action_stackmat">Stackmat計時器</string>
     <string name="action_smartcube">智能方塊</string>
     <string name="action_connect_smart_cube">連線智能方塊</string>
+    <string name="action_connect_bluetooth_timing_device">連線藍牙裝置</string>
     <string name="action_gan_robot">GAN機器人</string>
     <string name="action_scramble">轉亂詳情</string>
 
@@ -55,6 +56,7 @@
     <string name="status">狀態</string>
     <string name="select_device">選擇設備</string>
     <string name="select_smart_cube">選擇智能方塊</string>
+    <string name="select_bluetooth_timing_device">選擇藍牙裝置</string>
     <string name="smart_cube_gyro_follow_desc">目前僅支援 Moyu</string>
     <string name="select_smart_timer">選擇藍牙計時器</string>
     <!-- 设置 -->

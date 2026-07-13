@@ -27,6 +27,7 @@
     <string name="action_stackmat">Stackmat timer</string>
     <string name="action_smartcube">Smart cube</string>
     <string name="action_connect_smart_cube">Connect smart cube</string>
+    <string name="action_connect_bluetooth_timing_device">Connect Bluetooth device</string>
     <string name="action_gan_robot">GAN Robot</string>
     <string name="action_scramble">Scramble detail</string>
 
@@ -57,6 +58,7 @@
     <string name="status">Status</string>
     <string name="select_device">Select device</string>
     <string name="select_smart_cube">Select smart cube</string>
+    <string name="select_bluetooth_timing_device">Select Bluetooth device</string>
     <string name="smart_cube_gyro_follow_desc">Currently only supports Moyu</string>
     <string name="select_smart_timer">Select Bluetooth timer</string>
     <!-- Settings -->

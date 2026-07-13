@@ -66,6 +66,7 @@
 - [smartcube-web-bluetooth](https://github.com/poliva/smartcube-web-bluetooth)：智能魔方协议参考
 - [qiyi_smartcube_protocol](https://codeberg.org/Flying-Toast/qiyi_smartcube_protocol)：智能魔方协议参考
 - [CubicTimer](https://github.com/hato-ya/CubicTimer)：奇艺智能计时器协议参考
+- [DCTimer2.0](https://gitee.com/andersgong/DCTimer)：枫叶魔方打乱状态图绘制参考
 - [妙言](https://miaoyan.app)：官网设计参考
 - [Codex](https://github.com/codex)：开发伙伴
 
