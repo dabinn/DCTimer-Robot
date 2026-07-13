@@ -246,18 +246,21 @@ public class BluetoothTools {
     public void getBluetoothAdapter() {
         try {
             bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-            if (bluetoothAdapter != null && !bluetoothAdapter.isEnabled()) {
-                boolean isEnable = bluetoothAdapter.enable();
-                if (!isEnable) {
-                    Log.e("dct", "蓝牙打开失败");
-                }
-            }
         } catch (SecurityException e) {
             Log.e("dct", "获取蓝牙适配器失败", e);
             bluetoothAdapter = null;
         }
         mScanning = false;
         bluetoothLeScanner = null;
+    }
+
+    public boolean isBluetoothEnabled() {
+        try {
+            return bluetoothAdapter != null && bluetoothAdapter.isEnabled();
+        } catch (SecurityException e) {
+            Log.e("dct", "读取蓝牙状态失败", e);
+            return false;
+        }
     }
 
 
@@ -446,7 +449,17 @@ public class BluetoothTools {
 
     public void startScan() {
         cubeList = new ArrayList<>();
-        if (bluetoothAdapter != null && !mScanning) {
+        if (!isBluetoothEnabled()) {
+            Log.w("dct", "蓝牙未开启，取消扫描");
+            context.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    context.showScanButton();
+                }
+            });
+            return;
+        }
+        if (!mScanning) {
             Log.w("dct", "搜索设备");
             addressMap = new HashSet<>();
             try {

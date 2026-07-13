@@ -103,6 +103,7 @@
     <string name="import_success">Import database succeeded.</string>
     <string name="permission_deny">Permission denied</string>
     <string name="ble_location_disabled">Location is turned off. Please enable system location before scanning BLE devices.</string>
+    <string name="ble_bluetooth_disabled">Bluetooth is disabled</string>
     <string name="scan_device">Scanning device…</string>
     <string name="cube_not_connected">" is not connected"</string>
     <string name="ble_not_supported">BLE not supported</string>

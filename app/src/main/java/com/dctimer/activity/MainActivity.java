@@ -10,6 +10,7 @@ import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.app.Service;
+import android.bluetooth.BluetoothAdapter;
 import android.content.*;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
@@ -188,6 +189,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private boolean smartCubeTrainingScrambleRefreshPending;
     private boolean pendingBleDialogAfterPermission;
     private boolean pendingBleScanAfterPermission;
+    private boolean pendingBleDialogAfterBluetoothEnable;
 
     private Stackmat stackmat;
     private BluetoothTools bluetoothTools;
@@ -200,6 +202,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private static final int REQUEST_IMPORT_SCRAMBLE = 11;
     private static final int REQUEST_EXPORT_SCRAMBLE = 12;
     private static final int REQUEST_BLE_PERMISSION = 6;
+    private static final int REQUEST_ENABLE_BLUETOOTH = 13;
     private static final int ANDROID_API_S = 31;
     private static final int SMART_CUBE_CORRECTION_LIMIT = 10;
     private static final int STATS_MIN_TEXT_SIZE_SP = 16;
@@ -1106,7 +1109,19 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_BACKGROUND_IMAGE) { //背景图片
+        if (requestCode == REQUEST_ENABLE_BLUETOOTH) {
+            boolean openDialogAfterBluetoothEnable = pendingBleDialogAfterBluetoothEnable;
+            clearPendingBleEnableAction();
+            if (resultCode == RESULT_OK && bluetoothTools != null && bluetoothTools.isBluetoothEnabled()) {
+                if (openDialogAfterBluetoothEnable) {
+                    continueBleScanFlow();
+                } else if (dialog != null && dialog.isShowing()) {
+                    startBleScanInternal();
+                }
+            } else {
+                Toast.makeText(context, R.string.ble_bluetooth_disabled, Toast.LENGTH_SHORT).show();
+            }
+        } else if (requestCode == REQUEST_BACKGROUND_IMAGE) { //背景图片
             if (resultCode == RESULT_OK && data != null) {
                 try {
                     Uri uri = data.getData();
@@ -1251,6 +1266,25 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         pendingBleScanAfterPermission = false;
     }
 
+    private boolean ensureBluetoothEnabled(boolean openDialogAfterBluetoothEnable) {
+        if (!bluetoothTools.initBluetoothAdapter()) {
+            Toast.makeText(context, R.string.ble_not_supported, Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        if (bluetoothTools.isBluetoothEnabled()) {
+            clearPendingBleEnableAction();
+            return true;
+        }
+        pendingBleDialogAfterBluetoothEnable = openDialogAfterBluetoothEnable;
+        Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+        startActivityForResult(intent, REQUEST_ENABLE_BLUETOOTH);
+        return false;
+    }
+
+    private void clearPendingBleEnableAction() {
+        pendingBleDialogAfterBluetoothEnable = false;
+    }
+
     private boolean isLocationServiceEnabled() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             return true;
@@ -1322,6 +1356,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     @Override
                     public void onClick(DialogInterface dialogInterface, int i) {
                         clearPendingBlePermissionAction();
+                        clearPendingBleEnableAction();
                         handler.removeCallbacks(stopBleScanRunnable);
                         bluetoothTools.stopScan();
                         bluetoothTools.setScanAllTimingDevices(false);
@@ -1333,6 +1368,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void startBleScanInternal() {
+        if (!ensureBluetoothEnabled(false)) {
+            return;
+        }
         if (btnScan != null) btnScan.setVisibility(View.GONE);
         if (pbScan != null) pbScan.setVisibility(View.VISIBLE);
         bluetoothTools.startScan();
@@ -1372,10 +1410,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private void continueBleScanFlow() {
         bluetoothTools.disconnect();
         setTimerText(getIdleTimerText());
-        if (bluetoothTools.initBluetoothAdapter()) {
+        if (ensureBluetoothEnabled(true)) {
             openBleScanDialog();
-        } else {
-            Toast.makeText(context, R.string.ble_not_supported, Toast.LENGTH_SHORT).show();
         }
     }
 
