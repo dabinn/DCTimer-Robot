@@ -3,9 +3,10 @@
 ## 项目简介
 
 - 本项目是基于 `DCTimer-Android` 的二次开发版本，当前主方向是完善蓝牙硬件计时能力。
-- 当前硬件主线分为两类：
+- 当前硬件主线分为两类计时设备和一类可选执行设备：
   - `智能魔方`
   - `蓝牙计时器`
+  - `魔方机器人`：`GAN Robot`，与智能魔方协同执行物理打乱或复原，不参与计时和成绩保存。
 - 当前已接入设备：
   - 智能魔方：`MoYu32`、`QiYi / Tornado V4 智能版`、`GAN v2 / v3 / v4`
   - 蓝牙计时器：`QiYi Smart Timer`
@@ -24,7 +25,7 @@
 - `app/src/main/AndroidManifest.xml`：应用权限、Activity、组件声明和 Android 入口配置。
 - `app/src/main/java/com/dctimer/`：DCTimer 主业务代码包，优先从这里定位应用逻辑。
 - `app/src/main/java/com/dctimer/activity/`：主要页面与流程入口；`MainActivity.java` 是计时主界面，也是蓝牙设备状态、智能魔方预览和计时链路的重要汇合点。
-- `app/src/main/java/com/dctimer/util/`：通用工具与蓝牙协议核心；`BluetoothTools.java` 负责扫描、连接、基础分发，`SmartCubeProtocol.java` / `SmartTimerProtocol.java` 是智能魔方和蓝牙计时器协议入口，具体设备协议类也在这里。
+- `app/src/main/java/com/dctimer/util/`：通用工具与蓝牙协议核心；`BluetoothTools.java` 负责智能魔方和蓝牙计时器的扫描、连接、基础分发，`SmartCubeProtocol.java` / `SmartTimerProtocol.java` 是对应协议入口。`GanRobotBleClient.java`、`GanRobotProtocol.java`、`GanRobotExecutor.java` 与 `GanRobotSessionState.java` 负责可选 GAN Robot 的独立 BLE 连接、协议、执行和协同状态。
 - `app/src/main/java/com/dctimer/model/`：计时、成绩、设备、魔方状态等模型对象。
 - `app/src/main/java/com/dctimer/database/`：本地数据库、成绩和配置持久化相关逻辑。
 - `app/src/main/java/com/dctimer/dialog/`：设置、选择、设备连接等弹窗交互。
@@ -51,6 +52,7 @@
 - 当前重点保障 `3x3` 智能魔方计时主流程，以及 `QiYi Smart Timer` 主链稳定性。
 - 智能魔方协议继续沿用“独立协议类 + `BluetoothTools` 扫描/连接/分发”的结构。
 - 蓝牙计时器和智能魔方业务链保持分离，不混用页面语义和协议状态。
+- `GAN Robot` 是独立的可选执行设备，可与智能魔方并发连接；不接入 `BluetoothTools` 主连接链，不进入 `enterTime`、计时状态机或成绩保存。
 - 对真机未验证的能力，文档和说明中必须明确标注为“待验证”或“未完成”。
 - 优先做最小必要改动，避免为了顺手重构扩大提交面。
 - 涉及资源文案改动时，需要同步更新 `values`、`values-zh`、`values-zh-rTW` 三种语言资源，避免中英繁文案或数组长度不一致。
