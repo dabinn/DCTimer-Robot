@@ -25,6 +25,7 @@
     <string name="action_stackmat">Stackmat计时器</string>
     <string name="action_smartcube">智能魔方</string>
     <string name="action_connect_smart_cube">连接智能魔方</string>
+    <string name="action_gan_robot">GAN机器人</string>
     <string name="action_scramble">打乱详情</string>
 
     <string name="scrambling">打乱中…</string>
@@ -227,4 +228,44 @@
     <string name="about_msg">"版本：%1$s\n基于 DCTimer-Android 开发\n原作者：MeigenChou\n二次开发作者：huizhiLLL\n版权所有 © 2012—2022 MeigenChou\nGPL v3 开源\n开源仓库地址：https://github.com/huizhiLLL/DCTimer-BLE"</string>
     <string name="feedback_title">DCTimer反馈</string>
     <string name="language">cn</string>
+    <string name="smart_cube_wait_connect">魔方未连接</string>
+    <string name="gan_robot_wait_connect">机器人未连接</string>
+    <string name="gan_robot_connect">连接机器人</string>
+    <string name="gan_robot_disconnect">中断</string>
+    <string name="gan_robot_auto_connect">自动连接机器人</string>
+    <string name="gan_robot_button_action_label">机器人按钮</string>
+    <string name="gan_robot_button_action_none">无</string>
+    <string name="gan_robot_button_action_solve">还原</string>
+    <string name="gan_robot_button_action_scramble">打乱</string>
+    <string name="gan_robot_send">打乱</string>
+    <string name="gan_robot_solve">还原</string>
+    <string name="gan_robot_connected">机器人已连接</string>
+    <string name="gan_robot_disconnected">机器人未连接</string>
+    <string name="gan_robot_connecting">机器人连接中…</string>
+    <string name="gan_robot_disconnecting">中断中…</string>
+    <string name="gan_robot_scan_title">选择 GAN 机器人</string>
+    <string name="gan_robot_scramble_label">打乱公式</string>
+    <string name="gan_robot_input_hint">输入打乱公式，例如：R U R2 U2</string>
+    <string name="gan_robot_status_label">机器人状态</string>
+    <string name="gan_robot_status_idle">就绪</string>
+    <string name="gan_robot_status_disconnected">设备已断线</string>
+    <string name="gan_robot_status_bluetooth_disabled">蓝牙未开启</string>
+    <string name="gan_robot_status_timeout">机器人回传超时</string>
+    <string name="gan_robot_status_write_failed">写入动作失败（代码=%1$d）</string>
+    <string name="gan_robot_status_read_failed">读取状态失败（代码=%1$d）</string>
+    <string name="gan_robot_scanning">正在扫描 GAN 设备…</string>
+    <string name="gan_robot_no_device">未找到 GAN 设备</string>
+    <string name="gan_robot_waiting_execution">正在执行打乱公式（共 %1$d 包）</string>
+    <string name="gan_robot_execute_chunk">第 %1$d/%2$d 包完成，剩余步数=%3$d</string>
+    <string name="gan_robot_send_success">执行完成</string>
+    <string name="gan_robot_send_failed_short">执行失败</string>
+    <string name="gan_robot_send_failed">执行失败：%1$s</string>
+    <string name="gan_robot_send_in_progress">执行中，请稍候</string>
+    <string name="gan_robot_button_executing">按钮执行：%1$s</string>
+    <string name="gan_robot_busy">机器人动作中</string>
+    <string name="gan_robot_invalid_scramble_short">打乱公式格式错误</string>
+    <string name="gan_robot_invalid_scramble">打乱公式格式错误：%1$s</string>
+    <string name="gan_robot_solve_need_cube_state">未取得智能魔方状态</string>
+    <string name="gan_robot_solve_invalid_cube_state">智能魔方状态格式错误</string>
+    <string name="gan_robot_solve_requires_smart_cube">还原功能需要先连接智能魔方</string>
 </resources>

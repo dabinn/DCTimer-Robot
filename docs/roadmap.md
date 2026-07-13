@@ -1,6 +1,6 @@
 # DCTimer-Android 路线图与决策备忘
 
-日期：`2026-07-04`
+日期：`2026-07-13`
 
 ## 文档职责
 
@@ -9,6 +9,7 @@
 ## 近期
 
 - 保持长期文档收口在 `docs/project.md`、`docs/architecture.md`、`docs/roadmap.md`。
+- `GAN Robot` 已以独立协同执行设备接入；后续在具备设备条件时补充维护者真机复测，并持续确认协议和动作编排细节。
 - 智能魔方 3D 预览已落地统一四元数姿态入口；MoYu32 陀螺仪视角跟随已完成真机验证，后续其他型号继续按该入口接入。
 - `3阶 CFOP` 与 `3阶 Roux` 智能魔方专项训练已完成代码落地和本地验证，后续重点做 MoYu32、QiYi / Tornado V4、GAN v2/v3/v4 真机验证。
 
@@ -16,6 +17,7 @@
 
 - 如果继续扩展蓝牙计时器品牌，按“独立 timer 协议类 + `SmartTimerProtocol` 分发”的方式接入。
 - 如果继续扩展智能魔方品牌，按“独立智能魔方协议类 + `SmartCubeProtocol` 分发”的方式接入。
+- 如果后续出现多个执行设备或明确的多设备连接需求，再评估统一连接管理；当前不为小众的 `GAN Robot` 改造 `BluetoothTools` 主连接链。
 
 ## 暂不推进
 
@@ -53,6 +55,12 @@
 - `GAN v4` MOVE 通知按 `72-bit` chunk 循环解析；`M / E / S` 快速双层转动不再依赖 `MOVE_HISTORY` 才补齐同包中的第二个转动。
 - `GAN v3 / v4` 的 `MOVE_HISTORY` 仅作为丢包兜底，尾部缺失时间戳按可用真实时间戳和本地触发时间估算。
 - `QiYi / QYSC` 的状态帧可能提前携带 future history 步；future history 步只用于实时状态和 3D 更新，不参与打乱偏离累计。
+
+### 魔方机器人
+
+- `GAN Robot` 是可选协同执行设备，使用独立 `GanRobotBleClient` 管理扫描、连接和 GATT，不接入 `BluetoothTools` 的单设备连接流程。
+- Robot 可与智能魔方并发连接，智能魔方只提供状态与目标；Robot 的物理转动不进入 `enterTime`、计时状态机或成绩保存。
+- 当前支持基础打乱、复原和实体按钮单击；协议中的其它特征值含义、按钮双击/长按和与官方 App 的动作速度差异仍待继续确认。
 
 ### 解法重建
 

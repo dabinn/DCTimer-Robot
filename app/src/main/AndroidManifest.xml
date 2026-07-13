@@ -60,6 +60,10 @@
             android:name=".activity.TestActivity"
             android:configChanges="orientation|keyboardHidden|screenSize|uiMode"
             android:label="@string/action_stackmat" />
+        <activity
+            android:name=".activity.GanRobotActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize|uiMode"
+            android:label="@string/action_gan_robot" />
     </application>
 
 </manifest>
