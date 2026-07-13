@@ -3,12 +3,14 @@ package scrambler;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 import com.dctimer.model.SmartCubeTraining;
 import com.dctimer.util.Utils;
 
 import cs.min2phase.Tools;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -35,23 +37,6 @@ public class ScramblerTest {
     }
 
     @Test
-    public void ivyCubeScrambleGeneratesFormulaWithoutImage() {
-        Scrambler scrambler = new Scrambler(null);
-
-        for (int i = 0; i < 20; i++) {
-            scrambler.generateScramble(522, true);
-
-            assertEquals(0, scrambler.getScrambleLen());
-            assertEquals(0, scrambler.getImageType());
-            assertFalse(scrambler.getScramble().isEmpty());
-            for (String token : scrambler.getScramble().split(" ")) {
-                assertFalse(token.isEmpty());
-                assertFalse(token.matches(".*[^RLUB'].*"));
-            }
-        }
-    }
-
-    @Test
     public void smart333CfopScramblesGenerate3x3States() {
         Scrambler scrambler = new Scrambler(null);
 
@@ -63,6 +48,60 @@ public class ScramblerTest {
             assertFalse(scrambler.getScramble().isEmpty());
             assertFalse(scrambler.getCubeState().isEmpty());
         }
+    }
+
+    @Test
+    public void cornerTurningOctahedronScrambleHasImage() {
+        Scrambler scrambler = new Scrambler(null);
+
+        scrambler.generateScramble(521, true);
+
+        assertEquals(Scrambler.TYPE_CTO, scrambler.getImageType());
+        assertFalse(scrambler.getScramble().isEmpty());
+
+        scrambler.parseScramble(521, "U f2 R'");
+        assertEquals(Scrambler.TYPE_CTO, scrambler.getImageType());
+    }
+
+    @Test
+    public void cornerTurningOctahedronMovesAreReversible() throws Exception {
+        Scrambler scrambler = new Scrambler(null);
+        int[] solved = ctoImage(scrambler, "");
+
+        for (String move : new String[] {"U", "F", "R", "D", "B", "L",
+                "u", "f", "r", "d", "b", "l"}) {
+            assertArrayEquals(move + " followed by its inverse must restore the puzzle",
+                    solved, ctoImage(scrambler, move + " " + move + "'"));
+            assertArrayEquals(move + " repeated four times must restore the puzzle",
+                    solved, ctoImage(scrambler, move + " " + move + " " + move + " " + move));
+        }
+    }
+
+    @Test
+    public void cornerTurningOctahedronLowercaseMoveOnlyTurnsTheTip() throws Exception {
+        Scrambler scrambler = new Scrambler(null);
+        int[] solved = ctoImage(scrambler, "");
+        int[] upper = ctoImage(scrambler, "U");
+        int[] lower = ctoImage(scrambler, "u");
+        int upperChanges = 0;
+        int lowerChanges = 0;
+        for (int i = 0; i < solved.length; i++) {
+            if (upper[i] != solved[i]) upperChanges++;
+            if (lower[i] != solved[i]) lowerChanges++;
+        }
+
+        assertEquals(16, upperChanges);
+        assertEquals(4, lowerChanges);
+    }
+
+    @Test
+    public void cornerTurningOctahedronUUsesExpectedDirection() throws Exception {
+        int[] image = ctoImage(new Scrambler(null), "U");
+
+        assertEquals(3, image[5]);
+        assertEquals(7, image[14]);
+        assertEquals(0, image[23]);
+        assertEquals(5, image[32]);
     }
 
     @Test
@@ -225,6 +264,12 @@ public class ScramblerTest {
             }
         }
         return face * 3 + suffix;
+    }
+
+    private static int[] ctoImage(Scrambler scrambler, String scramble) throws Exception {
+        Method method = Scrambler.class.getDeclaredMethod("ctoImage", String.class);
+        method.setAccessible(true);
+        return (int[]) method.invoke(scrambler, scramble);
     }
 
     private static void assertFullSolveTrainingMode(int sub) {

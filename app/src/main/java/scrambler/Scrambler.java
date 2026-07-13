@@ -45,6 +45,7 @@ public class Scrambler {
     public static final int TYPE_8PZ = 31;
     public static final int TYPE_FTO = 32;
     public static final int TYPE_MAPLE = 33;
+    public static final int TYPE_CTO = 34;
 
     public static final int SCRAMBLE_NONE = 0;
     public static final int SCRAMBLING = 1;
@@ -120,6 +121,33 @@ public class Scrambler {
             {8, 7, 3, 2, 0, 6, 5, 1, 4},
             {8, 7, 3, 2, 0, 6, 5, 1, 4},
             {4, 5, 6, 7, 8, 1, 2, 3, 0}
+    };
+    private static final int[][] CTO_FACELET_DRAW_ORDER = {
+            {2, 4, 6, 7, 8, 1, 3, 5, 0},
+            {0, 3, 1, 4, 2, 5, 7, 6, 8},
+            {0, 3, 1, 4, 2, 5, 7, 6, 8},
+            {2, 4, 6, 7, 8, 1, 3, 5, 0}
+    };
+    private static final int[] CTO_FACE_COLORS = {5, 3, 7, 0, 2, 4, 1, 6};
+    private static final int[][][] CTO_MOVE_CYCLES = {
+            {
+                    {5, 14, 23, 32}, {6, 15, 24, 33}, {7, 16, 25, 34}, {8, 17, 26, 35}
+            },
+            {
+                    {19, 60, 64, 33}, {21, 58, 66, 31}, {23, 55, 68, 28}, {18, 56, 63, 29}
+            },
+            {
+                    {64, 41, 1, 32}, {67, 39, 4, 30}, {69, 37, 6, 28}, {65, 36, 2, 27}
+            },
+            {
+                    {59, 50, 41, 68}, {60, 51, 42, 69}, {61, 52, 43, 70}, {62, 53, 44, 71}
+            },
+            {
+                    {1, 42, 46, 15}, {3, 40, 48, 13}, {5, 37, 50, 10}, {0, 38, 45, 11}
+            },
+            {
+                    {19, 14, 46, 59}, {22, 12, 49, 57}, {24, 10, 51, 55}, {20, 9, 47, 54}
+            }
     };
     private static final int[] FTO_MOVE_IDX = {0, 8, 2, 10, 14, 4, 12, 6};
     private static final int[][] FTO_MOVE_CP = {
@@ -342,6 +370,8 @@ public class Scrambler {
             }
         } else if (category == -14 || category == 517) { //FTO
             imageType = TYPE_FTO;
+        } else if (category == 521) { //CTO
+            imageType = TYPE_CTO;
         } else if (category == 522) { //枫叶
             imageType = TYPE_MAPLE;
         }
@@ -1146,7 +1176,7 @@ public class Scrambler {
                 break;
             case 521:   //CTO
                 scr = scrambleCTO();
-                imageType = 0;
+                imageType = TYPE_CTO;
                 scrambleList.add(scr);
                 break;
             case 522:   //枫叶
@@ -1645,6 +1675,8 @@ public class Scrambler {
             drawMaple(scramble, width, p, c);
         } else if (imageType == TYPE_FTO) { //FTO
             drawFto(scramble, width, p, c);
+        } else if (imageType == TYPE_CTO) { //CTO
+            drawCto(scramble, width, p, c);
         } else if (imageType == TYPE_15P || imageType == TYPE_15PB) {   //15 puzzle
             int[] img = FifteenPuzzle.image(scramble, imageType == TYPE_15P);
             int wid = width / 6;
@@ -2314,6 +2346,17 @@ public class Scrambler {
     }
 
     private void drawFto(String scramble, int width, Paint p, Canvas c) {
+        drawOctahedron(ftoImage(scramble), new int[] {7, 0, 6, 1},
+                new int[] {2, 5, 3, 4}, FTO_FACELET_DRAW_ORDER, width, p, c);
+    }
+
+    private void drawCto(String scramble, int width, Paint p, Canvas c) {
+        drawOctahedron(ctoImage(scramble), new int[] {1, 2, 3, 0},
+                new int[] {7, 4, 5, 6}, CTO_FACELET_DRAW_ORDER, width, p, c);
+    }
+
+    private void drawOctahedron(int[] img, int[] topFaces, int[] bottomFaces, int[][] drawOrder,
+                                int width, Paint p, Canvas c) {
         int[] rawColors = {
                 pref.getInt("csfto1", Color.WHITE), pref.getInt("csfto2", 0xff880088),
                 pref.getInt("csfto3", 0xff00dd00), pref.getInt("csfto4", Color.RED),
@@ -2324,33 +2367,33 @@ public class Scrambler {
                 rawColors[0], rawColors[2], rawColors[5], rawColors[7],
                 rawColors[6], rawColors[4], rawColors[3], rawColors[1]
         };
-        int[] img = ftoImage(scramble);
         float sp = width / 60f;
         float block = (width - sp * 3) / 4f;
         float left = (width - block * 4 - sp) / 2f;
         float top = (width * 3 / 4f - block * 2) / 2f;
-        drawFtoBlock(img, new int[] {7, 0, 6, 1}, left, top, block * 2, colors, p, c);
-        drawFtoBlock(img, new int[] {2, 5, 3, 4}, left + block * 2 + sp, top, block * 2, colors, p, c);
+        drawOctahedronBlock(img, topFaces, drawOrder, left, top, block * 2, colors, p, c);
+        drawOctahedronBlock(img, bottomFaces, drawOrder,
+                left + block * 2 + sp, top, block * 2, colors, p, c);
     }
 
-    private void drawFtoBlock(int[] img, int[] faces, float x, float y, float size,
-                              int[] colors, Paint p, Canvas c) {
+    private void drawOctahedronBlock(int[] img, int[] faces, int[][] drawOrder,
+                                     float x, float y, float size, int[] colors, Paint p, Canvas c) {
         float midX = x + size / 2f;
         float midY = y + size / 2f;
         float gap = Math.max(1f, size / 80f);
-        drawFtoFace(img, faces[0], FTO_FACELET_DRAW_ORDER[0],
+        drawOctahedronFace(img, faces[0], drawOrder[0],
                 shrinkTriangle(new float[] {x, midX, x}, new float[] {y, midY, y + size}, gap, true),
                 shrinkTriangle(new float[] {x, midX, x}, new float[] {y, midY, y + size}, gap, false),
                 colors, p, c);
-        drawFtoFace(img, faces[1], FTO_FACELET_DRAW_ORDER[1],
+        drawOctahedronFace(img, faces[1], drawOrder[1],
                 shrinkTriangle(new float[] {x, x + size, midX}, new float[] {y, y, midY}, gap, true),
                 shrinkTriangle(new float[] {x, x + size, midX}, new float[] {y, y, midY}, gap, false),
                 colors, p, c);
-        drawFtoFace(img, faces[2], FTO_FACELET_DRAW_ORDER[2],
+        drawOctahedronFace(img, faces[2], drawOrder[2],
                 shrinkTriangle(new float[] {x + size, x + size, midX}, new float[] {y, y + size, midY}, gap, true),
                 shrinkTriangle(new float[] {x + size, x + size, midX}, new float[] {y, y + size, midY}, gap, false),
                 colors, p, c);
-        drawFtoFace(img, faces[3], FTO_FACELET_DRAW_ORDER[3],
+        drawOctahedronFace(img, faces[3], drawOrder[3],
                 shrinkTriangle(new float[] {x, midX, x + size}, new float[] {y + size, midY, y + size}, gap, true),
                 shrinkTriangle(new float[] {x, midX, x + size}, new float[] {y + size, midY, y + size}, gap, false),
                 colors, p, c);
@@ -2370,8 +2413,8 @@ public class Scrambler {
         return out;
     }
 
-    private void drawFtoFace(int[] img, int face, int[] order, float[] ax, float[] ay,
-                             int[] colors, Paint p, Canvas c) {
+    private void drawOctahedronFace(int[] img, int face, int[] order, float[] ax, float[] ay,
+                                    int[] colors, Paint p, Canvas c) {
         int d = 0;
         int faceStart = face * 9;
         float[][] px = new float[4][4];
@@ -2394,6 +2437,54 @@ public class Scrambler {
                 }
             }
         }
+    }
+
+    private int[] ctoImage(String scramble) {
+        int[] img = new int[72];
+        for (int face = 0; face < 8; face++) {
+            for (int sticker = 0; sticker < 9; sticker++) {
+                img[face * 9 + sticker] = CTO_FACE_COLORS[face];
+            }
+        }
+        if (scramble == null || scramble.length() == 0) {
+            return img;
+        }
+        for (String move : scramble.trim().split("\\s+")) {
+            applyCtoMove(img, move);
+        }
+        return img;
+    }
+
+    private void applyCtoMove(int[] img, String move) {
+        if (move == null || move.length() == 0) {
+            return;
+        }
+        char face = move.charAt(0);
+        int axis;
+        switch (Character.toUpperCase(face)) {
+            case 'U': axis = 0; break;
+            case 'F': axis = 1; break;
+            case 'R': axis = 2; break;
+            case 'D': axis = 3; break;
+            case 'B': axis = 4; break;
+            case 'L': axis = 5; break;
+            default: return;
+        }
+        int turns = move.endsWith("2") ? 2 : move.endsWith("'") ? 3 : 1;
+        int firstCycle = Character.isLowerCase(face) ? CTO_MOVE_CYCLES[axis].length - 1 : 0;
+        for (int turn = 0; turn < turns; turn++) {
+            for (int cycle = firstCycle; cycle < CTO_MOVE_CYCLES[axis].length; cycle++) {
+                cycleCtoFacelets(img, CTO_MOVE_CYCLES[axis][cycle]);
+            }
+        }
+    }
+
+    private void cycleCtoFacelets(int[] img, int[] cycle) {
+        int temp = img[cycle[0]];
+        img[cycle[0]] = img[cycle[1]];
+        img[cycle[1]] = img[cycle[2]];
+        img[cycle[2]] = img[cycle[3]];
+        img[cycle[3]] = temp;
     }
 
     private int[] ftoImage(String scramble) {
