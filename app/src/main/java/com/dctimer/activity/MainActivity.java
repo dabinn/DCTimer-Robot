@@ -5422,6 +5422,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private void addTime(int time, int penalty, SmartCube cube) {
         result.insert(time, penalty, currentScramble.getScramble(), multiPhase > 0, cube);
+        setTimerText(result.getTimeAt(result.length() - 1, false));
         btnSessionMean.setText(getString(R.string.session_mean, result.getSessionMean()));
         result.calcAvg();
         if (multiPhase > 0) result.calcMpMean();
