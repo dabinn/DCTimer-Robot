@@ -123,6 +123,12 @@ public class Scrambler {
             {4, 5, 6, 7, 8, 1, 2, 3, 0}
     };
     private static final int[][] CTO_FACELET_DRAW_ORDER = {
+            {0, 3, 5, 7, 8, 1, 4, 6, 2},
+            {2, 4, 1, 3, 0, 6, 7, 5, 8},
+            {2, 4, 1, 3, 0, 6, 7, 5, 8},
+            {0, 3, 5, 7, 8, 1, 4, 6, 2}
+    };
+    private static final int[][] CTO_BOTTOM_FACELET_DRAW_ORDER = {
             {2, 4, 6, 7, 8, 1, 3, 5, 0},
             {0, 3, 1, 4, 2, 5, 7, 6, 8},
             {0, 3, 1, 4, 2, 5, 7, 6, 8},
@@ -261,6 +267,8 @@ public class Scrambler {
     }
 
     public int getImageType() {
+        // CTO 面片映射仍待校验，暂不向用户展示打乱状态图。
+        if (category == 521) return 0;
         return imageType;
     }
 
@@ -2347,15 +2355,18 @@ public class Scrambler {
 
     private void drawFto(String scramble, int width, Paint p, Canvas c) {
         drawOctahedron(ftoImage(scramble), new int[] {7, 0, 6, 1},
-                new int[] {2, 5, 3, 4}, FTO_FACELET_DRAW_ORDER, width, p, c);
+                new int[] {2, 5, 3, 4}, FTO_FACELET_DRAW_ORDER,
+                FTO_FACELET_DRAW_ORDER, width, p, c);
     }
 
     private void drawCto(String scramble, int width, Paint p, Canvas c) {
         drawOctahedron(ctoImage(scramble), new int[] {1, 2, 3, 0},
-                new int[] {7, 4, 5, 6}, CTO_FACELET_DRAW_ORDER, width, p, c);
+                new int[] {7, 4, 5, 6}, CTO_FACELET_DRAW_ORDER,
+                CTO_BOTTOM_FACELET_DRAW_ORDER, width, p, c);
     }
 
-    private void drawOctahedron(int[] img, int[] topFaces, int[] bottomFaces, int[][] drawOrder,
+    private void drawOctahedron(int[] img, int[] topFaces, int[] bottomFaces,
+                                int[][] topDrawOrder, int[][] bottomDrawOrder,
                                 int width, Paint p, Canvas c) {
         int[] rawColors = {
                 pref.getInt("csfto1", Color.WHITE), pref.getInt("csfto2", 0xff880088),
@@ -2371,8 +2382,8 @@ public class Scrambler {
         float block = (width - sp * 3) / 4f;
         float left = (width - block * 4 - sp) / 2f;
         float top = (width * 3 / 4f - block * 2) / 2f;
-        drawOctahedronBlock(img, topFaces, drawOrder, left, top, block * 2, colors, p, c);
-        drawOctahedronBlock(img, bottomFaces, drawOrder,
+        drawOctahedronBlock(img, topFaces, topDrawOrder, left, top, block * 2, colors, p, c);
+        drawOctahedronBlock(img, bottomFaces, bottomDrawOrder,
                 left + block * 2 + sp, top, block * 2, colors, p, c);
     }
 

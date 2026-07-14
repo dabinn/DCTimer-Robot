@@ -56,7 +56,7 @@
 - Manual time entry now auto-splits the time, so no extra decimal point is needed
 - Added 8s/12s voice reminders for WCA inspection mode
 - PB history markers and sorting in the solve list
-- CTO, Maple Leaf scramble, and FTO scramble state rendering
+- Maple Leaf scramble and FTO scramble state rendering
 - Clock scramble state rendering adapted to the new WCA rules
 - Database import/export, scramble import/export, and background image selection have been migrated to the system document picker
 - Upgraded to `AndroidX / AGP 8.9.2 / Gradle 8.11.1 / targetSdk 35`

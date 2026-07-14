@@ -51,16 +51,19 @@ public class ScramblerTest {
     }
 
     @Test
-    public void cornerTurningOctahedronScrambleHasImage() {
+    public void cornerTurningOctahedronScrambleImageStaysDisabled() {
         Scrambler scrambler = new Scrambler(null);
 
         scrambler.generateScramble(521, true);
 
-        assertEquals(Scrambler.TYPE_CTO, scrambler.getImageType());
+        assertEquals(0, scrambler.getImageType());
         assertFalse(scrambler.getScramble().isEmpty());
 
         scrambler.parseScramble(521, "U f2 R'");
-        assertEquals(Scrambler.TYPE_CTO, scrambler.getImageType());
+        assertEquals(0, scrambler.getImageType());
+
+        scrambler.setImageType(Scrambler.TYPE_CTO);
+        assertEquals(0, scrambler.getImageType());
     }
 
     @Test
@@ -102,6 +105,39 @@ public class ScramblerTest {
         assertEquals(7, image[14]);
         assertEquals(0, image[23]);
         assertEquals(5, image[32]);
+    }
+
+    @Test
+    public void cornerTurningOctahedronTopViewKeepsPhysicalCornerTipsTogether() throws Exception {
+        Field field = Scrambler.class.getDeclaredField("CTO_FACELET_DRAW_ORDER");
+        field.setAccessible(true);
+        int[][] order = (int[][]) field.get(null);
+
+        assertArrayEquals(new int[] {0, 3, 5, 7, 8, 1, 4, 6, 2}, order[0]);
+        assertArrayEquals(new int[] {2, 4, 1, 3, 0, 6, 7, 5, 8}, order[1]);
+        assertArrayEquals(new int[] {2, 4, 1, 3, 0, 6, 7, 5, 8}, order[2]);
+        assertArrayEquals(new int[] {0, 3, 5, 7, 8, 1, 4, 6, 2}, order[3]);
+    }
+
+    @Test
+    public void cornerTurningOctahedronScreenshotScrambleHasDistinctVisibleCornerTips() throws Exception {
+        Scrambler scrambler = new Scrambler(null);
+        int[] image = ctoImage(scrambler,
+                "R2 L2 R' F2 U' D' R' L R2 D' U' D' B2 U R D B L F D F U' B2 R2 D' r");
+        Field field = Scrambler.class.getDeclaredField("CTO_FACELET_DRAW_ORDER");
+        field.setAccessible(true);
+        int[][] order = (int[][]) field.get(null);
+        int[] faces = {1, 2, 3, 0};
+        int[][] visibleCornerTips = {
+                {faces[0] * 9 + order[0][0], faces[1] * 9 + order[1][0]},
+                {faces[1] * 9 + order[1][4], faces[2] * 9 + order[2][0]},
+                {faces[2] * 9 + order[2][4], faces[3] * 9 + order[3][8]},
+                {faces[3] * 9 + order[3][0], faces[0] * 9 + order[0][8]}
+        };
+
+        for (int[] tips : visibleCornerTips) {
+            assertFalse(image[tips[0]] == image[tips[1]]);
+        }
     }
 
     @Test
