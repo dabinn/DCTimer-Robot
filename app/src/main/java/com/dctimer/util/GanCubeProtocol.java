@@ -52,6 +52,7 @@ public class GanCubeProtocol implements SmartCubeProtocol {
     };
     private static final int[] AXIS_MASKS = {2, 32, 8, 1, 16, 4};
     private static final int MAX_MOVE_DELTA_MS = 0xffff;
+    private static final float MIN_GYRO_QUATERNION_NORM = 1.0e-6f;
 
     private final MainActivity context;
     private final SmartCube smartCube;
@@ -391,7 +392,9 @@ public class GanCubeProtocol implements SmartCubeProtocol {
     private void parseV2Data(byte[] value) throws GeneralSecurityException {
         String bits = toBitString(cipher.decode(value));
         int mode = parseBits(bits, 0, 4);
-        if (mode == 2) {
+        if (mode == 1) {
+            notifyGyro(parseV2GyroEvent(bits));
+        } else if (mode == 2) {
             handleV2Move(bits);
         } else if (mode == 4) {
             handleV2Facelets(bits);
@@ -469,7 +472,9 @@ public class GanCubeProtocol implements SmartCubeProtocol {
         String bits = toBitString(cipher.decode(value));
         int mode = parseBits(bits, 0, 8);
         int len = parseBits(bits, 8, 8);
-        if (mode == 0x01) {
+        if (mode == 0xEC) {
+            notifyGyro(parseV4GyroEvent(bits));
+        } else if (mode == 0x01) {
             handleV4Move(bits, locTime);
         } else if (mode == 0xED) {
             handleV4Facelets(bits, locTime);
@@ -831,6 +836,67 @@ public class GanCubeProtocol implements SmartCubeProtocol {
         context.moveCube(smartCube, move, Math.max(0, Math.min(delta, MAX_MOVE_DELTA_MS)));
     }
 
+    static float[] parseV2GyroEvent(String bits) {
+        try {
+            if (!hasBits(bits, 0, 4) || parseBits(bits, 0, 4) != 0x1) {
+                return null;
+            }
+            return parseGyroQuaternion(bits, 4);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    static float[] parseV4GyroEvent(String bits) {
+        try {
+            if (!hasBits(bits, 0, 8) || parseBits(bits, 0, 8) != 0xEC) {
+                return null;
+            }
+            return parseGyroQuaternion(bits, 16);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    static float[] parseGyroQuaternion(String bits, int quaternionStartBit) {
+        if (!hasBits(bits, quaternionStartBit, 64)) {
+            return null;
+        }
+        try {
+            float w = decodeGyroComponent(parseBits(bits, quaternionStartBit, 16));
+            float x = decodeGyroComponent(parseBits(bits, quaternionStartBit + 16, 16));
+            float y = decodeGyroComponent(parseBits(bits, quaternionStartBit + 32, 16));
+            float z = decodeGyroComponent(parseBits(bits, quaternionStartBit + 48, 16));
+            float norm = (float) Math.sqrt(w * w + x * x + y * y + z * z);
+            if (norm < MIN_GYRO_QUATERNION_NORM
+                    || Float.isNaN(norm) || Float.isInfinite(norm)
+                    || Float.isNaN(w) || Float.isInfinite(w)
+                    || Float.isNaN(x) || Float.isInfinite(x)
+                    || Float.isNaN(y) || Float.isInfinite(y)
+                    || Float.isNaN(z) || Float.isInfinite(z)) {
+                return null;
+            }
+            return new float[] {x / norm, z / norm, -y / norm, w / norm};
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private static float decodeGyroComponent(int raw) {
+        float sign = (raw & 0x8000) == 0 ? 1f : -1f;
+        return sign * (raw & 0x7fff) / 0x7fff;
+    }
+
+    private static boolean hasBits(String bits, int start, int length) {
+        return bits != null && start >= 0 && length >= 0 && start <= bits.length() - length;
+    }
+
+    private void notifyGyro(float[] quaternion) {
+        if (quaternion != null) {
+            context.onSmartCubeGyroChanged(quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
+        }
+    }
+
     private int decodeAxisMask(int mask) {
         for (int i = 0; i < AXIS_MASKS.length; i++) {
             if (AXIS_MASKS[i] == mask) {
@@ -861,7 +927,7 @@ public class GanCubeProtocol implements SmartCubeProtocol {
         return sb.toString();
     }
 
-    private int parseBits(String bits, int start, int len) {
+    private static int parseBits(String bits, int start, int len) {
         return Integer.parseInt(bits.substring(start, start + len), 2);
     }
 

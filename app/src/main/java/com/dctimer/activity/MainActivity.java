@@ -92,6 +92,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private final float[] smartCubeGyroCalibration = new float[4];
     private boolean hasLatestSmartCubeGyro;
     private boolean hasSmartCubeGyroCalibration;
+    private boolean hasSmartCubeGyroCapability;
     private boolean smartCubeGyroUiUpdatePosted;
     private Bitmap bmScrambleView;
     private TextView tvStat;    //统计简要
@@ -1408,6 +1409,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void continueBleScanFlow() {
+        clearSmartCubeGyroState();
         bluetoothTools.disconnect();
         setTimerText(getIdleTimerText());
         if (ensureBluetoothEnabled(true)) {
@@ -1434,7 +1436,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private boolean isSmartCubeGyroSupportedDevice() {
-        return bleDeviceType == BLEDevice.TYPE_MOYU32_CUBE;
+        synchronized (smartCubeGyroLock) {
+            return hasSmartCubeGyroCapability;
+        }
     }
 
     private boolean shouldFollowSmartCubeGyro() {
@@ -2125,6 +2129,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     public void disconnectSmartCube() {
+        clearSmartCubeGyroState();
         if (bluetoothTools != null) {
             bluetoothTools.disconnect();
         }
@@ -2218,6 +2223,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             latestSmartCubeGyro[2] = z;
             latestSmartCubeGyro[3] = w;
             hasLatestSmartCubeGyro = true;
+            hasSmartCubeGyroCapability = true;
             if (!hasSmartCubeGyroCalibration) {
                 smartCubeGyroCalibration[0] = x;
                 smartCubeGyroCalibration[1] = y;
@@ -2250,17 +2256,39 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 float y;
                 float z;
                 float w;
+                boolean hasGyro;
                 synchronized (smartCubeGyroLock) {
+                    hasGyro = hasLatestSmartCubeGyro;
                     x = latestSmartCubeGyro[0];
                     y = latestSmartCubeGyro[1];
                     z = latestSmartCubeGyro[2];
                     w = latestSmartCubeGyro[3];
                     smartCubeGyroUiUpdatePosted = false;
                 }
+                if (!hasGyro || !shouldFollowSmartCubeGyro()) {
+                    return;
+                }
                 androidx.fragment.app.Fragment fragment = getSupportFragmentManager().findFragmentByTag("CubeState");
                 if (fragment instanceof CubeStateDialog) {
                     ((CubeStateDialog) fragment).setGyroQuaternion(x, y, z, w);
                 }
+            }
+        });
+    }
+
+    private void clearSmartCubeGyroState() {
+        synchronized (smartCubeGyroLock) {
+            Arrays.fill(latestSmartCubeGyro, 0f);
+            Arrays.fill(smartCubeGyroCalibration, 0f);
+            hasLatestSmartCubeGyro = false;
+            hasSmartCubeGyroCalibration = false;
+            hasSmartCubeGyroCapability = false;
+            smartCubeGyroUiUpdatePosted = false;
+        }
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                disableSmartCubeGyroViews();
             }
         });
     }
@@ -2403,6 +2431,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     public void onTimingBleDeviceConnected(final int deviceType) {
+        clearSmartCubeGyroState();
         final int targetEnterTime;
         if (isSmartCubeDeviceType(deviceType)) {
             targetEnterTime = 3;
@@ -2453,6 +2482,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void fallbackBleModeToTimer() {
+        clearSmartCubeGyroState();
         if (!isSmartCubeMode() && !isSmartTimerMode()) {
             return;
         }
@@ -3130,6 +3160,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         enterTime = i;
                         stAdapter.setText(position, itemStr[0][i]);
                         if (i < 2) {
+                            clearSmartCubeGyroState();
                             bluetoothTools.disconnect();
                             if (stackmat != null) {
                                 stackmat.stop();
