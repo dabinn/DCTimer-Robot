@@ -59,7 +59,7 @@
     <string name="select_device">Select device</string>
     <string name="select_smart_cube">Select smart cube</string>
     <string name="select_bluetooth_timing_device">Select Bluetooth device</string>
-    <string name="smart_cube_gyro_follow_desc">Currently only supports Moyu</string>
+    <string name="smart_cube_gyro_follow_desc"></string>
     <string name="select_smart_timer">Select Bluetooth timer</string>
     <!-- Settings -->
     <string name="title_timer">TIMER</string>

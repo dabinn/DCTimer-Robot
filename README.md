@@ -39,7 +39,7 @@
 - 支持 CFOP/Roux 解法分段及专项训练
   - CFOP：F2L/OLL/PLL/顶层/CLL/ELL/COLL/EOCP/2GLL/OLLCP/ZZLL/ZBLS/ZBLL
   - Roux：CMLL/LSE/L10P
-- 自由的 3D 虚拟魔方同步以及陀螺仪跟随视角（当前仅 Moyu）
+- 自由的 3D 虚拟魔方同步以及陀螺仪跟随视角（三品牌均适配）
 - 精心优化的智能打乱推进/纠错体验
 - 连接极速（无需手动获取 MAC 地址，软件启动到连接成功只需 2-4s）
 

@@ -57,7 +57,7 @@
     <string name="select_device">選擇設備</string>
     <string name="select_smart_cube">選擇智能方塊</string>
     <string name="select_bluetooth_timing_device">選擇藍牙裝置</string>
-    <string name="smart_cube_gyro_follow_desc">目前僅支援 Moyu</string>
+    <string name="smart_cube_gyro_follow_desc"></string>
     <string name="select_smart_timer">選擇藍牙計時器</string>
     <!-- 设置 -->
     <string name="title_timer">計時</string>

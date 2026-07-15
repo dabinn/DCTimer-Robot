@@ -57,7 +57,7 @@
     <string name="select_device">选择设备</string>
     <string name="select_smart_cube">选择智能魔方</string>
     <string name="select_bluetooth_timing_device">选择蓝牙设备</string>
-    <string name="smart_cube_gyro_follow_desc">目前仅支持 Moyu</string>
+    <string name="smart_cube_gyro_follow_desc"></string>
     <string name="select_smart_timer">选择蓝牙计时器</string>
     <!-- 设置 -->
     <string name="title_timer">计时</string>
