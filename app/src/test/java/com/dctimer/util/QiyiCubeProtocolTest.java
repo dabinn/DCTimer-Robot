@@ -3,8 +3,79 @@ package com.dctimer.util;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 public class QiyiCubeProtocolTest {
+    private static final float EPSILON = 1.0e-5f;
+
+    @Test
+    public void parsesRealQiyiGyroFrameAndNormalizesMappedQuaternion() {
+        byte[] frame = hex("CC100004F663FDBCFE59FEA0FDACDEA1");
+
+        float[] quaternion = QiyiCubeProtocol.parseGyroQuaternion(frame);
+
+        assertNotNull(quaternion);
+        float norm = (float) Math.sqrt(0.58f * 0.58f + 0.423f * 0.423f
+                + 0.352f * 0.352f + 0.596f * 0.596f);
+        assertEquals(-0.580f / norm, quaternion[0], EPSILON);
+        assertEquals(0.352f / norm, quaternion[1], EPSILON);
+        assertEquals(-0.423f / norm, quaternion[2], EPSILON);
+        assertEquals(-0.596f / norm, quaternion[3], EPSILON);
+        assertEquals(1f, length(quaternion), EPSILON);
+    }
+
+    @Test
+    public void mapsPositiveAndNegativeQiyiAxesBeforeNormalization() {
+        byte[] frame = newGyroFrame(100, -200, 300, -400);
+
+        float[] quaternion = QiyiCubeProtocol.parseGyroQuaternion(frame);
+
+        assertNotNull(quaternion);
+        float norm = (float) Math.sqrt(0.1f * 0.1f + 0.3f * 0.3f
+                + 0.2f * 0.2f + 0.4f * 0.4f);
+        assertEquals(0.1f / norm, quaternion[0], EPSILON);
+        assertEquals(-0.3f / norm, quaternion[1], EPSILON);
+        assertEquals(-0.2f / norm, quaternion[2], EPSILON);
+        assertEquals(-0.4f / norm, quaternion[3], EPSILON);
+    }
+
+    @Test
+    public void rejectsGyroFrameWithInvalidCrc() {
+        byte[] frame = hex("CC100004F663FDBCFE59FEA0FDACDEA1");
+        frame[6] ^= 0x01;
+
+        assertNull(QiyiCubeProtocol.parseGyroQuaternion(frame));
+    }
+
+    @Test
+    public void rejectsMalformedGyroFrames() {
+        assertNull(QiyiCubeProtocol.parseGyroQuaternion(null));
+        assertNull(QiyiCubeProtocol.parseGyroQuaternion(new byte[15]));
+
+        byte[] wrongHeader = newGyroFrame(100, -200, 300, -400);
+        wrongHeader[0] = (byte) 0xfe;
+        assertNull(QiyiCubeProtocol.parseGyroQuaternion(wrongHeader));
+
+        byte[] wrongLength = newGyroFrame(100, -200, 300, -400);
+        wrongLength[1] = 0x11;
+        assertNull(QiyiCubeProtocol.parseGyroQuaternion(wrongLength));
+    }
+
+    @Test
+    public void rejectsZeroGyroQuaternionWithValidCrc() {
+        assertNull(QiyiCubeProtocol.parseGyroQuaternion(newGyroFrame(0, 0, 0, 0)));
+    }
+
+    @Test
+    public void doesNotMatchOrdinaryQiyiFrame() {
+        byte[] ordinaryFrame = new byte[16];
+        ordinaryFrame[0] = (byte) 0xfe;
+        ordinaryFrame[1] = 0x10;
+
+        assertNull(QiyiCubeProtocol.parseGyroQuaternion(ordinaryFrame));
+    }
+
     @Test
     public void collectStateChangeMoves_scansAllHistorySlotsAndSortsByTimestamp() {
         byte[] msg = newStateChangeMessage(96, 9, 300);
@@ -83,5 +154,38 @@ public class QiyiCubeProtocolTest {
     private static void assertMove(QiyiCubeProtocol.MoveSample move, int rawMove, long timestamp) {
         assertEquals(rawMove, move.move);
         assertEquals(timestamp, move.timestamp);
+    }
+
+    private static byte[] newGyroFrame(int ax, int ay, int az, int aw) {
+        byte[] frame = new byte[16];
+        frame[0] = (byte) 0xcc;
+        frame[1] = 0x10;
+        putInt16BigEndian(frame, 6, ax);
+        putInt16BigEndian(frame, 8, ay);
+        putInt16BigEndian(frame, 10, az);
+        putInt16BigEndian(frame, 12, aw);
+        int crc = QiyiCubeProtocol.crc16Modbus(frame, 14);
+        frame[14] = (byte) crc;
+        frame[15] = (byte) (crc >> 8);
+        return frame;
+    }
+
+    private static void putInt16BigEndian(byte[] data, int offset, int value) {
+        data[offset] = (byte) (value >> 8);
+        data[offset + 1] = (byte) value;
+    }
+
+    private static float length(float[] quaternion) {
+        return (float) Math.sqrt(quaternion[0] * quaternion[0]
+                + quaternion[1] * quaternion[1] + quaternion[2] * quaternion[2]
+                + quaternion[3] * quaternion[3]);
+    }
+
+    private static byte[] hex(String value) {
+        byte[] result = new byte[value.length() / 2];
+        for (int i = 0; i < result.length; i++) {
+            result[i] = (byte) Integer.parseInt(value.substring(i * 2, i * 2 + 2), 16);
+        }
+        return result;
     }
 }

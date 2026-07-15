@@ -46,6 +46,15 @@ public class QiyiCubeProtocol implements SmartCubeProtocol {
     private static final int QIYI_HISTORY_SLOT_COUNT = 11;
     private static final int QIYI_HISTORY_SLOT_START = 36;
     private static final int QIYI_HISTORY_SLOT_SIZE = 5;
+    private static final int GYRO_FRAME_HEADER = 0xcc;
+    private static final int GYRO_FRAME_LENGTH = 0x10;
+    private static final int GYRO_CRC_LENGTH = 14;
+    private static final int GYRO_AX_OFFSET = 6;
+    private static final int GYRO_AY_OFFSET = 8;
+    private static final int GYRO_AZ_OFFSET = 10;
+    private static final int GYRO_AW_OFFSET = 12;
+    private static final float GYRO_COMPONENT_SCALE = 1000f;
+    private static final float MIN_GYRO_QUATERNION_NORM = 1.0e-6f;
     private static final byte[] SYNC_STATE_PREFIX = {
             0x04, 0x17, (byte) 0x88, (byte) 0x8b, 0x31
     };
@@ -364,6 +373,15 @@ public class QiyiCubeProtocol implements SmartCubeProtocol {
         if (decoded.length < 2) {
             return;
         }
+        if ((decoded[0] & 0xff) == GYRO_FRAME_HEADER
+                && (decoded[1] & 0xff) == GYRO_FRAME_LENGTH) {
+            float[] quaternion = parseGyroQuaternion(decoded);
+            if (quaternion != null) {
+                context.onSmartCubeGyroChanged(
+                        quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
+            }
+            return;
+        }
         int msgLength = decoded[1] & 0xff;
         if (msgLength < 3 || msgLength > decoded.length) {
             Log.w(TAG, "QiYi 消息长度非法: " + msgLength);
@@ -394,6 +412,39 @@ public class QiyiCubeProtocol implements SmartCubeProtocol {
                 Log.w(TAG, "QiYi 未知消息类型: " + opcode);
                 break;
         }
+    }
+
+    static float[] parseGyroQuaternion(byte[] msg) {
+        if (msg == null || msg.length < GYRO_FRAME_LENGTH
+                || (msg[0] & 0xff) != GYRO_FRAME_HEADER
+                || (msg[1] & 0xff) != GYRO_FRAME_LENGTH) {
+            return null;
+        }
+        int expectedCrc = crc16Modbus(msg, GYRO_CRC_LENGTH);
+        int actualCrc = (msg[14] & 0xff) | ((msg[15] & 0xff) << 8);
+        if (expectedCrc != actualCrc) {
+            return null;
+        }
+
+        float ax = readInt16BigEndian(msg, GYRO_AX_OFFSET) / GYRO_COMPONENT_SCALE;
+        float ay = readInt16BigEndian(msg, GYRO_AY_OFFSET) / GYRO_COMPONENT_SCALE;
+        float az = readInt16BigEndian(msg, GYRO_AZ_OFFSET) / GYRO_COMPONENT_SCALE;
+        float aw = readInt16BigEndian(msg, GYRO_AW_OFFSET) / GYRO_COMPONENT_SCALE;
+        float x = ax;
+        float y = -az;
+        float z = ay;
+        float w = aw;
+        if (isInvalidGyroComponent(x) || isInvalidGyroComponent(y)
+                || isInvalidGyroComponent(z) || isInvalidGyroComponent(w)) {
+            return null;
+        }
+
+        float norm = (float) Math.sqrt(x * x + y * y + z * z + w * w);
+        if (norm < MIN_GYRO_QUATERNION_NORM
+                || Float.isNaN(norm) || Float.isInfinite(norm)) {
+            return null;
+        }
+        return new float[] {x / norm, y / norm, z / norm, w / norm};
     }
 
     private void handleHello(byte[] msg, long timestamp) {
@@ -670,6 +721,14 @@ public class QiyiCubeProtocol implements SmartCubeProtocol {
         return readUint32Static(data, offset);
     }
 
+    private static int readInt16BigEndian(byte[] data, int offset) {
+        return (short) (((data[offset] & 0xff) << 8) | (data[offset + 1] & 0xff));
+    }
+
+    private static boolean isInvalidGyroComponent(float value) {
+        return Float.isNaN(value) || Float.isInfinite(value);
+    }
+
     private static long readUint32Static(byte[] data, int offset) {
         return ((data[offset] & 0xffL) << 24)
                 | ((data[offset + 1] & 0xffL) << 16)
@@ -809,7 +868,7 @@ public class QiyiCubeProtocol implements SmartCubeProtocol {
         return result;
     }
 
-    private int crc16Modbus(byte[] data, int length) {
+    static int crc16Modbus(byte[] data, int length) {
         int crc = 0xffff;
         for (int i = 0; i < length; i++) {
             crc ^= data[i] & 0xff;
