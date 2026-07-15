@@ -431,8 +431,8 @@ public class QiyiCubeProtocol implements SmartCubeProtocol {
         float az = readInt16BigEndian(msg, GYRO_AZ_OFFSET) / GYRO_COMPONENT_SCALE;
         float aw = readInt16BigEndian(msg, GYRO_AW_OFFSET) / GYRO_COMPONENT_SCALE;
         float x = ax;
-        float y = -az;
-        float z = ay;
+        float y = ay;
+        float z = az;
         float w = aw;
         if (isInvalidGyroComponent(x) || isInvalidGyroComponent(y)
                 || isInvalidGyroComponent(z) || isInvalidGyroComponent(w)) {

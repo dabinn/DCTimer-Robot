@@ -19,14 +19,14 @@ public class QiyiCubeProtocolTest {
         float norm = (float) Math.sqrt(0.58f * 0.58f + 0.423f * 0.423f
                 + 0.352f * 0.352f + 0.596f * 0.596f);
         assertEquals(-0.580f / norm, quaternion[0], EPSILON);
-        assertEquals(0.352f / norm, quaternion[1], EPSILON);
-        assertEquals(-0.423f / norm, quaternion[2], EPSILON);
+        assertEquals(-0.423f / norm, quaternion[1], EPSILON);
+        assertEquals(-0.352f / norm, quaternion[2], EPSILON);
         assertEquals(-0.596f / norm, quaternion[3], EPSILON);
         assertEquals(1f, length(quaternion), EPSILON);
     }
 
     @Test
-    public void mapsPositiveAndNegativeQiyiAxesBeforeNormalization() {
+    public void preservesQiyiAxesBeforeNormalization() {
         byte[] frame = newGyroFrame(100, -200, 300, -400);
 
         float[] quaternion = QiyiCubeProtocol.parseGyroQuaternion(frame);
@@ -35,8 +35,8 @@ public class QiyiCubeProtocolTest {
         float norm = (float) Math.sqrt(0.1f * 0.1f + 0.3f * 0.3f
                 + 0.2f * 0.2f + 0.4f * 0.4f);
         assertEquals(0.1f / norm, quaternion[0], EPSILON);
-        assertEquals(-0.3f / norm, quaternion[1], EPSILON);
-        assertEquals(-0.2f / norm, quaternion[2], EPSILON);
+        assertEquals(-0.2f / norm, quaternion[1], EPSILON);
+        assertEquals(0.3f / norm, quaternion[2], EPSILON);
         assertEquals(-0.4f / norm, quaternion[3], EPSILON);
     }
 
