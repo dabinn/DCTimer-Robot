@@ -3,6 +3,27 @@
 <div align="center">
   <img src=".github/assets/dctimer-logo.png" alt="DCTimer-BLE logo" width="128" height="128" />
 
+  <h1>DCTimer-Robot</h1>
+
+  <p>
+    为 DCTimer-BLE 添加GAN机器人支持
+  </p>
+</div>
+
+ ## 特点
+  - 支持机器人还原、打乱和自定义打乱
+  - 支持智能魔方及普通魔方（普通魔方仅支持打乱）
+  - 支持硬件按钮一键还原和一键打乱（可配置）
+  - 支持机器人自动连接
+  - 可用 DCTimer-BLE 所有打乱模式及训练模式，自动适配各种方块朝向
+
+
+## 关于此项目
+本项目是 DCTimer-BLE 的功能扩展开发，并非独立分支，所有改进都会定期贡献回上游项目。新功能可在本项目 Release 中获取，欢迎测试和反馈。
+
+
+<div align="center">
+
   <h1>DCTimer-BLE</h1>
 
   <p>

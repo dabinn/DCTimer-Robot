@@ -3,6 +3,26 @@
 <div align="center">
   <img src=".github/assets/dctimer-logo.png" alt="DCTimer-BLE logo" width="128" height="128" />
 
+  <h1>DCTimer-Robot</h1>
+
+  <p>
+    GAN Robot support for DCTimer-BLE
+  </p>
+</div>
+
+  ## Features
+  - Support for robot solve, scramble, and custom scrambles
+  - Support for smart cubes and regular cubes (regular cubes only support scrambling)
+  - Support for hardware buttons for one-click solve and one-click scramble (configurable)
+  - Support for automatic robot connection (simplified implementation)
+  - Can use all DCTimer-BLE scramble modes and training modes, auto-adapts to various cube orientations
+
+## About This Project
+This is a feature extension project for DCTimer-BLE, not a standalone fork. All improvements will be regularly contributed back to the upstream project. New features are available in this project's Releases, and we welcome feedback and testing.
+
+<div align="center">
+  <img src=".github/assets/dctimer-logo.png" alt="DCTimer-BLE logo" width="128" height="128" />
+
   <h1>DCTimer-BLE</h1>
 
   <p>
