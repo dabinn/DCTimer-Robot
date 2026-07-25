@@ -250,26 +250,27 @@ public final class GanRobotExecutor {
         for (byte[] packet : packets) {
             ensureGattConnected();
             writeMovePacket(packet);
-            waitRobotIdleForProbe();
         }
     }
 
     private static OrientationPlan runOrientationProbePlan(String currentCubeState) throws Exception {
         String stateBeforeProbe = normalizeFacelet(currentCubeState);
 
-        writeProbeMove("D");
+        // The Robot treats the orientation probe as one formula. Sending D and F
+        // as separate jobs causes an extra execution/voice transition.
+        writeProbeMove("D F");
         String stateAfterD = waitForSmartCubeStateChange(stateBeforeProbe, SMART_CUBE_PROBE_TIMEOUT_MS, "D");
         char logicalFaceForPhysicalD = detectAppliedFaceClockwise(stateBeforeProbe, stateAfterD);
         if (logicalFaceForPhysicalD == 0) {
             throw new IllegalStateException("Cannot infer orientation from D probe");
         }
 
-        writeProbeMove("F");
         String stateAfterF = waitForSmartCubeStateChange(stateAfterD, SMART_CUBE_PROBE_TIMEOUT_MS, "F");
         char logicalFaceForPhysicalF = detectAppliedFaceClockwise(stateAfterD, stateAfterF);
         if (logicalFaceForPhysicalF == 0) {
             throw new IllegalStateException("Cannot infer orientation from F probe");
         }
+        waitRobotIdleForProbe();
 
         Map<Character, Character> logicalToPhysical = buildLogicalToPhysicalFaceMap(logicalFaceForPhysicalD, logicalFaceForPhysicalF);
         return new OrientationPlan(stateAfterF, logicalToPhysical);

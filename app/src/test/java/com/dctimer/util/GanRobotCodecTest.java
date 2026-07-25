@@ -17,12 +17,23 @@ public class GanRobotCodecTest {
     }
 
     @Test
-    public void encodesOddNibbleWithFiller() {
+    public void encodesFormulaEndAndZeroPadding() {
         List<byte[]> packets = GanRobotCodec.encodeScramble("R");
         assertEquals(1, packets.size());
         byte[] payload = packets.get(0);
         assertEquals(0x0f, payload[0] & 0xff);
-        assertEquals(0xff, payload[1] & 0xff);
+        assertEquals(0x00, payload[1] & 0xff);
+        assertEquals(0x00, payload[2] & 0xff);
+    }
+
+    @Test
+    public void encodesOrientationProbeLikeOfficialFormula() {
+        List<byte[]> packets = GanRobotCodec.encodeScramble("D F");
+        assertEquals(1, packets.size());
+        byte[] payload = packets.get(0);
+        assertEquals(0x63, payload[0] & 0xff);
+        assertEquals(0xf0, payload[1] & 0xff);
+        assertEquals(0x00, payload[2] & 0xff);
     }
 
     @Test

@@ -114,7 +114,10 @@ public final class GanRobotProtocol {
 }
 
 final class GanRobotCodec {
-    private static final int MAX_NIBBLES_PER_WRITE = 18 * 2;
+    private static final int NIBBLES_PER_WRITE = 18 * 2;
+    // 0xF terminates a formula, so one slot is reserved for it.
+    private static final int MAX_MOVES_PER_WRITE = NIBBLES_PER_WRITE - 1;
+    private static final int FORMULA_END = 0x0f;
     private static final List<String> U_D_SWAP = Arrays.asList("F", "B", "R2", "L2", "B'", "F'");
     private static final List<String> U_D_UNSWAP = Arrays.asList("F", "B", "L2", "R2", "B'", "F'");
     private static final Map<String, Integer> MOVE_MAP = createMoveMap();
@@ -128,9 +131,11 @@ final class GanRobotCodec {
             return Collections.emptyList();
         }
         List<byte[]> packets = new ArrayList<>();
-        for (int offset = 0; offset < nibbles.size(); offset += MAX_NIBBLES_PER_WRITE) {
-            int end = Math.min(offset + MAX_NIBBLES_PER_WRITE, nibbles.size());
-            packets.add(packNibbles(nibbles.subList(offset, end)));
+        for (int offset = 0; offset < nibbles.size(); offset += MAX_MOVES_PER_WRITE) {
+            int end = Math.min(offset + MAX_MOVES_PER_WRITE, nibbles.size());
+            List<Integer> formula = new ArrayList<>(nibbles.subList(offset, end));
+            formula.add(FORMULA_END);
+            packets.add(packNibbles(formula));
         }
         return packets;
     }
@@ -254,7 +259,6 @@ final class GanRobotCodec {
 
     private static byte[] packNibbles(List<Integer> nibbles) {
         byte[] bytes = new byte[18];
-        Arrays.fill(bytes, (byte) 0xff);
         for (int i = 0; i < nibbles.size(); i++) {
             int value = nibbles.get(i) & 0x0f;
             int idx = i / 2;
@@ -263,10 +267,6 @@ final class GanRobotCodec {
             } else {
                 bytes[idx] = (byte) ((bytes[idx] & 0xf0) | value);
             }
-        }
-        if (nibbles.size() % 2 == 1) {
-            int idx = nibbles.size() / 2;
-            bytes[idx] = (byte) ((bytes[idx] & 0xf0) | 0x0f);
         }
         return bytes;
     }
