@@ -12,17 +12,14 @@ import com.dctimer.APP;
 import com.dctimer.R;
 import com.dctimer.activity.GanRobotActivity;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import cs.min2phase.CubieCube;
+import cs.min2phase.GanRobotFiveFaceSolver;
 import cs.min2phase.Tools;
 import cs.min2phase.Util;
 
@@ -30,11 +27,15 @@ public final class GanRobotExecutor {
     private static final String TAG = "GanRobotExecutor";
     private static final String SOLVED_FACELET = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
     private static final String ORIENTATION_PROBE_ROLLBACK = "F' D'";
-    private static final int ROBOT_IDLE_ZERO_STREAK_EXECUTE = 1;
+    private static final int ROBOT_IDLE_ZERO_STREAK_EXECUTE = 2;
     private static final int ROBOT_IDLE_ZERO_STREAK_PROBE = 1;
     private static final long ROBOT_IDLE_TIMEOUT_MS_EXECUTE = 20000L;
     private static final long ROBOT_IDLE_TIMEOUT_MS_PROBE = 5000L;
-    private static final long ROBOT_STATUS_POLL_MS = 400L;
+    private static final long ROBOT_STATUS_INITIAL_DELAY_MS_EXECUTE = 100L;
+    private static final long ROBOT_STATUS_POLL_MS_EXECUTE = 200L;
+    private static final long ROBOT_STATUS_POLL_MS_NEAR_IDLE = 100L;
+    private static final long ROBOT_STATUS_POLL_MS_PROBE = 100L;
+    private static final long ROBOT_FIVE_FACE_SOLVER_TIMEOUT_MS = 500L;
     private static final long SMART_CUBE_PROBE_TIMEOUT_MS = 2500L;
     private static final long SMART_CUBE_STATE_POLL_MS = 5L;
 
@@ -64,22 +65,6 @@ public final class GanRobotExecutor {
             this.strategyLabel = strategyLabel;
             this.evaluatedCandidates = evaluatedCandidates;
             this.searchTimeMs = searchTimeMs;
-        }
-    }
-
-    private static class SolveCandidate {
-        final String algorithm;
-        final int cost;
-        final int length;
-        final int evaluatedCandidates;
-        final String profileName;
-
-        SolveCandidate(String algorithm, int cost, int length, int evaluatedCandidates, String profileName) {
-            this.algorithm = algorithm;
-            this.cost = cost;
-            this.length = length;
-            this.evaluatedCandidates = evaluatedCandidates;
-            this.profileName = profileName;
         }
     }
 
@@ -220,26 +205,40 @@ public final class GanRobotExecutor {
         long totalStartMs = SystemClock.elapsedRealtime();
         long probeStartMs = totalStartMs;
         OrientationPlan orientationPlan = runOrientationProbePlan(currentCubeState);
+        Log.i(TAG, "Orientation map logical->physical: " + orientationPlan.logicalToPhysicalFaceMap);
         long probeTimeMs = SystemClock.elapsedRealtime() - probeStartMs;
         postStatus("Orientation probe complete. Calculating...");
 
         long pathStartMs = SystemClock.elapsedRealtime();
-        RobotSolvePlan solvePlan = buildStateToStateAlgorithm(orientationPlan.currentStateAfterProbe, targetFacelet);
+        char forbiddenLogicalFace = findLogicalFaceForPhysicalFace(orientationPlan.logicalToPhysicalFaceMap, 'U');
+        Log.i(TAG, "Robot solver forbidden logical face: " + forbiddenLogicalFace + " (physical U axis)");
+        RobotSolvePlan solvePlan = buildStateToStateAlgorithm(
+                orientationPlan.currentStateAfterProbe,
+                targetFacelet,
+                forbiddenLogicalFace
+        );
         long pathTimeMs = SystemClock.elapsedRealtime() - pathStartMs;
 
         String algorithm = remapAlgorithmWithFaceMap(solvePlan.algorithmLogical, orientationPlan.logicalToPhysicalFaceMap);
-        int logicalMoveCount = countAlgorithmMoves(algorithm);
+        int formulaMoveCount = countAlgorithmMoves(algorithm);
         int robotMoveCount = TextUtils.isEmpty(algorithm) ? 0 : GanRobotCodec.estimateRobotCost(algorithm);
+        Log.i(TAG, "Robot solver physical formula (" + formulaMoveCount + " moves): " + algorithm);
+        Log.i(TAG, "Robot solve plan: strategy=" + solvePlan.strategyLabel
+                + ", searchMs=" + solvePlan.searchTimeMs
+                + ", formulaMoves=" + formulaMoveCount
+                + ", encodedMoves=" + robotMoveCount);
         postStatus("Solve strategy: " + solvePlan.strategyLabel + " (" + solvePlan.evaluatedCandidates + " candidates/" + solvePlan.searchTimeMs + "ms)");
-        postStatus("Robot convert: " + logicalMoveCount + " -> " + robotMoveCount + " moves");
+        postStatus("Robot convert: " + formulaMoveCount + " -> " + robotMoveCount + " moves");
         postStatus(planLabel + ": " + algorithm);
         RobotExecutionResult executionResult = executeAlgorithm(algorithm);
         if (executionResult.success) {
             long totalTimeMs = SystemClock.elapsedRealtime() - totalStartMs;
-            postStatus("Timing(ms) probe=" + probeTimeMs
+            String timing = "Timing(ms) probe=" + probeTimeMs
                     + ", path=" + pathTimeMs
                     + ", move=" + executionResult.executionTimeMs
-                    + ", total=" + totalTimeMs);
+                    + ", total=" + totalTimeMs;
+            Log.i(TAG, timing);
+            postStatus(timing);
         }
     }
 
@@ -307,6 +306,15 @@ public final class GanRobotExecutor {
         return isSending;
     }
 
+    public static void warmUpSolver() {
+        IO_EXECUTOR.execute(() -> {
+            long startMs = SystemClock.elapsedRealtime();
+            GanRobotFiveFaceSolver.warmUp();
+            Log.i(TAG, "Five-face solver warm-up completed in "
+                    + (SystemClock.elapsedRealtime() - startMs) + "ms");
+        });
+    }
+
     public static void setListener(Listener listener) {
         GanRobotExecutor.listener = listener;
     }
@@ -334,23 +342,59 @@ public final class GanRobotExecutor {
     }
 
     private static int waitRobotIdle() throws Exception {
-        return waitRobotIdleInternal(ROBOT_IDLE_TIMEOUT_MS_EXECUTE, ROBOT_IDLE_ZERO_STREAK_EXECUTE, true);
+        return waitRobotIdleInternal(
+                ROBOT_IDLE_TIMEOUT_MS_EXECUTE,
+                ROBOT_IDLE_ZERO_STREAK_EXECUTE,
+                true,
+                false,
+                "execute"
+        );
     }
 
     private static int waitRobotIdleForProbe() throws Exception {
-        return waitRobotIdleInternal(ROBOT_IDLE_TIMEOUT_MS_PROBE, ROBOT_IDLE_ZERO_STREAK_PROBE, false);
+        return waitRobotIdleInternal(
+                ROBOT_IDLE_TIMEOUT_MS_PROBE,
+                ROBOT_IDLE_ZERO_STREAK_PROBE,
+                false,
+                true,
+                "probe"
+        );
     }
 
-    private static int waitRobotIdleInternal(long timeoutMs, int zeroStreakTarget, boolean logStatus) throws Exception {
+    private static int waitRobotIdleInternal(
+            long timeoutMs,
+            int zeroStreakTarget,
+            boolean logStatus,
+            boolean probeConfirmedStarted,
+            String waitLabel
+    ) throws Exception {
         boolean seenNonZero = false;
         int zeroStreak = 0;
-        long deadline = SystemClock.elapsedRealtime() + timeoutMs;
+        long waitStartMs = SystemClock.elapsedRealtime();
+        long deadline = waitStartMs + timeoutMs;
+        long nextDelayMs = probeConfirmedStarted ? 0L : ROBOT_STATUS_INITIAL_DELAY_MS_EXECUTE;
+        long totalReadTimeMs = 0L;
+        int sampleCount = 0;
+        int firstValue = -1;
+        long firstSampleMs = -1L;
+        int lastNonZeroValue = -1;
+        long lastNonZeroMs = -1L;
         int lastValue = 0;
         int lastLoggedValue = -1;
         while (SystemClock.elapsedRealtime() < deadline) {
-            Thread.sleep(ROBOT_STATUS_POLL_MS);
+            if (nextDelayMs > 0L) {
+                Thread.sleep(nextDelayMs);
+            }
+            long readStartMs = SystemClock.elapsedRealtime();
             GanRobotBleClient.StatusSample sample = GanRobotBleClient.readMovesRemaining(robotContext());
+            totalReadTimeMs += SystemClock.elapsedRealtime() - readStartMs;
             lastValue = sample.movesRemaining;
+            sampleCount++;
+            long sampleElapsedMs = SystemClock.elapsedRealtime() - waitStartMs;
+            if (firstValue < 0) {
+                firstValue = lastValue;
+                firstSampleMs = sampleElapsedMs;
+            }
             if (logStatus && lastValue != lastLoggedValue) {
                 postRemainingChanged(lastValue);
                 lastLoggedValue = lastValue;
@@ -358,14 +402,65 @@ public final class GanRobotExecutor {
             if (lastValue > 0) {
                 seenNonZero = true;
                 zeroStreak = 0;
+                lastNonZeroValue = lastValue;
+                lastNonZeroMs = sampleElapsedMs;
             } else {
                 zeroStreak++;
                 if (seenNonZero || zeroStreak >= zeroStreakTarget) {
+                    logRobotIdleWait(
+                            waitLabel,
+                            waitStartMs,
+                            sampleCount,
+                            firstValue,
+                            firstSampleMs,
+                            lastNonZeroValue,
+                            lastNonZeroMs,
+                            totalReadTimeMs,
+                            false
+                    );
                     return lastValue;
                 }
             }
+            if (probeConfirmedStarted) {
+                nextDelayMs = ROBOT_STATUS_POLL_MS_PROBE;
+            } else if (lastValue <= 2) {
+                nextDelayMs = ROBOT_STATUS_POLL_MS_NEAR_IDLE;
+            } else {
+                nextDelayMs = ROBOT_STATUS_POLL_MS_EXECUTE;
+            }
         }
+        logRobotIdleWait(
+                waitLabel,
+                waitStartMs,
+                sampleCount,
+                firstValue,
+                firstSampleMs,
+                lastNonZeroValue,
+                lastNonZeroMs,
+                totalReadTimeMs,
+                true
+        );
         throw new IllegalStateException(getString(R.string.gan_robot_status_timeout));
+    }
+
+    private static void logRobotIdleWait(
+            String waitLabel,
+            long waitStartMs,
+            int sampleCount,
+            int firstValue,
+            long firstSampleMs,
+            int lastNonZeroValue,
+            long lastNonZeroMs,
+            long totalReadTimeMs,
+            boolean timedOut
+    ) {
+        Log.i(TAG, "FFF2 wait " + waitLabel
+                + ": elapsedMs=" + (SystemClock.elapsedRealtime() - waitStartMs)
+                + ", samples=" + sampleCount
+                + ", first=" + firstValue + "@" + firstSampleMs + "ms"
+                + ", lastNonZero=" + lastNonZeroValue + "@" + lastNonZeroMs + "ms"
+                + ", readMs=" + totalReadTimeMs
+                + ", timedOut=" + timedOut);
     }
 
     private static void ensureGattConnected() {
@@ -393,7 +488,11 @@ public final class GanRobotExecutor {
         return builder.toString();
     }
 
-    private static RobotSolvePlan buildStateToStateAlgorithm(String startFacelet, String targetFacelet) {
+    private static RobotSolvePlan buildStateToStateAlgorithm(
+            String startFacelet,
+            String targetFacelet,
+            char forbiddenLogicalFace
+    ) {
         String start = normalizeFacelet(startFacelet);
         String target = normalizeFacelet(targetFacelet);
         if (TextUtils.equals(start, target)) {
@@ -403,7 +502,8 @@ public final class GanRobotExecutor {
         if (scrambleFacelet == null) {
             throw new IllegalStateException(getString(R.string.gan_robot_send_failed_short));
         }
-        RobotSolvePlan solvePlan = buildRobotOptimizedStateSolution(scrambleFacelet);
+        Log.i(TAG, "Robot solver correction facelet: " + scrambleFacelet);
+        RobotSolvePlan solvePlan = buildRobotOptimizedStateSolution(scrambleFacelet, forbiddenLogicalFace);
         String algorithm = solvePlan.algorithmLogical;
         if (algorithm == null || algorithm.trim().isEmpty()) {
             throw new IllegalStateException(getString(R.string.gan_robot_send_failed_short));
@@ -433,142 +533,100 @@ public final class GanRobotExecutor {
         return targetState;
     }
 
-    private static RobotSolvePlan buildRobotOptimizedStateSolution(String scrambleFacelet) {
+    private static RobotSolvePlan buildRobotOptimizedStateSolution(String scrambleFacelet, char forbiddenLogicalFace) {
         long searchStartMs = SystemClock.elapsedRealtime();
-        final long totalTimeBudgetMs = 460L;
-        ExecutorService solverPool = Executors.newFixedThreadPool(4);
-        SolveCandidate bestCandidate = null;
-        int evaluatedCandidates = 0;
-        try {
-            List<Callable<SolveCandidate>> tasks = new ArrayList<>();
-            tasks.add(() -> runFallbackSearchProfile(
-                    scrambleFacelet,
-                    "fast",
-                    26,
-                    15000L,
-                    0L,
-                    2,
-                    4,
-                    180L
-            ));
-            tasks.add(() -> runFallbackSearchProfile(
-                    scrambleFacelet,
-                    "balance",
-                    28,
-                    26000L,
-                    50L,
-                    2,
-                    5,
-                    220L
-            ));
-            tasks.add(() -> runFallbackSearchProfile(
-                    scrambleFacelet,
-                    "deepA",
-                    30,
-                    45000L,
-                    100L,
-                    2,
-                    6,
-                    260L
-            ));
-            tasks.add(() -> runFallbackSearchProfile(
-                    scrambleFacelet,
-                    "deepB",
-                    30,
-                    50000L,
-                    100L,
-                    2,
-                    8,
-                    300L
-            ));
-            List<Future<SolveCandidate>> futures = solverPool.invokeAll(tasks, totalTimeBudgetMs, TimeUnit.MILLISECONDS);
-            for (Future<SolveCandidate> future : futures) {
-                if (future == null || !future.isDone() || future.isCancelled()) {
-                    continue;
-                }
-                SolveCandidate candidate = future.get();
-                if (candidate == null || TextUtils.isEmpty(candidate.algorithm) || candidate.algorithm.startsWith("Error")) {
-                    continue;
-                }
-                evaluatedCandidates += candidate.evaluatedCandidates;
-                if (bestCandidate == null
-                        || candidate.cost < bestCandidate.cost
-                        || (candidate.cost == bestCandidate.cost && candidate.length < bestCandidate.length)) {
-                    bestCandidate = candidate;
-                }
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "parallel fallback search failed, fallback to single profile", e);
-        } finally {
-            solverPool.shutdownNow();
-        }
-
+        String noForbiddenAxisSolution = GanRobotFiveFaceSolver.solve(
+                scrambleFacelet,
+                ROBOT_FIVE_FACE_SOLVER_TIMEOUT_MS,
+                forbiddenLogicalFace
+        );
         long searchTimeMs = SystemClock.elapsedRealtime() - searchStartMs;
-        if (bestCandidate != null) {
+        Log.i(TAG, "Five-face search: forbidden=" + forbiddenLogicalFace
+                + ", elapsedMs=" + searchTimeMs
+                + ", " + GanRobotFiveFaceSolver.getLastDebugStats());
+        boolean fiveFaceTimedOut = TextUtils.isEmpty(noForbiddenAxisSolution);
+        boolean fiveFaceVerified = !fiveFaceTimedOut
+                && isLogicalSolutionCorrect(scrambleFacelet, noForbiddenAxisSolution);
+        if (!fiveFaceVerified) {
+            if (fiveFaceTimedOut) {
+                Log.w(TAG, "Five-face solver timed out; switching to fallback");
+            } else {
+                Log.w(TAG, "Five-face candidate rejected by logical state verification");
+            }
+            cs.min2phase.Search fallbackSearch = new cs.min2phase.Search();
+            String fallbackSolution = fallbackSearch.solution(scrambleFacelet, 30, 50000L, 100L, 2);
+            if (TextUtils.isEmpty(fallbackSolution) || fallbackSolution.startsWith("Error")) {
+                throw new IllegalStateException("Robot five-face solver timed out and fallback solver failed");
+            }
+            Log.w(TAG, "Fallback solver used: moves=" + countAlgorithmMoves(fallbackSolution)
+                    + ", elapsedMs=" + (SystemClock.elapsedRealtime() - searchStartMs));
             return new RobotSolvePlan(
-                    bestCandidate.algorithm,
-                    "fallback-parallel-" + bestCandidate.profileName,
-                    Math.max(evaluatedCandidates, bestCandidate.evaluatedCandidates),
-                    searchTimeMs
+                    fallbackSolution.trim(),
+                    "five-face-timeout-fallback-" + forbiddenLogicalFace,
+                    1,
+                    SystemClock.elapsedRealtime() - searchStartMs
             );
         }
-
-        SolveCandidate single = runFallbackSearchProfile(
-                scrambleFacelet,
-                "single",
-                30,
-                50000L,
-                100L,
-                2,
-                12,
-                350L
-        );
-        searchTimeMs = SystemClock.elapsedRealtime() - searchStartMs;
-        return new RobotSolvePlan(single.algorithm, "fallback-cost-optimized", single.evaluatedCandidates, searchTimeMs);
+        String invertedSolution = invertSolverAlgorithm(noForbiddenAxisSolution);
+        return new RobotSolvePlan(invertedSolution, "five-face-no-" + forbiddenLogicalFace, 1, searchTimeMs);
     }
 
-    private static SolveCandidate runFallbackSearchProfile(
-            String scrambleFacelet,
-            String profileName,
-            int maxDepth,
-            long probeMax,
-            long probeMin,
-            int verbose,
-            int maxCandidateChecks,
-            long maxSearchTimeMs
-    ) {
-        long startMs = SystemClock.elapsedRealtime();
-        cs.min2phase.Search search = new cs.min2phase.Search();
-        String best = search.solution(scrambleFacelet, maxDepth, probeMax, probeMin, verbose);
-        int evaluated = 1;
-        if (TextUtils.isEmpty(best) || best.startsWith("Error")) {
-            return new SolveCandidate(best, Integer.MAX_VALUE, Integer.MAX_VALUE, evaluated, profileName);
+    private static String invertSolverAlgorithm(String algorithm) {
+        if (TextUtils.isEmpty(algorithm)) {
+            return algorithm;
         }
-        best = best.trim();
-        int bestCost = GanRobotCodec.estimateRobotCost(best);
-        int bestLength = countAlgorithmMoves(best);
-        for (int i = 0; i < maxCandidateChecks; i++) {
-            if (SystemClock.elapsedRealtime() - startMs >= maxSearchTimeMs) {
-                break;
+        String[] tokens = algorithm.trim().split("\\s+");
+        StringBuilder inverted = new StringBuilder(algorithm.length());
+        for (int i = tokens.length - 1; i >= 0; i--) {
+            if (inverted.length() > 0) {
+                inverted.append(' ');
             }
-            String candidate = search.next(probeMax, probeMin, verbose);
-            if (candidate == null || candidate.startsWith("Error")) {
-                break;
-            }
-            evaluated++;
-            candidate = candidate.trim();
-            if (candidate.isEmpty()) {
-                continue;
-            }
-            int candidateCost = GanRobotCodec.estimateRobotCost(candidate);
-            int candidateLength = countAlgorithmMoves(candidate);
-            if (candidateCost < bestCost || (candidateCost == bestCost && candidateLength < bestLength)) {
-                best = candidate;
-                bestCost = candidateCost;
-                bestLength = candidateLength;
+            String token = tokens[i];
+            if (token.endsWith("2")) {
+                inverted.append(token);
+            } else if (token.endsWith("'")) {
+                inverted.append(token, 0, token.length() - 1);
+            } else {
+                inverted.append(token).append('\'');
             }
         }
-        return new SolveCandidate(best, bestCost, bestLength, evaluated, profileName);
+        return inverted.toString();
+    }
+
+    private static boolean isLogicalSolutionCorrect(String facelets, String algorithm) {
+        if (TextUtils.isEmpty(algorithm) || algorithm.startsWith("Error")) {
+            return false;
+        }
+        CubieCube cube = new CubieCube();
+        if (Util.toCubieCube(facelets, cube) != 0) {
+            return false;
+        }
+        for (String token : algorithm.trim().split("\\s+")) {
+            int move = solverMoveIndex(token);
+            if (move < 0) {
+                return false;
+            }
+            cube = cube.move(move);
+        }
+        String resultFacelet = Util.toFaceCube(cube);
+        boolean solved = SOLVED_FACELET.equals(resultFacelet);
+        if (!solved) {
+            Log.w(TAG, "Logical formula verification failed. result=" + resultFacelet);
+        }
+        return solved;
+    }
+
+    private static int solverMoveIndex(String token) {
+        String[] moves = {
+                "U", "U2", "U'", "R", "R2", "R'", "F", "F2", "F'",
+                "D", "D2", "D'", "L", "L2", "L'", "B", "B2", "B'"
+        };
+        for (int i = 0; i < moves.length; i++) {
+            if (moves[i].equals(token)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static String normalizeFacelet(String facelet) {
@@ -665,6 +723,17 @@ public final class GanRobotExecutor {
             logicalToPhysical.put(entry.getValue(), entry.getKey());
         }
         return logicalToPhysical;
+    }
+
+    private static char findLogicalFaceForPhysicalFace(Map<Character, Character> logicalToPhysical, char physicalFace) {
+        if (logicalToPhysical != null) {
+            for (Map.Entry<Character, Character> entry : logicalToPhysical.entrySet()) {
+                if (entry.getValue() != null && entry.getValue() == physicalFace) {
+                    return entry.getKey();
+                }
+            }
+        }
+        throw new IllegalStateException("Orientation mapping missing physical face: " + physicalFace);
     }
 
     private static int[] faceToVector(char face) {

@@ -547,6 +547,7 @@ public final class GanRobotBleClient {
     }
 
     static void notifyConnected() {
+        GanRobotExecutor.warmUpSolver();
         Callback current = callback;
         if (current != null) {
             current.onConnected();
