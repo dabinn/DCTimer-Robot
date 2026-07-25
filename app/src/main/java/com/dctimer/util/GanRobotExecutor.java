@@ -30,10 +30,11 @@ public final class GanRobotExecutor {
     private static final String TAG = "GanRobotExecutor";
     private static final String SOLVED_FACELET = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
     private static final String ORIENTATION_PROBE_ROLLBACK = "F' D'";
-    private static final int ROBOT_IDLE_ZERO_STREAK_EXECUTE = 5;
-    private static final int ROBOT_IDLE_ZERO_STREAK_PROBE = 2;
+    private static final int ROBOT_IDLE_ZERO_STREAK_EXECUTE = 1;
+    private static final int ROBOT_IDLE_ZERO_STREAK_PROBE = 1;
     private static final long ROBOT_IDLE_TIMEOUT_MS_EXECUTE = 20000L;
     private static final long ROBOT_IDLE_TIMEOUT_MS_PROBE = 5000L;
+    private static final long ROBOT_STATUS_POLL_MS = 400L;
     private static final long SMART_CUBE_PROBE_TIMEOUT_MS = 2500L;
     private static final long SMART_CUBE_STATE_POLL_MS = 5L;
 
@@ -347,6 +348,7 @@ public final class GanRobotExecutor {
         int lastValue = 0;
         int lastLoggedValue = -1;
         while (SystemClock.elapsedRealtime() < deadline) {
+            Thread.sleep(ROBOT_STATUS_POLL_MS);
             GanRobotBleClient.StatusSample sample = GanRobotBleClient.readMovesRemaining(robotContext());
             lastValue = sample.movesRemaining;
             if (logStatus && lastValue != lastLoggedValue) {
