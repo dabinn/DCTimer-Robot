@@ -37,6 +37,17 @@ public class GanRobotCodecTest {
     }
 
     @Test
+    public void encodesConnectionAxisCheckSequence() {
+        List<byte[]> packets = GanRobotCodec.encodeScramble("R F D L B");
+        assertEquals(1, packets.size());
+        byte[] payload = packets.get(0);
+        assertEquals(0x03, payload[0] & 0xff);
+        assertEquals(0x69, payload[1] & 0xff);
+        assertEquals(0xcf, payload[2] & 0xff);
+        assertEquals(0x00, payload[3] & 0xff);
+    }
+
+    @Test
     public void splitsLongScrambleIntoMultiplePackets() {
         List<byte[]> packets = GanRobotCodec.encodeScramble(
                 "R F D L B R F D L B R F D L B R F D L B R F D L B R F D L B R F D L B R F"

@@ -4,6 +4,7 @@ import android.Manifest;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothAdapter;
@@ -46,6 +47,7 @@ public final class GanRobotBleClient {
     private static volatile BluetoothGatt bluetoothGatt;
     private static volatile BluetoothGattCharacteristic statusCharacteristic;
     private static volatile BluetoothGattCharacteristic moveCharacteristic;
+    private static volatile boolean notificationDescriptorWritePending;
     private static CountDownLatch writeLatch;
     private static int writeStatus = BluetoothGatt.GATT_FAILURE;
     private static CountDownLatch readLatch;
@@ -504,7 +506,20 @@ public final class GanRobotBleClient {
                 }
                 return;
             }
-            notifyConnected();
+            if (!notificationDescriptorWritePending) {
+                notifyConnected();
+            }
+        }
+
+        @Override
+        public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+            if (gatt == bluetoothGatt
+                    && notificationDescriptorWritePending
+                    && descriptor != null
+                    && GanRobotProtocol.CLIENT_CHARACTERISTIC_CONFIG_UUID.equals(descriptor.getUuid())) {
+                notificationDescriptorWritePending = false;
+                notifyConnected();
+            }
         }
 
         @Override
@@ -547,6 +562,7 @@ public final class GanRobotBleClient {
     }
 
     static void notifyConnected() {
+        GanRobotExecutor.runConnectionAxisCheck();
         GanRobotExecutor.warmUpSolver();
         Callback current = callback;
         if (current != null) {
@@ -625,7 +641,7 @@ public final class GanRobotBleClient {
             return false;
         }
         attach(gatt, status, move);
-        GanRobotProtocol.enableNotifications(gatt, service);
+        notificationDescriptorWritePending = GanRobotProtocol.enableNotifications(gatt, service);
         return true;
     }
 
@@ -638,6 +654,7 @@ public final class GanRobotBleClient {
     public static void clear() {
         statusCharacteristic = null;
         moveCharacteristic = null;
+        notificationDescriptorWritePending = false;
         synchronized (GATT_IO_LOCK) {
             writeLatch = null;
             readLatch = null;
@@ -649,7 +666,10 @@ public final class GanRobotBleClient {
     }
 
     public static boolean isReady() {
-        return bluetoothGatt != null && statusCharacteristic != null && moveCharacteristic != null;
+        return bluetoothGatt != null
+                && statusCharacteristic != null
+                && moveCharacteristic != null
+                && !notificationDescriptorWritePending;
     }
 
     public static void onCharacteristicWrite(BluetoothGattCharacteristic characteristic, int status) {

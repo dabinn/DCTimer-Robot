@@ -27,6 +27,7 @@ public final class GanRobotExecutor {
     private static final String TAG = "GanRobotExecutor";
     private static final String SOLVED_FACELET = "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB";
     private static final String ORIENTATION_PROBE_ROLLBACK = "F' D'";
+    private static final String CONNECTION_AXIS_CHECK_ALGORITHM = "R F D L B";
     private static final int ROBOT_IDLE_ZERO_STREAK_EXECUTE = 2;
     private static final int ROBOT_IDLE_ZERO_STREAK_PROBE = 1;
     private static final long ROBOT_IDLE_TIMEOUT_MS_EXECUTE = 20000L;
@@ -162,9 +163,32 @@ public final class GanRobotExecutor {
         });
     }
 
+    public static void runConnectionAxisCheck() {
+        IO_EXECUTOR.execute(() -> {
+            GanRobotSessionState.setRobotMoving(true);
+            try {
+                Log.i(TAG, "Connection axis check start: " + CONNECTION_AXIS_CHECK_ALGORITHM);
+                postStatus("Connection axis check: " + CONNECTION_AXIS_CHECK_ALGORITHM);
+                RobotExecutionResult result = executeAlgorithm(CONNECTION_AXIS_CHECK_ALGORITHM, false);
+                if (result.success) {
+                    Log.i(TAG, "Connection axis check completed in " + result.executionTimeMs + "ms");
+                    postStatus("Connection axis check complete");
+                }
+            } finally {
+                GanRobotSessionState.setRobotMoving(false);
+            }
+        });
+    }
+
     private static RobotExecutionResult executeAlgorithm(String algorithm) {
+        return executeAlgorithm(algorithm, true);
+    }
+
+    private static RobotExecutionResult executeAlgorithm(String algorithm, boolean notifySuccess) {
         if (TextUtils.isEmpty(algorithm) || TextUtils.isEmpty(algorithm.trim())) {
-            postStatusAndToast(R.string.gan_robot_send_success);
+            if (notifySuccess) {
+                postStatusAndToast(R.string.gan_robot_send_success);
+            }
             return new RobotExecutionResult(true, 0L);
         }
         List<byte[]> packets;
@@ -190,7 +214,9 @@ public final class GanRobotExecutor {
                 final int chunk = i + 1;
                 postStatus("Chunk " + chunk + "/" + packets.size() + " done");
             }
-            postStatusAndToast(R.string.gan_robot_send_success);
+            if (notifySuccess) {
+                postStatusAndToast(R.string.gan_robot_send_success);
+            }
             return new RobotExecutionResult(true, SystemClock.elapsedRealtime() - executeStartMs);
         } catch (Exception e) {
             Log.e(TAG, "execute scramble failed", e);

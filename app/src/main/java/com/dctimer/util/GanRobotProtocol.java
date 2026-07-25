@@ -34,38 +34,33 @@ public final class GanRobotProtocol {
     private GanRobotProtocol() {
     }
 
-    public static void enableNotifications(BluetoothGatt gatt, BluetoothGattService service) {
+    public static boolean enableNotifications(BluetoothGatt gatt, BluetoothGattService service) {
         if (gatt == null || service == null) {
-            return;
+            return false;
         }
-        List<BluetoothGattCharacteristic> characteristics = service.getCharacteristics();
-        if (characteristics == null || characteristics.isEmpty()) {
-            return;
+        BluetoothGattCharacteristic characteristic = service.getCharacteristic(CHARACTER_UUID_BUTTON);
+        if (characteristic == null) {
+            return false;
         }
-        for (BluetoothGattCharacteristic characteristic : characteristics) {
-            if (characteristic == null) {
-                continue;
-            }
-            int properties = characteristic.getProperties();
-            if ((properties & BluetoothGattCharacteristic.PROPERTY_NOTIFY) == 0
-                    && (properties & BluetoothGattCharacteristic.PROPERTY_INDICATE) == 0) {
-                continue;
-            }
-            if (!gatt.setCharacteristicNotification(characteristic, true)) {
-                continue;
-            }
-            BluetoothGattDescriptor descriptor = characteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG_UUID);
-            if (descriptor == null) {
-                continue;
-            }
-            if ((properties & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
-                    && (properties & BluetoothGattCharacteristic.PROPERTY_NOTIFY) == 0) {
-                descriptor.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
-            } else {
-                descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-            }
-            gatt.writeDescriptor(descriptor);
+        int properties = characteristic.getProperties();
+        if ((properties & BluetoothGattCharacteristic.PROPERTY_NOTIFY) == 0
+                && (properties & BluetoothGattCharacteristic.PROPERTY_INDICATE) == 0) {
+            return false;
         }
+        if (!gatt.setCharacteristicNotification(characteristic, true)) {
+            return false;
+        }
+        BluetoothGattDescriptor descriptor = characteristic.getDescriptor(CLIENT_CHARACTERISTIC_CONFIG_UUID);
+        if (descriptor == null) {
+            return false;
+        }
+        if ((properties & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
+                && (properties & BluetoothGattCharacteristic.PROPERTY_NOTIFY) == 0) {
+            descriptor.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);
+        } else {
+            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+        }
+        return gatt.writeDescriptor(descriptor);
     }
 
     public static boolean isCandidate(String deviceName, ScanRecord scanRecord) {
