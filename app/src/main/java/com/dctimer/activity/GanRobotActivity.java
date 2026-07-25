@@ -228,6 +228,7 @@ public class GanRobotActivity extends AppCompatActivity {
         bindViews();
         setupToolbar();
         applyThemeColors();
+        syncConnectionStateFromClient();
         updateConnectionUi();
         if (getConnectionState() == STATE_CONNECTED) {
             appendStatus(getString(R.string.gan_robot_connected));
@@ -672,6 +673,12 @@ public class GanRobotActivity extends AppCompatActivity {
         return sharedConnectionState;
     }
 
+    private void syncConnectionStateFromClient() {
+        if (GanRobotBleClient.isReady()) {
+            sharedConnectionState = STATE_CONNECTED;
+        }
+    }
+
     private void updateConnectionUi() {
         if (tvConnectionState == null) {
             return;
@@ -927,9 +934,7 @@ public class GanRobotActivity extends AppCompatActivity {
         activeActivityRef = new WeakReference<>(this);
         GanRobotBleClient.setCallback(robotBleCallback);
         GanRobotExecutor.setListener(robotExecutorListener);
-        if (GanRobotBleClient.isReady()) {
-            sharedConnectionState = STATE_CONNECTED;
-        }
+        syncConnectionStateFromClient();
         updateConnectionUi();
         GanRobotBleClient.maybeAutoConnect(this);
         performPendingRobotButtonActionIfPossible();
