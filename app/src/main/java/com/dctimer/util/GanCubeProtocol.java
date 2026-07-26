@@ -75,6 +75,7 @@ public class GanCubeProtocol implements SmartCubeProtocol {
     private long lastEmittedLocTime = -1L;
     private long prevMoveLocTime = -1L;
     private int batteryLevel;
+    private boolean initialV4FaceletsReceived;
     private final ArrayDeque<Long> historyEstimateLocQueue = new ArrayDeque<>();
 
     private enum Variant {
@@ -184,6 +185,7 @@ public class GanCubeProtocol implements SmartCubeProtocol {
         lastEmittedLocTime = -1L;
         prevMoveLocTime = -1L;
         batteryLevel = 0;
+        initialV4FaceletsReceived = false;
     }
 
     @Override
@@ -583,7 +585,10 @@ public class GanCubeProtocol implements SmartCubeProtocol {
             moveCnt &= 0xff;
             currentMoveCnt = moveCnt;
             prevMoveLocTime = locTime;
-            if (moveCnt == prevMoveCnt || prevMoveCnt == -1) {
+            if (!initialV4FaceletsReceived) {
+                continue;
+            }
+            if (moveCnt == prevMoveCnt) {
                 continue;
             }
             long ts = parseBits(bits, offset + 40, 8);
@@ -596,6 +601,9 @@ public class GanCubeProtocol implements SmartCubeProtocol {
                 break;
             }
             int move = convertQuarterMove(axis, pow);
+            if (prevMoveCnt == -1) {
+                prevMoveCnt = (moveCnt - 1) & 0xff;
+            }
             moveBuffer.offer(new MoveEvent(moveCnt, move, ts, locTime));
         }
         evictMoveBuffer(true);
@@ -633,20 +641,7 @@ public class GanCubeProtocol implements SmartCubeProtocol {
     }
 
     private void handleV4Facelets(String bits, long locTime) {
-        int moveCnt = (parseBits(bits, 24, 8) << 8 | parseBits(bits, 16, 8)) & 0xff;
-        currentMoveCnt = moveCnt;
-        if (prevMoveCnt != -1) {
-            int diff = (moveCnt - prevMoveCnt) & 0xff;
-            if (prevMoveLocTime > 0 && locTime - prevMoveLocTime > 500 && diff > 0 && moveCnt != 0) {
-                int startMoveCnt = moveBuffer.isEmpty() ? ((moveCnt + 1) & 0xff) : moveBuffer.peekFirst().moveCnt;
-                Log.w(TAG, "GAN v4 facelet ahead, request history prev=" + prevMoveCnt
-                        + " current=" + moveCnt
-                        + " head=" + startMoveCnt
-                        + " diff=" + diff
-                        + " wait=" + (locTime - prevMoveLocTime)
-                        + "ms");
-                requestMoveHistory(startMoveCnt, diff + 1, locTime);
-            }
+        if (initialV4FaceletsReceived) {
             return;
         }
         String facelet = parseFacelet(bits, 32, 53, 69, 113);
@@ -657,7 +652,9 @@ public class GanCubeProtocol implements SmartCubeProtocol {
             Log.e(TAG, "GAN v4 初始状态校验失败");
             return;
         }
-        prevMoveCnt = moveCnt;
+        // Some GAN cubes do not provide a usable step in the facelet response.
+        // Start move tracking from the first live move instead.
+        initialV4FaceletsReceived = true;
         lastEmittedDeviceTs = -1L;
         showInitialStateDialogIfNeeded();
         Log.w(TAG, "GAN v4 初始状态: " + facelet);
